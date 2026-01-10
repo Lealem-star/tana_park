@@ -1,14 +1,10 @@
 # Controllers Documentation
 
-This document provides a detailed explanation of all controllers in the Parking Management System backend, including their routes, middleware, and functionality.
+This document provides a detailed explanation of all controllers in the backend, including their routes, middleware, and functionality.
 
 ## Table of Contents
 - [Authentication Middleware](#authentication-middleware)
 - [User Controller](#user-controller)
-- [Parking Controller](#parking-controller)
-- [Space Controller](#space-controller)
-- [Booking Controller](#booking-controller)
-- [Review Controller](#review-controller)
 - [Payment Method Controller](#payment-method-controller)
 
 ## Authentication Middleware
@@ -63,7 +59,7 @@ userRouter.post("/register", async (req, res) => {
             email: Joi.string().min(8).max(50).required().email(),
             password: Joi.string().min(6).required().max(20)
                 .regex(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,1024}$/),
-            type: Joi.string().valid("admin", "seeker", "owner"),
+            type: Joi.string().valid("admin", "valet"),
         });
         // Password encryption & user creation
         password = bcrypt.hashSync(password, 10);
@@ -96,212 +92,10 @@ userRouter.post("/login", async (req, res) => {
 - Input validation using Joi
 - Password strength requirements
 
-## Parking Controller
-**File:** `parking.js`
-
-Manages parking locations and their details.
-
-### Key Endpoints:
-
-1. **Create Parking**
-```javascript
-parkingRouter.post("/", async (req, res) => {
-    try {
-        let { name, address, city, lat, long, user_id } = req.body;
-        const schema = Joi.object({
-            name: Joi.string().required(),
-            address: Joi.string().required(),
-            city: Joi.string().required(),
-            lat: Joi.string().required(),
-            long: Joi.string().required(),
-            user_id: Joi.string().required(),
-        });
-        const parking = await Parking.create({ 
-            name, address, city, lat, long, user_id 
-        });
-    }
-});
-```
-
-2. **Get Parking List with Ratings**
-```javascript
-parkingRouter.get("/", async (req, res) => {
-    try {
-        const { user_id } = req.query;
-        let parking = await Parking.find(user_id ? { user_id } : {})
-            .populate('user_id');
-        
-        const reviews = await Review.find();
-        const parkingWithOwnerRatings = parking.map((item) => {
-            // Calculate average rating
-            let rating = 0;
-            let count = 0;
-            const userReviews = reviews.filter((review) => 
-                review.owner_id.equals(item?.user_id?._id)
-            );
-            // Add rating to parking object
-            return { ...item.toObject(), owner_rating };
-        });
-    }
-});
-```
-
-**Features:**
-- Create parking locations
-- Fetch parking with owner ratings
-- Location validation
-- Owner-specific queries
-
-## Space Controller
-**File:** `spaceRouter.js`
-
-Manages individual parking spaces within parking locations.
-
-### Key Endpoints:
-
-1. **Get Available Spaces**
-```javascript
-spaceRouter.get("/", async (req, res) => {
-    try {
-        const { user_id, parking_id, date, city, time, availability } = req.query;
-        let query = {};
-        
-        // Build query based on filters
-        if (parking_id) query.parking_id = parking_id;
-        if (date) query.date = new Date(date);
-        if (time) query.slot_start_time = time;
-
-        // Check space availability
-        const bookings = await Booking.find();
-        const bookedSpaces = new Set();
-        bookings.forEach(booking => {
-            if (booking.confirm_booking === 'approved') {
-                bookedSpaces.add(booking.space_id.toString());
-            }
-        });
-
-        let spaces = await Space.find(query).populate('parking_id');
-        
-        // Add booking status to spaces
-        const spacesWithBookedFlag = spaces.map(space => ({
-            ...space.toJSON(),
-            is_booked: bookedSpaces.has(space._id.toString())
-        }));
-    }
-});
-```
-
-**Features:**
-- Space availability checking
-- Filtering by various parameters
-- Booking status integration
-- Complex query building
-
-## Booking Controller
-**File:** `booking.js`
-
-Manages parking space bookings.
-
-### Key Endpoints:
-
-1. **Create Booking**
-```javascript
-bookingRouter.post("/", async (req, res) => {
-    try {
-        let { vehicle_company, vehicle_model, plate_number, 
-              car_color, space_id, user_id, 
-              confirm_booking = "pending" } = req.body;
-
-        // Validate booking data
-        const schema = Joi.object({
-            vehicle_company: Joi.string().required(),
-            vehicle_model: Joi.string().required(),
-            plate_number: Joi.string().required(),
-            car_color: Joi.string().required(),
-            space_id: Joi.string().required(),
-            user_id: Joi.string().required(),
-            confirm_booking: Joi.string()
-                .valid("approved", "pending", "rejected"),
-        });
-
-        // Check for existing booking
-        const existsBooking = await Booking.findOne({ user_id, space_id });
-        if (!existsBooking) {
-            const booking = await Booking.create({ 
-                vehicle_company, vehicle_model, plate_number,
-                car_color, space_id, user_id, confirm_booking 
-            });
-        }
-    }
-});
-```
-
-2. **Update Booking Status**
-```javascript
-bookingRouter.put("/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { confirm_booking } = req.body;
-
-        if (updatedBookingObj?.confirm_booking === 'approved') {
-            // Reject other bookings for same space
-            await Booking.updateMany(
-                { space_id }, 
-                { $set: { confirm_booking: 'rejected' } }
-            );
-        }
-    }
-});
-```
-
-**Features:**
-- Booking creation with validation
-- Booking status management
-- Duplicate booking prevention
-- Automatic rejection of conflicting bookings
-
-## Review Controller
-**File:** `review.js`
-
-Manages user reviews for parking space owners.
-
-### Key Endpoints:
-
-1. **Create Review**
-```javascript
-reviewRouter.post("/", async (req, res) => {
-    try {
-        let { message, rating, owner_id, user_id } = req.body;
-
-        // Validate review data
-        const schema = Joi.object({
-            message: Joi.string().required(),
-            rating: Joi.number().required(),
-            owner_id: Joi.string().required(),
-            user_id: Joi.string().required(),
-        });
-
-        // Prevent duplicate reviews
-        const reviewExists = await Review.findOne({ owner_id, user_id });
-        if (!reviewExists) {
-            const review = await Review.create({ 
-                message, rating, owner_id, user_id 
-            });
-        }
-    }
-});
-```
-
-**Features:**
-- Review creation with rating
-- Duplicate review prevention
-- Input validation
-- Owner-specific reviews
-
 ## Payment Method Controller
 **File:** `paymentMethod.js`
 
-Manages payment methods for parking spaces.
+Manages payment methods for users.
 
 ### Key Endpoints:
 
@@ -361,4 +155,4 @@ try {
 - Role-based access control
 - Data validation
 
-This documentation provides a comprehensive overview of the backend controllers and their functionality. Each controller is designed to handle specific aspects of the parking management system while maintaining consistency in error handling, validation, and security measures. 
+This documentation provides a comprehensive overview of the backend controllers and their functionality. Each controller is designed to handle specific aspects of the system while maintaining consistency in error handling, validation, and security measures. 

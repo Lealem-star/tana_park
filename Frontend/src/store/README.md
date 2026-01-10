@@ -1,6 +1,6 @@
 # Redux Store Documentation
 
-This document provides a detailed explanation of how Redux is implemented and utilized in the Parking Management System frontend.
+This document provides a detailed explanation of how Redux is implemented and utilized in the frontend.
 
 ## Table of Contents
 - [Store Configuration](#store-configuration)
@@ -128,7 +128,7 @@ const persistor = persistStore(store);
     name: string,
     email: string,
     token: string,
-    type: 'admin' | 'owner' | 'seeker'
+    type: 'admin' | 'valet'
   }
   // ... other state slices
 }
@@ -187,8 +187,8 @@ const Layout = () => {
     <AdminComponent />
 )}
 
-{user?.type === "owner" && (
-    <OwnerDashboard />
+{user?.type === "valet" && (
+    <ValetDashboard />
 )}
 ```
 

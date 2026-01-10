@@ -5,18 +5,20 @@ const { connectDB } = require("./config/db.config");
 const userRouter = require("./controllers/user");
 const handleError = require('./utils/errorHandler');
 const { isLoggedIn } = require("./controllers/middleware");
-const parkingRouter = require("./controllers/parking");
 const paymentMethodRouter = require("./controllers/paymentMethod");
-const bookingRouter = require("./controllers/booking");
-const spaceRouter = require("./controllers/spaceRouter");
+const paymentRouter = require("./controllers/payment");
+const parkedCarRouter = require("./controllers/parkedCar");
+const smsRouter = require("./controllers/sms");
 const cors = require('cors');
-const reviewRouter = require("./controllers/review");
 
 // Set body-parser
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
-const port = process.env.PORT || 3000;
+// Serve static files (uploaded images)
+app.use('/uploads', express.static('uploads'));
+
+const port = process.env.PORT || 4000;
 
 app.use(cors())
 
@@ -29,11 +31,10 @@ app.get('/', isLoggedIn, async (req, res) => {
 })
 
 app.use("/user", userRouter)
-app.use("/parking", parkingRouter)
 app.use("/paymentMethod", paymentMethodRouter)
-app.use("/booking", bookingRouter)
-app.use("/space", spaceRouter)
-app.use("/review", reviewRouter)
+app.use("/payment", paymentRouter)
+app.use("/parkedCar", parkedCarRouter)
+app.use("/sms", smsRouter)
 
 // Error handler
 

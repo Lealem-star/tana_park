@@ -1,8 +1,10 @@
 const handleError = (error, res) => {
   console.log("Error - ",error);
-  res.status(error.status || 500);
+  const status = error.status || 500;
+  res.status(status);
   res.json({ 
-    message: error.message 
+    error: error.message || 'Internal server error',
+    message: error.message || 'Internal server error'
   });
 }
 

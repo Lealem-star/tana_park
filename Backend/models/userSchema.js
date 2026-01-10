@@ -5,10 +5,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    email: {
+    phoneNumber: {
         type: String,
         unique: true,
         required: true
+    },
+    parkZoneCode: {
+        type: String,
+        default: ''
     },
     password: {
         type: String,
@@ -16,7 +20,7 @@ const userSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ["admin", "seeker", "owner"],
+        enum: ["system_admin", "manager", "admin", "valet"],
         required: true
     },
     cash: {
@@ -25,6 +29,10 @@ const userSchema = new mongoose.Schema({
         default: false
     },
     interac: {
+        type: String,
+        default: ''
+    },
+    profilePhoto: {
         type: String,
         default: ''
     }

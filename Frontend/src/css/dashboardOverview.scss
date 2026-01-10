@@ -1,0 +1,163 @@
+.dashboard-overview {
+    .overview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s;
+
+            &:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            }
+        }
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+
+            &.gradient-purple {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+
+            &.gradient-green {
+                background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                color: white;
+            }
+
+            &.gradient-orange {
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                color: white;
+            }
+
+            &.gradient-blue {
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                color: white;
+            }
+
+            .stat-content {
+                h3 {
+                    font-size: 32px;
+                    font-weight: 700;
+                    margin: 0 0 5px 0;
+                }
+
+                p {
+                    font-size: 14px;
+                    opacity: 0.9;
+                    margin: 0;
+                }
+            }
+
+            .stat-chart {
+                width: 80px;
+                height: 50px;
+                opacity: 0.3;
+
+                .mini-chart {
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(255, 255, 255, 0.2);
+                    border-radius: 4px;
+                }
+            }
+        }
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 20px;
+
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
+            .card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #e0e0e0;
+
+                h2 {
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: #333;
+                    margin: 0;
+                }
+
+                .legend {
+                    display: flex;
+                    gap: 15px;
+
+                    .legend-item {
+                        display: flex;
+                        align-items: center;
+                        gap: 5px;
+                        font-size: 12px;
+                        color: #666;
+
+                        .dot {
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 50%;
+
+                            &.blue {
+                                background: #667eea;
+                            }
+
+                            &.green {
+                                background: #38ef7d;
+                            }
+                        }
+                    }
+                }
+            }
+
+            .chart-placeholder {
+                height: 200px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #f5f7fa;
+                border-radius: 8px;
+                color: #999;
+            }
+        }
+    }
+}
+

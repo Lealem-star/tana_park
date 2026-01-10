@@ -1,32 +1,25 @@
 import axios from 'axios'
-const BASE_URL = "http://localhost:3000/"
+const BASE_URL = process.env.REACT_APP_BASE_URL || "http://localhost:4000/"
 
-export const fetchParkings = async ({ user_id, setParkings }) => {
+export const login = async ({ phoneNumber, password, handleLoginSuccess, handleLoginFailure }) => {
     try {
-        let query = '';
-        if (user_id) {
-            query += `?user_id=${user_id}`
-        }
-        const result = await axios.get(`${BASE_URL}parking${query}`)
-        if (result?.data?.length) {
-            setParkings(result?.data)
-        }
-        console.log('fetchParkings ', result);
-    } catch (error) {
-        console.error('fetchParkings ', error);
-    }
-}
-
-export const login = async ({ email, password, handleLoginSuccess, handleLoginFailure }) => {
-    try {
-        const result = await axios.post(`${BASE_URL}user/login`, { email, password })
+        const result = await axios.post(`${BASE_URL}user/login`, { phoneNumber, password })
         if (result?.data?.token) {
             return handleLoginSuccess(result.data)
         }
         console.log('login ', result);
     } catch (error) {
-        console.error('login ', error);
-        handleLoginFailure(error?.response?.data?.error)
+        console.error('login error:', error);
+        console.error('login error response:', error?.response?.data);
+        console.error('login error status:', error?.response?.status);
+        console.error('login request data:', { phoneNumber, password: '***' });
+        // Extract error message from various possible formats
+        const errorMessage = error?.response?.data?.error || 
+                           error?.response?.data?.message || 
+                           error?.message || 
+                           'Failed to login';
+        console.error('login error message:', errorMessage);
+        handleLoginFailure(errorMessage)
     }
 }
 
@@ -46,121 +39,6 @@ export const register = async ({ name, email, password, type, handleRegisterSucc
     } catch (error) {
         console.error('register ', error);
         handleRegisterFailure(error?.response?.data?.error)
-    }
-}
-
-export const createParking = async ({ body, handleCreateParkingSuccess, handleCreateParkingFailure }) => {
-    try {
-        const result = await axios.post(`${BASE_URL}parking`, { ...body })
-        if (result?.data?.parking) {
-            return handleCreateParkingSuccess(result.data)
-        }
-        console.log('createParking ', result);
-    } catch (error) {
-        console.error('createParking ', error);
-        handleCreateParkingFailure(error?.response?.data?.error)
-    }
-}
-
-export const updateParking = async ({ id, body, handleUpdateParkingSuccess, handleUpdateParkingFailure }) => {
-    try {
-        const result = await axios.put(`${BASE_URL}parking/${id}`, { ...body })
-        if (result?.data?.message) {
-            return handleUpdateParkingSuccess(result.data)
-        }
-        console.log('updateParking ', result);
-    } catch (error) {
-        console.error('updateParking ', error);
-        handleUpdateParkingFailure(error?.response?.data?.error)
-    }
-}
-
-export const fetchSpaces = async ({ user_id, parking_id, city, date, time, availability, setSpaces }) => {
-    try {
-        let query = ''
-        if (user_id) {
-            query += `user_id=${user_id}&`
-        }
-        if (parking_id) {
-            query += `parking_id=${parking_id}&`
-        }
-        if (city) {
-            query += `city=${city}&`
-        }
-        if (date) {
-            query += `date=${date}&`
-        }
-        if (time) {
-            query += `time=${time}&`
-        }
-        if (availability) {
-            query += `availability=${availability}`
-        }
-        const result = await axios.get(`${BASE_URL}space?${query}`)
-        if (result?.data?.length) {
-            setSpaces(result?.data)
-        }
-        console.log('fetchSpaces ', result);
-    } catch (error) {
-        console.error('fetchSpaces ', error);
-    }
-}
-
-export const createSpace = async ({ body, handleCreateSpaceSuccess, handleCreateSpaceFailure }) => {
-    try {
-        const result = await axios.post(`${BASE_URL}space`, { ...body })
-        if (result?.data?.space) {
-            return handleCreateSpaceSuccess(result.data)
-        }
-        console.log('createSpace ', result);
-    } catch (error) {
-        console.error('createSpace ', error);
-        handleCreateSpaceFailure(error?.response?.data?.error)
-    }
-}
-
-export const updateSpace = async ({ id, body, handleUpdateSpaceSuccess, handleUpdateSpaceFailure }) => {
-    try {
-        const result = await axios.put(`${BASE_URL}space/${id}`, { ...body })
-        if (result?.data?.message) {
-            return handleUpdateSpaceSuccess(result.data)
-        }
-        console.log('updateSpace ', result);
-    } catch (error) {
-        console.error('updateSpace ', error);
-        handleUpdateSpaceFailure(error?.response?.data?.error)
-    }
-}
-
-export const fetchBookings = async ({ owner_id, user_id, setBookings }) => {
-    try {
-        let query = '';
-        if(user_id){
-            query += `user_id=${user_id}&`;
-        }
-        if(owner_id){
-            query += `owner_id=${owner_id}&`;
-        }
-        const result = await axios.get(`${BASE_URL}booking?${query}`)
-        if (result?.data?.length) {
-            setBookings(result?.data)
-        }
-        console.log('fetchBookings ', result);
-    } catch (error) {
-        console.error('fetchBookings ', error);
-    }
-}
-
-export const createBooking = async ({ body, handleCreateBookingSuccess, handleCreateBookingFailure }) => {
-    try {
-        const result = await axios.post(`${BASE_URL}booking`, { ...body })
-        console.log('createBooking ', result?.data);
-        if (result?.data?.booking) {
-            return handleCreateBookingSuccess(result.data)
-        }
-    } catch (error) {
-        console.error('createBooking ', error);
-        handleCreateBookingFailure(error?.response?.data?.error)
     }
 }
 
@@ -192,98 +70,26 @@ export const updateUser = async ({ user_id, body, handleUpdateUserSuccess, handl
     }
 }
 
-export const deleteParking = async ({ id, handleDeleteParkingSuccess, handleDeleteParkingFailure }) => {
+export const uploadProfilePhoto = async ({ user_id, file, handleUploadSuccess, handleUploadFailure }) => {
     try {
-        const result = await axios.delete(`${BASE_URL}parking/${id}`)
-        if (result?.data?.message) {
-            return handleDeleteParkingSuccess(result.message)
-        }
-        console.log('deleteParking ', result);
-    } catch (error) {
-        console.error('deleteParking ', error);
-        handleDeleteParkingFailure(error?.response?.data?.error)
-    }
-}
+        const formData = new FormData();
+        formData.append('profilePhoto', file);
 
-
-export const deleteSpace = async ({ id, handleDeleteSpaceSuccess, handleDeleteSpaceFailure }) => {
-    try {
-        const result = await axios.delete(`${BASE_URL}space/${id}`)
-        if (result?.data?.message) {
-            return handleDeleteSpaceSuccess(result.message)
-        }
-        console.log('deleteSpace ', result);
-    } catch (error) {
-        console.error('deleteSpace ', error);
-        handleDeleteSpaceFailure(error?.response?.data?.error)
-    }
-}
-
-export const deleteBooking = async ({ id, handleDeleteBookingSuccess, handleDeleteBookingFailure }) => {
-    try {
-        const result = await axios.delete(`${BASE_URL}booking/${id}`)
-        if (result?.data?.message) {
-            return handleDeleteBookingSuccess(result.message)
-        }
-        console.log('deleteBooking ', result);
-    } catch (error) {
-        console.error('deleteBooking ', error);
-        handleDeleteBookingFailure(error?.response?.data?.error)
-    }
-}
-
-export const updateBooking = async ({ id, body, handleUpdateBookingSuccess, handleUpdateBookingFailure }) => {
-    try {
-        const result = await axios.put(`${BASE_URL}booking/${id}`, { ...body })
-        if (result?.data?.message) {
-            return handleUpdateBookingSuccess(result.data?.message)
-            console.log('updateBooking >>>>  ', result?.data);
+        const token = localStorage.getItem('token');
+        const result = await axios.post(`${BASE_URL}user/${user_id}/upload-photo`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        console.log('uploadProfilePhoto ', result?.data);
+        if (result?.data?.user) {
+            return handleUploadSuccess(result.data);
         }
     } catch (error) {
-        console.error('updateBooking ', error);
-        handleUpdateBookingFailure(error?.response?.data?.error)
-    }
-}
-
-export const fetchReviews = async ({ owner_id, setReviews }) => {
-    try {
-        let query = '';
-        if (owner_id) {
-            query += `?owner_id=${owner_id}`
-        }
-        const result = await axios.get(`${BASE_URL}review${query}`)
-        if (result?.data?.length) {
-            setReviews(result?.data)
-        }
-        console.log('fetchReviews ', result);
-    } catch (error) {
-        console.error('fetchReviews ', error);
-    }
-}
-
-export const createReview = async ({ body, handleCreateReviewSuccess, handleCreateReviewFailure }) => {
-    try {
-        const result = await axios.post(`${BASE_URL}review`, { ...body })
-        if (result?.data) {
-            return handleCreateReviewSuccess(result.data)
-        }
-        console.log('createReview ', result);
-    } catch (error) {
-        console.error('createReview ', error);
-        handleCreateReviewFailure(error?.response?.data?.error)
-    }
-}
-
-export const deleteReview = async ({ id, handleDeleteReviewSuccess, handleDeleteReviewFailure }) => {
-    try {
-        const result = await axios.delete(`${BASE_URL}review/${id}`)
-        if (result?.data?.message) {
-            return handleDeleteReviewSuccess(result.message)
-        }
-        console.log('deleteReview ', result);
-    } catch (error) {
-        console.error('deleteReview ', error);
-        handleDeleteReviewFailure(error?.response?.data?.error)
+        console.error('uploadProfilePhoto ', error);
+        handleUploadFailure(error?.response?.data?.error || 'Failed to upload profile photo');
     }
 }
 
@@ -312,3 +118,194 @@ export const deleteUser = async ({ id, handleDeleteUserSuccess, handleDeleteUser
         handleDeleteUserFailure(error?.response?.data?.error)
     }
 }
+
+export const createUser = async ({ body, token, handleCreateUserSuccess, handleCreateUserFailure }) => {
+    try {
+        const result = await axios.post(`${BASE_URL}user/create`, { ...body }, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        if (result?.data?.user) {
+            return handleCreateUserSuccess(result.data)
+        }
+        console.log('createUser ', result);
+    } catch (error) {
+        console.error('createUser ', error);
+        handleCreateUserFailure(error?.response?.data?.error)
+    }
+}
+
+// Parked Car API functions
+export const createParkedCar = async ({ body, token, handleCreateParkedCarSuccess, handleCreateParkedCarFailure }) => {
+    try {
+        const result = await axios.post(`${BASE_URL}parkedCar`, { ...body }, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        if (result?.data?.car) {
+            return handleCreateParkedCarSuccess(result.data)
+        }
+        console.log('createParkedCar ', result);
+    } catch (error) {
+        console.error('createParkedCar ', error);
+        handleCreateParkedCarFailure(error?.response?.data?.error)
+    }
+}
+
+export const fetchParkedCars = async ({ token, status, date, setParkedCars }) => {
+    try {
+        let query = '';
+        const params = [];
+        if (status) params.push(`status=${status}`);
+        if (date) params.push(`date=${date}`);
+        if (params.length > 0) query = '?' + params.join('&');
+
+        const result = await axios.get(`${BASE_URL}parkedCar${query}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        if (result?.data) {
+            setParkedCars(result.data)
+        }
+        console.log('fetchParkedCars ', result);
+    } catch (error) {
+        console.error('fetchParkedCars ', error);
+    }
+}
+
+export const updateParkedCar = async ({ id, body, token, handleUpdateParkedCarSuccess, handleUpdateParkedCarFailure }) => {
+    try {
+        const result = await axios.put(`${BASE_URL}parkedCar/${id}`, { ...body }, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        if (result?.data?.car) {
+            return handleUpdateParkedCarSuccess(result.data)
+        }
+        console.log('updateParkedCar ', result);
+    } catch (error) {
+        console.error('updateParkedCar ', error);
+        handleUpdateParkedCarFailure(error?.response?.data?.error)
+    }
+}
+
+export const deleteParkedCar = async ({ id, token, handleDeleteParkedCarSuccess, handleDeleteParkedCarFailure }) => {
+    try {
+        const result = await axios.delete(`${BASE_URL}parkedCar/${id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        if (result?.data?.message) {
+            return handleDeleteParkedCarSuccess(result.data)
+        }
+        console.log('deleteParkedCar ', result);
+    } catch (error) {
+        console.error('deleteParkedCar ', error);
+        handleDeleteParkedCarFailure(error?.response?.data?.error)
+    }
+}
+
+export const sendSmsNotification = async ({ phoneNumber, message, token, handleSendSmsSuccess, handleSendSmsFailure }) => {
+    try {
+        const result = await axios.post(`${BASE_URL}sms/send`, { phoneNumber, message }, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (result?.data?.success) {
+            handleSendSmsSuccess(result.data);
+        } else {
+            handleSendSmsFailure(result?.data?.message || 'Failed to send SMS');
+        }
+    } catch (error) {
+        console.error('sendSmsNotification error:', error);
+        handleSendSmsFailure(error?.response?.data?.error || 'Failed to send SMS');
+    }
+};
+
+// Chapa Payment API functions
+export const initializeChapaPayment = async ({ carId, amount, customerName, customerEmail, customerPhone, token, handleInitSuccess, handleInitFailure }) => {
+    try {
+        const result = await axios.post(`${BASE_URL}payment/chapa/initialize`, {
+            carId,
+            amount,
+            customerName,
+            customerEmail,
+            customerPhone
+        }, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (result?.data?.success) {
+            handleInitSuccess(result.data);
+        } else {
+            handleInitFailure(result?.data?.error || 'Failed to initialize payment');
+    }
+    } catch (error) {
+        console.error('initializeChapaPayment error:', error);
+        handleInitFailure(error?.response?.data?.error || 'Failed to initialize payment');
+    }
+};
+
+export const verifyChapaPayment = async ({ txRef, token, handleVerifySuccess, handleVerifyFailure }) => {
+    try {
+        const result = await axios.get(`${BASE_URL}payment/chapa/verify/${txRef}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (result?.data?.success) {
+            handleVerifySuccess(result.data);
+        } else {
+            handleVerifyFailure(result?.data?.error || 'Failed to verify payment');
+        }
+    } catch (error) {
+        console.error('verifyChapaPayment error:', error);
+        handleVerifyFailure(error?.response?.data?.error || 'Failed to verify payment');
+    }
+};
+
+export const fetchDailyStats = async ({ token, setDailyStats }) => {
+    try {
+        const response = await axios.get(`${BASE_URL}parkedCar/stats/daily`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        if (response.data) {
+            setDailyStats(response.data);
+        }
+    } catch (error) {
+        console.error("Error fetching daily stats:", error);
+        setDailyStats({ // Reset to default on error
+            totalParked: 0,
+            checkedOut: 0,
+            stillParked: 0,
+            manualPayments: 0,
+            onlinePayments: 0,
+        });
+    }
+};
+
+export const fetchDailyStatsHistory = async ({ token, limit = 10, setDailyStatsHistory }) => {
+    try {
+        const response = await axios.get(`${BASE_URL}parkedCar/stats/daily/history?limit=${limit}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        if (response.data) {
+            setDailyStatsHistory(response.data);
+        }
+    } catch (error) {
+        console.error("Error fetching daily stats history:", error);
+        setDailyStatsHistory([]);
+    }
+};

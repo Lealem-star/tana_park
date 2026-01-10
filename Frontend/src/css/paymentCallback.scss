@@ -1,0 +1,84 @@
+.payment-callback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+
+    .payment-status-card {
+        background: white;
+        border-radius: 16px;
+        padding: 40px;
+        max-width: 500px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+
+        .status-icon {
+            margin: 0 auto 20px;
+            display: block;
+
+            &.verifying {
+                color: #4facfe;
+                animation: spin 1s linear infinite;
+            }
+
+            &.success {
+                color: #38ef7d;
+            }
+
+            &.failed {
+                color: #f5576c;
+            }
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin: 0 0 15px 0;
+        }
+
+        p {
+            font-size: 16px;
+            color: #666;
+            margin: 0 0 10px 0;
+            line-height: 1.5;
+        }
+
+        .redirect-message {
+            font-size: 14px;
+            color: #999;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            margin-top: 30px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+
+            &:hover {
+                transform: translateY(-2px);
+                opacity: 0.9;
+            }
+        }
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
