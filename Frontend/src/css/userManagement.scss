@@ -256,5 +256,110 @@
             }
         }
     }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 20px;
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .btn-create {
+                width: 100%;
+                justify-content: center;
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+
+        .alert {
+            padding: 10px 15px;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .users-table-container {
+            padding: 15px;
+
+            .users-table {
+                font-size: 13px;
+
+                thead th {
+                    padding: 10px 8px;
+                    font-size: 12px;
+                }
+
+                tbody td {
+                    padding: 10px 8px;
+                    font-size: 13px;
+
+                    .badge {
+                        padding: 4px 10px;
+                        font-size: 11px;
+                    }
+
+                    .btn-delete {
+                        padding: 6px;
+                        font-size: 12px;
+                    }
+                }
+            }
+        }
+
+        .modal-overlay .modal-content {
+            width: 95%;
+            max-width: 100%;
+            margin: 10px;
+
+            .modal-header {
+                padding: 15px;
+                
+                h2 {
+                    font-size: 20px;
+                }
+
+                .modal-close {
+                    font-size: 28px;
+                }
+            }
+
+            .modal-body {
+                padding: 15px;
+
+                .form-group {
+                    margin-bottom: 15px;
+
+                    label {
+                        font-size: 13px;
+                        margin-bottom: 6px;
+                    }
+
+                    input, select {
+                        padding: 10px;
+                        font-size: 14px;
+                    }
+
+                    small {
+                        font-size: 11px;
+                    }
+                }
+            }
+
+            .modal-footer {
+                padding: 15px;
+                flex-direction: column;
+
+                button {
+                    width: 100%;
+                    padding: 10px 20px;
+                    font-size: 14px;
+                }
+            }
+        }
+    }
 }
 

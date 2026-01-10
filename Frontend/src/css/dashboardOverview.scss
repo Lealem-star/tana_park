@@ -256,18 +256,58 @@
             flex-direction: column;
             align-items: flex-start;
             gap: 15px;
+            margin-bottom: 20px; // Reduced margin
 
             h1 {
-                font-size: 24px;
+                font-size: 22px; // Smaller heading
             }
         }
 
-        .stat-card .stat-content h3 {
-            font-size: 28px;
+        .stats-grid {
+            gap: 15px; // Reduced gap between cards
+            margin-bottom: 20px; // Reduced margin
+
+        .stat-card {
+            padding: 15px 20px; // Reduced padding (was 25px)
+            min-height: auto; // Remove fixed height
+
+            @media (max-width: 480px) {
+                padding: 12px 15px; // Even smaller padding on very small screens
+            }
+
+            .stat-content {
+                h3 {
+                    font-size: 24px; // Smaller number (was 28px)
+                    margin-bottom: 4px;
+
+                    @media (max-width: 480px) {
+                        font-size: 22px; // Even smaller on very small screens
+                    }
+                }
+
+                p {
+                    font-size: 12px; // Smaller text (was 13px)
+
+                    @media (max-width: 480px) {
+                        font-size: 11px;
+                    }
+                }
+            }
+
+            .stat-chart {
+                width: 60px; // Smaller chart icon (was 80px)
+                height: 40px; // Smaller chart icon (was 50px)
+
+                @media (max-width: 480px) {
+                    width: 50px;
+                    height: 35px;
+                }
+            }
+        }
         }
 
-        .stat-card .stat-content p {
-            font-size: 13px;
+        .dashboard-grid {
+            gap: 15px; // Reduced gap
         }
     }
 }

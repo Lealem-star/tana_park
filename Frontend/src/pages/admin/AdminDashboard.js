@@ -349,7 +349,7 @@ const AdminDashboard = () => {
                         onClick={() => setMobileMenuOpen(false)}
                     >
                         <aside 
-                            className="mobile-sidebar"
+                            className={`mobile-sidebar ${mobileMenuOpen ? 'open' : ''}`}
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="sidebar-header">
@@ -357,7 +357,10 @@ const AdminDashboard = () => {
                                     <img src={TanaLogo} alt="Logo" className="logo-img" />
                                     <span className="logo-text">{user?.type === 'system_admin' ? 'System Admin' : (user?.type === 'admin' ? 'Admin' : 'Manager')}</span>
                                 </div>
-                                <button onClick={() => setMobileMenuOpen(false)}>
+                                <button
+                                    className="sidebar-toggle"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                >
                                     <X size={20} />
                                 </button>
                             </div>

@@ -64,5 +64,44 @@
             }
         }
     }
+
+    @media (max-width: 768px) {
+        h1 {
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+
+        .settings-card {
+            padding: 20px 15px;
+            margin-bottom: 15px;
+
+            h2 {
+                font-size: 18px;
+                margin-bottom: 15px;
+                padding-bottom: 12px;
+            }
+
+            .form-group {
+                margin-bottom: 15px;
+
+                label {
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                }
+
+                input, select {
+                    max-width: 100%;
+                    padding: 10px;
+                    font-size: 14px;
+                }
+            }
+
+            .btn-save {
+                width: 100%;
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+    }
 }
 

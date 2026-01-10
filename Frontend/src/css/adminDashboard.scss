@@ -367,13 +367,102 @@
     }
 
     .mobile-sidebar {
-        width: 250px;
+        width: 280px; // Slightly wider for better content display
         background: white;
         height: 100%;
         position: fixed;
         left: 0;
         top: 0;
         z-index: 2001;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        transform: translateX(-100%); // Start off-screen
+        transition: transform 0.3s ease-out; // Smooth transition
+
+        &.open { // Class to apply when mobile menu is open
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-weight: bold;
+                font-size: 18px;
+                overflow: hidden;
+
+                .logo-img {
+                    height: 40px;
+                    width: auto;
+                    flex-shrink: 0;
+                }
+
+                .logo-text {
+                    white-space: nowrap;
+                    flex-shrink: 0;
+                    color: #333; // Black font color
+                }
+            }
+
+            .sidebar-toggle {
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 5px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+
+            .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 20px;
+                background: none;
+                border: none;
+                text-align: left;
+                cursor: pointer;
+                color: #333; // Black font color for inactive items
+                transition: all 0.2s;
+                font-size: 14px;
+
+                &:hover {
+                    background-color: #f5f7fa;
+                    color: #667eea;
+                }
+
+                &.active {
+                    background-color: #667eea;
+                    color: white;
+                    border-left: 3px solid #764ba2;
+                }
+
+                svg {
+                    flex-shrink: 0;
+                }
+
+                span {
+                    white-space: nowrap;
+                }
+            }
+        }
     }
 
     // Profile Modal Styles
@@ -613,22 +702,130 @@
         }
 
         .dashboard-header {
+            padding: 10px 15px; // Reduced padding on mobile
+            
             .header-left {
+                gap: 10px; // Reduced gap
+                
                 .mobile-menu-btn {
                     display: block;
+                    padding: 4px;
+                }
+
+                .welcome-message {
+                    font-size: 14px; // Smaller font on mobile
+                    white-space: normal; // Allow wrapping if needed
+                }
+            }
+
+            .header-right {
+                gap: 8px; // Reduced gap
+                
+                .icon-btn {
+                    padding: 6px;
+                    
+                    svg {
+                        width: 18px;
+                        height: 18px;
+                    }
+                    
+                    .badge {
+                        width: 16px;
+                        height: 16px;
+                        font-size: 9px;
+                    }
                 }
             }
         }
 
-        .mobile-overlay {
-            display: block;
+        .content-area {
+            padding: 15px; // Reduced padding from 30px to 15px
         }
+
+        .mobile-overlay {
+            display: flex; // Use flex to align children
+            align-items: flex-start; // Align the sidebar to the top
+            justify-content: flex-start; // Position the sidebar to the left
+        }
+
 
         .profile-modal-content {
             max-width: 100%;
             margin: 0;
             border-radius: 0;
             max-height: 100vh;
+        }
+
+        .profile-modal-header {
+            padding: 15px 20px; // Reduced padding
+            
+            h2 {
+                font-size: 20px; // Smaller title
+            }
+        }
+
+        .profile-modal-body {
+            padding: 20px 15px; // Reduced padding
+            
+            .profile-photo-section {
+                margin-bottom: 20px;
+                
+                .profile-photo-preview {
+                    width: 100px; // Smaller photo preview
+                    height: 100px;
+                    
+                    .profile-photo-upload-btn {
+                        width: 32px;
+                        height: 32px;
+                        
+                        svg {
+                            width: 16px;
+                            height: 16px;
+                        }
+                    }
+                }
+                
+                .profile-photo-hint {
+                    font-size: 11px;
+                }
+            }
+            
+            .form-group {
+                margin-bottom: 15px;
+                
+                label {
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                }
+                
+                .form-control {
+                    padding: 10px;
+                    font-size: 14px;
+                }
+            }
+            
+            .password-section {
+                margin-top: 20px;
+                padding-top: 20px;
+                
+                h3 {
+                    font-size: 16px;
+                    margin-bottom: 15px;
+                }
+            }
+            
+            .profile-modal-actions {
+                margin-top: 20px;
+                padding-top: 15px;
+                flex-direction: column; // Stack buttons vertically on mobile
+                
+                .btn-cancel,
+                .btn-submit {
+                    width: 100%;
+                    padding: 10px 20px;
+                    font-size: 14px;
+                }
+            }
         }
     }
 }
