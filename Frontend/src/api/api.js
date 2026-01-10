@@ -1,5 +1,6 @@
 import axios from 'axios'
-const BASE_URL = process.env.REACT_APP_BASE_URL || "http://localhost:4000/"
+const BASE_URL_RAW = process.env.REACT_APP_BASE_URL || "http://localhost:4000/";
+const BASE_URL = BASE_URL_RAW.endsWith('/') ? BASE_URL_RAW : `${BASE_URL_RAW}/`;
 
 export const login = async ({ phoneNumber, password, handleLoginSuccess, handleLoginFailure }) => {
     try {
