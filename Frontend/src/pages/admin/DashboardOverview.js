@@ -10,7 +10,7 @@ const DashboardOverview = () => {
         admins: 0,
         valets: 0
     });
-    const [users, setUsers] = useState([]);
+    const [users, setUsers] = useState([]); // eslint-disable-line no-unused-vars
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [revenueRows, setRevenueRows] = useState([]);
     const [loadingRevenue, setLoadingRevenue] = useState(false);
