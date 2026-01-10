@@ -121,6 +121,7 @@ export const deleteUser = async ({ id, handleDeleteUserSuccess, handleDeleteUser
 
 export const createUser = async ({ body, token, handleCreateUserSuccess, handleCreateUserFailure }) => {
     try {
+        console.log('createUser request body:', { ...body, password: '***' });
         const result = await axios.post(`${BASE_URL}user/create`, { ...body }, {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -129,10 +130,12 @@ export const createUser = async ({ body, token, handleCreateUserSuccess, handleC
         if (result?.data?.user) {
             return handleCreateUserSuccess(result.data)
         }
-        console.log('createUser ', result);
+        console.log('createUser response:', result?.data);
     } catch (error) {
-        console.error('createUser ', error);
-        handleCreateUserFailure(error?.response?.data?.error)
+        console.error('createUser error:', error);
+        console.error('createUser error response:', error?.response?.data);
+        const errorMessage = error?.response?.data?.error || error?.message || 'Failed to create user';
+        handleCreateUserFailure(errorMessage)
     }
 }
 

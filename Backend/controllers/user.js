@@ -46,67 +46,140 @@ userRouter.post("/create", isLoggedIn, async (req, res) => {
             return res.status(403).json({ error: "Only system admin can create users" });
         }
 
-        let { name, phoneNumber, password, type, parkZoneCode } = req.body
+        let { name, phoneNumber, password, type, parkZoneCode } = req.body;
+        
+        // Normalize phone number: remove spaces, dashes, parentheses, and other formatting
+        if (phoneNumber) {
+            phoneNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+        }
+        
+        console.log('Create user request received:', { 
+            name, 
+            phoneNumber, 
+            passwordLength: password?.length, 
+            type, 
+            parkZoneCode,
+            hasAuth: !!req.user 
+        });
 
-        // Input validation
+        // Input validation - accept various phone number formats (matching login endpoint)
         const schema = Joi.object({
-            name: Joi.string().required(),
+            name: Joi.string().trim().required()
+                .messages({
+                    "string.base": `"name" should be a type of 'text'`,
+                    "any.required": `"name" is a required field`,
+                    "string.empty": `"name" cannot be empty`
+                }),
             phoneNumber: Joi.string()
+                .trim()
                 .required()
-                .pattern(/^\+?[0-9]{10,15}$/)
+                .pattern(/^(\+?251|0)?[0-9]{9}$|^(\+)?[0-9]{10,15}$/)
                 .messages({
                     "string.base": `"phoneNumber" should be a type of 'text'`,
-                    "string.pattern.base": `"phoneNumber" must be a valid phone number (10-15 digits, optional + prefix)`,
-                    "any.required": `"phoneNumber" is a required field`
+                    "string.pattern.base": `"phoneNumber" must be a valid phone number (spaces and formatting will be removed automatically)`,
+                    "any.required": `"phoneNumber" is a required field`,
+                    "string.empty": `"phoneNumber" cannot be empty`
                 }),
             password: Joi.string()
-                .min(6)
+                .min(8)
                 .required()
                 .max(20)
                 .regex(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,1024}$/)
                 .messages({
                     "string.base": `"password" should be a type of 'text'`,
                     "string.pattern.base": `"password" should have one uppercase, lowercase, digit and special character`,
-                    "string.min": `"password" should have min 6 characters`,
+                    "string.min": `"password" should have min 8 characters`,
                     "string.max": `"password" should have max 20 characters`,
-                    "any.required": `"password" is a required field`
+                    "any.required": `"password" is a required field`,
+                    "string.empty": `"password" cannot be empty`
                 }),
-            type: Joi.string().valid("system_admin", "manager", "admin", "valet"),
-            parkZoneCode: Joi.string().when('type', {
-                is: Joi.exist().valid('manager', 'admin', 'valet'),
-                then: Joi.string().required(),
-                otherwise: Joi.string().optional().allow('')
-            })
+            type: Joi.string()
+                .valid("system_admin", "manager", "admin", "valet")
+                .required()
+                .messages({
+                    "any.only": `"type" must be one of: system_admin, manager, admin, valet`,
+                    "any.required": `"type" is a required field`,
+                    "string.empty": `"type" cannot be empty`
+                }),
+            parkZoneCode: Joi.string()
+                .trim()
+                .when('type', {
+                    is: Joi.string().valid('manager', 'admin', 'valet'),
+                    then: Joi.string().required().min(1).messages({
+                        "any.required": `"parkZoneCode" is required for ${Joi.ref('type')} users`,
+                        "string.empty": `"parkZoneCode" cannot be empty`
+                    }),
+                    otherwise: Joi.string().optional().allow('', null)
+                })
         })
 
-        const { error } = schema.validate({ name, phoneNumber, password, type, parkZoneCode });
-        if (error) {
-            res.status(400).json({ error: error.details[0].message });
+        // Clean and prepare data for validation (phone number already normalized above)
+        const cleanData = {
+            name: name?.trim() || '',
+            phoneNumber: phoneNumber || '',
+            password: password || '',
+            type: type || '',
+            parkZoneCode: parkZoneCode?.trim() || ''
+        };
+
+        const { error: validationError, value: validatedData } = schema.validate(cleanData);
+        if (validationError) {
+            console.log('Validation error details:', validationError.details);
+            return res.status(400).json({ error: validationError.details[0].message });
+        }
+        
+        // Use validated and cleaned data
+        name = validatedData.name;
+        phoneNumber = validatedData.phoneNumber;
+        password = validatedData.password;
+        type = validatedData.type;
+        parkZoneCode = validatedData.parkZoneCode || '';
+        
+        // Normalize phone number to handle different formats (same as login)
+        let normalizedPhone = phoneNumber.trim();
+        
+        // If it starts with 0 and is 10 digits, convert to international format (+251)
+        if (normalizedPhone.startsWith('0') && normalizedPhone.length === 10) {
+            normalizedPhone = '+251' + normalizedPhone.substring(1);
+        } else if (!normalizedPhone.startsWith('+') && normalizedPhone.length === 9) {
+            // If it's 9 digits without country code, add +251
+            normalizedPhone = '+251' + normalizedPhone;
+        } else if (!normalizedPhone.startsWith('+') && normalizedPhone.length === 12 && normalizedPhone.startsWith('251')) {
+            // If it's 12 digits starting with 251 but no +, add +
+            normalizedPhone = '+' + normalizedPhone;
+        }
+        
+        // Use normalized phone number for database operations
+        const phoneToUse = normalizedPhone !== phoneNumber.trim() ? normalizedPhone : phoneNumber.trim();
+        
+        const user = await User.findOne({ phoneNumber: phoneToUse });
+        if (user) {
+            return res.status(400).json({ error: "Phone number already in use" });
         }
         else {
-            const user = await User.findOne({ phoneNumber });
-            if (user) {
-                res.status(400).json({ error: "Phone number already in use" })
+            // Password encryption
+            const rawPassword = password; // Store raw password before hashing for SMS
+            const hashedPassword = bcrypt.hashSync(password, 10);
+            const newUser = await User.create({ name, phoneNumber: phoneToUse, password: hashedPassword, type, parkZoneCode });
+            
+            // Send SMS with credentials (use normalized phone for SMS)
+            try {
+                const smsMessage = `Welcome to ${DOMAIN_NAME}! Your account has been created.\nPhone Number: ${phoneToUse}\nPassword: ${rawPassword}\nLogin here: ${DOMAIN_NAME}/login`;
+                await sendSms(phoneToUse, smsMessage);
+            } catch (smsError) {
+                console.error('SMS sending failed (user still created):', smsError);
+                // Don't fail user creation if SMS fails
             }
-            else {
-                // Password encryption
-                const rawPassword = password; // Store raw password before hashing for SMS
-                password = bcrypt.hashSync(password, 10);
-                const newUser = await User.create({ name, phoneNumber, password, type, parkZoneCode });
-                
-                // Send SMS with credentials
-                const smsMessage = `Welcome to ${DOMAIN_NAME}! Your account has been created.\nPhone Number: ${phoneNumber}\nPassword: ${rawPassword}\nLogin here: ${DOMAIN_NAME}/login`;
-                await sendSms(phoneNumber, smsMessage);
 
-                // Don't send password in response
-                const userResponse = { ...newUser.toObject() };
-                delete userResponse.password;
-                res.json({ user: userResponse, message: "User created successfully" });
-            }
+            // Don't send password in response
+            const userResponse = { ...newUser.toObject() };
+            delete userResponse.password;
+            res.json({ user: userResponse, message: "User created successfully" });
         }
     } catch (error) {
-        console.error(" error - ", error);
-        res.status(400).json({ error });
+        console.error("Create user error:", error);
+        const errorMessage = error?.message || error?.toString() || 'Failed to create user';
+        res.status(400).json({ error: errorMessage });
     }
 });
 
@@ -127,18 +200,23 @@ userRouter.post("/create", isLoggedIn, async (req, res) => {
 // Login existing user endpoint
 userRouter.post("/login", async (req, res) => {
     try {
-        const { phoneNumber, password } = req.body
+        let { phoneNumber, password } = req.body;
+        
+        // Normalize phone number: remove spaces, dashes, parentheses, and other formatting
+        if (phoneNumber) {
+            phoneNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+        }
         
         console.log('Login attempt - phoneNumber:', phoneNumber, 'password length:', password?.length);
 
-        // Input validation
+        // Input validation - accept various phone number formats
         const schema = Joi.object({
             phoneNumber: Joi.string()
                 .required()
-                .pattern(/^\+?[0-9]{10,15}$/)
+                .pattern(/^(\+?251|0)?[0-9]{9}$|^(\+)?[0-9]{10,15}$/)
                 .messages({
                     "string.base": `"phoneNumber" should be a type of 'text'`,
-                    "string.pattern.base": `"phoneNumber" must be a valid phone number (10-15 digits, optional + prefix)`,
+                    "string.pattern.base": `"phoneNumber" must be a valid phone number (spaces and formatting will be removed automatically)`,
                     "any.required": `"phoneNumber" is a required field`
                 }),
             password: Joi.string()
@@ -159,7 +237,27 @@ userRouter.post("/login", async (req, res) => {
             return res.status(400).json({ error: error.details[0].message });
         }
         else {
-            const user = await User.findOne({ phoneNumber });
+            // Normalize phone number to handle different formats
+            let normalizedPhone = phoneNumber.trim();
+            
+            // If it starts with 0 and is 10 digits, convert to international format (+251)
+            if (normalizedPhone.startsWith('0') && normalizedPhone.length === 10) {
+                normalizedPhone = '+251' + normalizedPhone.substring(1);
+            } else if (!normalizedPhone.startsWith('+') && normalizedPhone.length === 9) {
+                // If it's 9 digits without country code, add +251
+                normalizedPhone = '+251' + normalizedPhone;
+            } else if (!normalizedPhone.startsWith('+') && normalizedPhone.length === 12 && normalizedPhone.startsWith('251')) {
+                // If it's 12 digits starting with 251 but no +, add +
+                normalizedPhone = '+' + normalizedPhone;
+            }
+            
+            // Try exact match first, then try normalized version
+            let user = await User.findOne({ phoneNumber: phoneNumber.trim() });
+            if (!user && normalizedPhone !== phoneNumber.trim()) {
+                console.log('Trying normalized phone number:', normalizedPhone);
+                user = await User.findOne({ phoneNumber: normalizedPhone });
+            }
+            
             if (user) {
                 // Check if password matches
                 const result = await bcrypt.compare(password, user.password);

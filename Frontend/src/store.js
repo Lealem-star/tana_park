@@ -20,6 +20,7 @@ const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: ['FLUSH', 'REHYDRATE', 'PAUSE', 'PERSIST', 'PURGE', 'REGISTER'],
+        ignoredActionPaths: ['payload.register', 'payload.rehydrate', 'register', 'rehydrate'],
       },
     }),
 });
