@@ -13,6 +13,60 @@
         margin-bottom: 20px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 
+        .alert {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+
+            &.alert-success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+
+            &.alert-danger {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+        }
+
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+
+            h2 {
+                font-size: 20px;
+                font-weight: 600;
+                color: #333;
+                margin: 0;
+            }
+
+            .btn-add-plate-code {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: transform 0.2s;
+
+                &:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                }
+            }
+        }
+
         h2 {
             font-size: 20px;
             font-weight: 600;
@@ -65,6 +119,124 @@
         }
     }
 
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20px;
+                border-bottom: 1px solid #e0e0e0;
+
+                h2 {
+                    margin: 0;
+                    font-size: 24px;
+                    color: #333;
+                }
+
+                .modal-close {
+                    background: none;
+                    border: none;
+                    color: #999;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 5px;
+
+                    &:hover {
+                        color: #333;
+                    }
+                }
+            }
+
+            .modal-body {
+                padding: 20px;
+
+                .form-group {
+                    margin-bottom: 20px;
+
+                    label {
+                        display: block;
+                        margin-bottom: 8px;
+                        font-weight: 500;
+                        color: #333;
+                    }
+
+                    input, select {
+                        width: 100%;
+                        padding: 12px;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        transition: border-color 0.2s;
+
+                        &:focus {
+                            outline: none;
+                            border-color: #667eea;
+                        }
+                    }
+                }
+            }
+
+            .modal-footer {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                padding: 20px;
+                border-top: 1px solid #e0e0e0;
+
+                button {
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s;
+
+                    &.btn-cancel {
+                        background: #f5f7fa;
+                        border: 1px solid #e0e0e0;
+                        color: #666;
+
+                        &:hover {
+                            background: #e0e0e0;
+                        }
+                    }
+
+                    &.btn-submit {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        border: none;
+                        color: white;
+
+                        &:hover {
+                            transform: translateY(-2px);
+                            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @media (max-width: 768px) {
         h1 {
             font-size: 18px;
@@ -74,6 +246,29 @@
         .settings-card {
             padding: 15px;
             margin-bottom: 15px;
+
+            .card-header-row {
+                flex-direction: row;
+                align-items: center;
+                gap: 10px;
+
+                h2 {
+                    font-size: 16px;
+                    margin: 0;
+                    flex: 1;
+                }
+
+                .btn-add-plate-code {
+                    flex-shrink: 0;
+                    padding: 6px 12px;
+                    font-size: 13px;
+                    
+                    svg {
+                        width: 14px;
+                        height: 14px;
+                    }
+                }
+            }
 
             h2 {
                 font-size: 16px;
@@ -100,6 +295,11 @@
                 width: 100%;
                 padding: 8px 16px;
                 font-size: 13px;
+
+                &:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
             }
         }
     }

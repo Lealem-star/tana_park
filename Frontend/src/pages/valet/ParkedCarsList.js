@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchParkedCars, updateParkedCar, deleteParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats } from '../../api/api';
+import { fetchParkedCars, updateParkedCar, deleteParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchPricingSettings } from '../../api/api';
 import { DeleteModal } from '../../components';
 import { CheckCircle, Clock, X, Car } from 'lucide-react';
 import '../../css/parkedCarsList.scss';
@@ -27,25 +27,8 @@ const ParkedCarsList = () => {
         onlinePayments: 0,
     });
 
-    useEffect(() => {
-        if (user?.token) {
-            loadCars();
-            // Fetch daily statistics
-            fetchDailyStats({ token: user.token, setDailyStats });
-        }
-    }, [user, filter]);
-
-    const loadCars = () => {
-        const status = filter !== 'all' ? filter : null;
-        fetchParkedCars({ 
-            token: user.token, 
-            status,
-            setParkedCars: setCars 
-        });
-    };
-
-    // Default pricing per hour for each plate code (in ETB)
-    const defaultPricing = {
+    // Default pricing per hour for each plate code (in ETB) - fallback values
+    const defaultPricingFallback = {
         '01': 50,
         '02': 50,
         '03': 50,
@@ -63,6 +46,39 @@ const ParkedCarsList = () => {
         'CD': 90,
     };
 
+    const [pricingSettings, setPricingSettings] = useState(defaultPricingFallback);
+
+    useEffect(() => {
+        if (user?.token) {
+            loadCars();
+            // Fetch daily statistics
+            fetchDailyStats({ token: user.token, setDailyStats });
+        }
+        // Fetch pricing settings (no auth required)
+        fetchPricingSettings({
+            setPricingSettings: (data) => {
+                // Convert API format to simple object format
+                const pricing = {};
+                Object.keys(data).forEach(plateCode => {
+                    if (data[plateCode] && data[plateCode].pricePerHour !== undefined) {
+                        pricing[plateCode] = data[plateCode].pricePerHour;
+                    }
+                });
+                // Merge with fallback to ensure all plate codes have values
+                setPricingSettings({ ...defaultPricingFallback, ...pricing });
+            }
+        });
+    }, [user, filter]);
+
+    const loadCars = () => {
+        const status = filter !== 'all' ? filter : null;
+        fetchParkedCars({ 
+            token: user.token, 
+            status,
+            setParkedCars: setCars 
+        });
+    };
+
     const calculateFee = (car) => {
         const parkedAt = new Date(car.parkedAt);
         const now = new Date();
@@ -76,7 +92,7 @@ const ParkedCarsList = () => {
         const durationText = `${durationHours} Hours ${durationMins} Min`;
         
         const plateCode = car.plateCode || '01';
-        const pricePerHour = defaultPricing[plateCode] || defaultPricing['01'];
+        const pricePerHour = pricingSettings[plateCode] || pricingSettings['01'] || 50;
 
         const parkingFee = hoursForBilling * pricePerHour;
         const vatRate = 0.15;

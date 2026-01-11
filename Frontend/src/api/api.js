@@ -322,3 +322,32 @@ export const fetchDailyStatsHistory = async ({ token, limit = 10, setDailyStatsH
         setDailyStatsHistory([]);
     }
 };
+
+export const fetchPricingSettings = async ({ setPricingSettings }) => {
+    try {
+        const response = await axios.get(`${BASE_URL}pricingSettings`);
+        if (response.data) {
+            setPricingSettings(response.data);
+        }
+    } catch (error) {
+        console.error("Error fetching pricing settings:", error);
+        setPricingSettings({});
+    }
+};
+
+export const updatePricingSettings = async ({ settings, token, handleUpdateSuccess, handleUpdateFailure }) => {
+    try {
+        const response = await axios.put(`${BASE_URL}pricingSettings`, { settings }, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (response.data) {
+            handleUpdateSuccess(response.data);
+        }
+    } catch (error) {
+        console.error("Error updating pricing settings:", error);
+        const errorMessage = error?.response?.data?.error || 'Failed to update pricing settings';
+        handleUpdateFailure(errorMessage);
+    }
+};

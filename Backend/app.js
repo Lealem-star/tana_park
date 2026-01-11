@@ -9,6 +9,7 @@ const paymentMethodRouter = require("./controllers/paymentMethod");
 const paymentRouter = require("./controllers/payment");
 const parkedCarRouter = require("./controllers/parkedCar");
 const smsRouter = require("./controllers/sms");
+const pricingSettingsRouter = require("./controllers/pricingSettings");
 const cors = require('cors');
 
 const port = process.env.PORT || 4000;
@@ -67,6 +68,7 @@ app.use("/paymentMethod", paymentMethodRouter)
 app.use("/payment", paymentRouter)
 app.use("/parkedCar", parkedCarRouter)
 app.use("/sms", smsRouter)
+app.use("/pricingSettings", pricingSettingsRouter)
 
 // Error handler
 
