@@ -234,6 +234,10 @@ const AdminDashboard = () => {
         return location.pathname === path;
     };
 
+    if (!user || user.type !== 'system_admin') {
+        return null; // Or a loading spinner, or a redirect handled by useEffect
+    }
+
     return (
         <div className="admin-dashboard">
             {/* Sidebar */}

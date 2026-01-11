@@ -251,10 +251,19 @@ export const initializeChapaPayment = async ({ carId, amount, customerName, cust
             handleInitSuccess(result.data);
         } else {
             handleInitFailure(result?.data?.error || 'Failed to initialize payment');
-    }
+        }
     } catch (error) {
         console.error('initializeChapaPayment error:', error);
-        handleInitFailure(error?.response?.data?.error || 'Failed to initialize payment');
+        // Extract error message - handle both string and object errors
+        let errorMessage = 'Failed to initialize payment';
+        if (error?.response?.data?.error) {
+            errorMessage = typeof error.response.data.error === 'string' 
+                ? error.response.data.error 
+                : JSON.stringify(error.response.data.error);
+        } else if (error?.message) {
+            errorMessage = error.message;
+        }
+        handleInitFailure(errorMessage);
     }
 };
 

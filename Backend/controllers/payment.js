@@ -21,7 +21,7 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
             carId: Joi.string().required(),
             amount: Joi.number().positive().required(),
             customerName: Joi.string().optional().allow(""),
-            customerEmail: Joi.string().email().optional().allow(""),
+            customerEmail: Joi.string().email().optional().allow("").strip(),
             customerPhone: Joi.string().required(),
         });
 
@@ -48,11 +48,10 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
         const chapaRequest = {
             amount: amount.toString(),
             currency: "ETB",
-            email: customerEmail || undefined,
             first_name: customerName?.split(' ')[0] || "Customer",
             last_name: customerName?.split(' ').slice(1).join(' ') || "User",
             phone_number: customerPhone,
-            tx_ref: `tana-parking-${carId}-${Date.now()}`,
+            tx_ref: `tana-${carId.substring(0, 10)}-${Date.now().toString().slice(-8)}`,
             callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback`,
             return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?carId=${carId}`,
             meta: {
@@ -84,13 +83,53 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
                 message: "Payment initialized successfully"
             });
         } else {
-            res.status(400).json({ error: "Failed to initialize payment with Chapa" });
+            // Extract error message from Chapa response
+            const errorMessage = chapaResponse.data?.message;
+            const errorText = typeof errorMessage === 'string' 
+                ? errorMessage 
+                : (typeof errorMessage === 'object' && errorMessage?.message)
+                    ? errorMessage.message
+                    : JSON.stringify(errorMessage) || "Failed to initialize payment with Chapa";
+            
+            res.status(400).json({ error: errorText });
         }
     } catch (error) {
         console.error("Chapa payment initialization error:", error);
-        res.status(500).json({ 
-            error: error?.response?.data?.message || "Failed to initialize payment" 
-        });
+        console.error("Chapa error response:", error.response?.data);
+        
+        // Extract error message from Chapa API response
+        let errorMessage = "Failed to initialize payment";
+        
+        if (error.response?.data) {
+            const chapaError = error.response.data;
+            
+            // Try different ways to extract the error message
+            if (typeof chapaError.message === 'string') {
+                errorMessage = chapaError.message;
+            } else if (typeof chapaError.message === 'object') {
+                // If message is an object, try to extract useful info
+                if (chapaError.message.message) {
+                    errorMessage = chapaError.message.message;
+                } else if (chapaError.message.error) {
+                    errorMessage = typeof chapaError.message.error === 'string' 
+                        ? chapaError.message.error 
+                        : JSON.stringify(chapaError.message.error);
+                } else {
+                    // Stringify the object but make it readable
+                    errorMessage = JSON.stringify(chapaError.message);
+                }
+            } else if (chapaError.error) {
+                errorMessage = typeof chapaError.error === 'string' 
+                    ? chapaError.error 
+                    : JSON.stringify(chapaError.error);
+            }
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        // Return appropriate status code based on error type
+        const statusCode = error.response?.status || 500;
+        res.status(statusCode).json({ error: errorMessage });
     }
 });
 
