@@ -4,31 +4,19 @@ import { fetchUsers, fetchParkedCars } from '../../api/api';
 import '../../css/dashboardOverview.scss';
 
 const DashboardOverview = () => {
-    const [stats, setStats] = useState({
-        totalUsers: 0,
-        managers: 0,
-        admins: 0,
-        valets: 0
-    });
     const [users, setUsers] = useState([]); // eslint-disable-line no-unused-vars
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [revenueRows, setRevenueRows] = useState([]);
     const [loadingRevenue, setLoadingRevenue] = useState(false);
     const [revenueError, setRevenueError] = useState('');
     const [totalDailyCars, setTotalDailyCars] = useState(0);
+    const [totalDailyRevenue, setTotalDailyRevenue] = useState(0);
 
     const user = useSelector((state) => state.user);
 
     useEffect(() => {
         fetchUsers({ setUsers: (data) => {
             setUsers(data);
-            const counts = {
-                totalUsers: data?.length || 0,
-                managers: data?.filter(u => u.type === 'manager').length || 0,
-                admins: data?.filter(u => u.type === 'admin').length || 0,
-                valets: data?.filter(u => u.type === 'valet').length || 0
-            };
-            setStats(counts);
         }});
     }, []);
 
@@ -43,8 +31,8 @@ const DashboardOverview = () => {
                 token: user.token,
                 date: selectedDate,
                 setParkedCars: (cars) => {
-                    const RATE_PER_CAR = 1; // TODO: replace with real rate per parked car
                     const map = new Map();
+                    let totalRevenue = 0;
 
                     cars.forEach((car) => {
                         const valet = car.valet_id || {};
@@ -59,17 +47,22 @@ const DashboardOverview = () => {
                             });
                         }
 
-                    const entry = map.get(key);
-                    entry.totalCars += 1;
-                    entry.totalRevenue += RATE_PER_CAR;
-                });
+                        const entry = map.get(key);
+                        entry.totalCars += 1;
+                        
+                        // Use actual totalPaidAmount from the car (default to 0 if not set)
+                        const revenue = car.totalPaidAmount || 0;
+                        entry.totalRevenue += revenue;
+                        totalRevenue += revenue;
+                    });
 
-                const rows = Array.from(map.values());
-                setRevenueRows(rows);
-                setTotalDailyCars(rows.reduce((sum, row) => sum + row.totalCars, 0));
-                setLoadingRevenue(false);
-            }
-        });
+                    const rows = Array.from(map.values());
+                    setRevenueRows(rows);
+                    setTotalDailyCars(rows.reduce((sum, row) => sum + row.totalCars, 0));
+                    setTotalDailyRevenue(totalRevenue);
+                    setLoadingRevenue(false);
+                }
+            });
         };
 
         loadRevenue();
@@ -91,7 +84,7 @@ const DashboardOverview = () => {
 
                 <div className="stat-card gradient-green">
                     <div className="stat-content">
-                        <h3>{stats.managers}</h3>
+                        <h3>{totalDailyRevenue.toFixed(2)}</h3>
                         <p>Total Daily Revenue</p>
                     </div>
                     <div className="stat-chart">
@@ -133,7 +126,7 @@ const DashboardOverview = () => {
                                     <tr>
                                         <th>Park Zone Code</th>
                                         <th>Valet Officer Name</th>
-                                        <th>Cars Processed</th>
+                                        <th>Daily Parked Car</th>
                                         <th>Daily Revenue</th>
                                     </tr>
                                 </thead>
@@ -143,7 +136,7 @@ const DashboardOverview = () => {
                                             <td>{row.parkZoneCode}</td>
                                             <td>{row.valetName}</td>
                                             <td>{row.totalCars}</td>
-                                            <td>{row.totalRevenue}</td>
+                                            <td>{row.totalRevenue.toFixed(2)} ETB</td>
                                         </tr>
                                     ))}
                                 </tbody>
