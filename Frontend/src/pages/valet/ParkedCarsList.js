@@ -344,6 +344,7 @@ const ParkedCarsList = () => {
                                 <th>Vehicle</th>
                                 <th>Parked At</th>
                                 <th>Checked Out At</th>
+                                <th>Parking Fee</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -360,6 +361,7 @@ const ParkedCarsList = () => {
                                     </td>
                                     <td>{formatDateTime(car.parkedAt)}</td>
                                     <td>{car.checkedOutAt ? formatDateTime(car.checkedOutAt) : '-'}</td>
+                                    <td>{car.status === 'checked_out' ? `${car.totalPaidAmount?.toFixed(2) || '0.00'} ETB` : `${calculateFee(car).totalWithVat.toFixed(2)} ETB`}</td>
                                     <td>
                                         <span className={`badge badge-${car.status}`}>
                                             {getStatusIcon(car.status)}

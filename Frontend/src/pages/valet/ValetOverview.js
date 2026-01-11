@@ -166,7 +166,7 @@ const ValetOverview = () => {
                     token: user?.token,
                     handleUpdateParkedCarSuccess: async () => {
                         // Send SMS to customer
-                        const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee} ETB\nVAT (15%): ${feeDetails.vatAmount} ETB\nTotal: ${feeDetails.totalWithVat} ETB (${feeDetails.hoursParked} hour${feeDetails.hoursParked > 1 ? 's' : ''} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Cash.`;
+                        const smsMessage = `Dear customer,\nThank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee} ETB\nVAT (15%): ${feeDetails.vatAmount} ETB\nTotal: ${feeDetails.totalWithVat} ETB (${feeDetails.hoursParked} hour${feeDetails.hoursParked > 1 ? 's' : ''} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Cash.`;
                         
                         await sendSmsNotification({
                             phoneNumber: selectedCar.phoneNumber,
@@ -187,6 +187,9 @@ const ValetOverview = () => {
                                 setRecentCars(cars.slice(0, 5));
                             }
                         });
+
+                        // Refresh daily statistics
+                        fetchDailyStats({ token: user.token, setDailyStats });
 
                         setShowPaymentModal(false);
                         setSelectedCar(null);
@@ -269,7 +272,7 @@ const ValetOverview = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {dailyStatsHistory.slice().reverse().map((stat, index) => {
+                                {dailyStatsHistory.map((stat, index) => {
                                     const totalPayments = (stat.manualPayments || 0) + (stat.onlinePayments || 0);
                                     return (
                                         <tr key={index}>

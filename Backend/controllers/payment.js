@@ -168,6 +168,10 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                     car.checkedOutAt = new Date();
                     car.paymentMethod = 'online';
                     car.paymentReference = txRef;
+                    // Save the transaction amount as totalPaidAmount
+                    if (transaction.amount) {
+                        car.totalPaidAmount = transaction.amount;
+                    }
                     await car.save();
 
                     res.json({

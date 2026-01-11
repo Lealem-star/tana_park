@@ -146,7 +146,7 @@ parkedCarRouter.get("/:id", isLoggedIn, async (req, res) => {
 parkedCarRouter.put("/:id", isLoggedIn, async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, notes, totalPaidAmount } = req.body;
+        const { status, notes, totalPaidAmount, paymentMethod } = req.body;
 
         if (!Types.ObjectId.isValid(id)) {
             return res.status(400).json({ error: "Invalid car id" });
@@ -174,9 +174,10 @@ parkedCarRouter.put("/:id", isLoggedIn, async (req, res) => {
             status: Joi.string().valid('parked', 'checked_out', 'violation').optional(),
             notes: Joi.string().allow('').optional(),
             totalPaidAmount: Joi.number().min(0).optional(),
+            paymentMethod: Joi.string().valid('manual', 'online').optional(),
         })
 
-        const { error } = schema.validate({ status, notes, totalPaidAmount });
+        const { error } = schema.validate({ status, notes, totalPaidAmount, paymentMethod });
         if (error) {
             return res.status(400).json({ error: error.details[0].message });
         }
@@ -189,6 +190,9 @@ parkedCarRouter.put("/:id", isLoggedIn, async (req, res) => {
                 car.checkedOutBy = currentUser._id;
                 if (totalPaidAmount !== undefined) {
                     car.totalPaidAmount = totalPaidAmount;
+                }
+                if (paymentMethod !== undefined) {
+                    car.paymentMethod = paymentMethod;
                 }
             }
         }
@@ -247,10 +251,14 @@ parkedCarRouter.delete("/:id", isLoggedIn, async (req, res) => {
 
 // Helper function to get daily stats for a specific date
 const getDailyStatsForDate = async (targetDate, currentUser) => {
-    const startDate = new Date(targetDate);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(targetDate);
-    endDate.setHours(23, 59, 59, 999);
+    // Extract year, month, day from the date object (works with local timezone)
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+    const day = targetDate.getDate();
+    
+    // Create date range in local timezone (not UTC)
+    const startDate = new Date(year, month, day, 0, 0, 0, 0);
+    const endDate = new Date(year, month, day, 23, 59, 59, 999);
 
     let query = {
         parkedAt: { $gte: startDate, $lte: endDate }
@@ -268,18 +276,45 @@ const getDailyStatsForDate = async (targetDate, currentUser) => {
     const stillParked = await ParkedCar.countDocuments({ ...query, status: 'parked' });
     const violations = await ParkedCar.countDocuments({ ...query, status: 'violation' });
 
+    // For payments, filter by checkedOutAt date (when payment was made), not parkedAt
+    let paymentQuery = {
+        checkedOutAt: { $gte: startDate, $lte: endDate },
+        status: 'checked_out'
+    };
+
+    // If not system admin/manager/admin, only show their own stats
+    if (currentUser?.type !== 'system_admin' && 
+        currentUser?.type !== 'manager' && 
+        currentUser?.type !== 'admin') {
+        paymentQuery.valet_id = currentUser._id;
+    }
+
+    // Manual payments: include cars with paymentMethod='manual' OR paymentMethod is null/undefined (for legacy records)
     const manualPayments = await ParkedCar.aggregate([
-        { $match: { ...query, status: 'checked_out', paymentMethod: 'manual' } },
+        { 
+            $match: { 
+                ...paymentQuery, 
+                $or: [
+                    { paymentMethod: 'manual' },
+                    { paymentMethod: { $exists: false } },
+                    { paymentMethod: null }
+                ]
+            } 
+        },
         { $group: { _id: null, total: { $sum: '$totalPaidAmount' } } }
     ]);
 
+    // Online payments: only count cars explicitly marked as online
     const onlinePayments = await ParkedCar.aggregate([
-        { $match: { ...query, status: 'checked_out', paymentMethod: 'online' } },
+        { $match: { ...paymentQuery, paymentMethod: 'online' } },
         { $group: { _id: null, total: { $sum: '$totalPaidAmount' } } }
     ]);
+
+    // Format date as YYYY-MM-DD using local date components (not UTC)
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
     return {
-        date: targetDate.toISOString().split('T')[0],
+        date: dateStr,
         totalParked,
         checkedOut,
         stillParked,
@@ -296,7 +331,18 @@ parkedCarRouter.get("/stats/daily", isLoggedIn, async (req, res) => {
         const User = require("../models/userSchema");
         const currentUser = await User.findOne({ phoneNumber: req.user?.phoneNumber });
 
-        const targetDate = date ? new Date(date) : new Date();
+        // Use today's date in local timezone
+        let targetDate;
+        if (date) {
+            targetDate = new Date(date);
+        } else {
+            // Get today's date in local timezone
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const day = now.getDate();
+            targetDate = new Date(year, month, day);
+        }
         const stats = await getDailyStatsForDate(targetDate, currentUser);
 
         res.json(stats);
@@ -314,17 +360,21 @@ parkedCarRouter.get("/stats/daily/history", isLoggedIn, async (req, res) => {
         const currentUser = await User.findOne({ phoneNumber: req.user?.phoneNumber });
 
         const statsPromises = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Get today's date in local timezone
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
         // Get stats for the last N days (excluding today)
-        for (let i = parseInt(limit); i >= 1; i--) {
+        // Generate from most recent (yesterday) to oldest (N days ago)
+        // This will get: yesterday, day before yesterday, ..., N days ago
+        for (let i = 1; i <= parseInt(limit); i++) {
             const targetDate = new Date(today);
             targetDate.setDate(targetDate.getDate() - i);
             statsPromises.push(getDailyStatsForDate(targetDate, currentUser));
         }
 
         const stats = await Promise.all(statsPromises);
+        // Return with most recent first (yesterday at index 0, oldest at the end)
         res.json(stats);
     } catch (error) {
         console.error(" error - ", error);

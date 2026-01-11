@@ -70,7 +70,7 @@ const RegisterCar = () => {
         const parkingTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const parkingDate = now.toLocaleDateString();
 
-        const smsMessage = `Dear customer, your car (Plate: ${formData.plateCode}, Model: ${formData.model}) is now parked at Tana parking. Parking started at ${parkingTime} on ${parkingDate}. Thank you!`;
+        const smsMessage = `Dear customer,\nyour car (Plate Code: ${formData.plateCode}, License Plate Number: ${formData.licensePlateNumber}, Model: ${formData.model}) is now parked at Tana parking.\nParking started at ${parkingTime} on ${parkingDate}.\nThank you!`;
 
         // Send SMS notification
         try {

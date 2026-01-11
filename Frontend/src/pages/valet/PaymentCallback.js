@@ -59,7 +59,7 @@ const PaymentCallback = () => {
                                 // Fetch the car to get phone number
                                 const carPhoneNumber = data.car.phoneNumber || '';
                                 if (carPhoneNumber && paymentInfo) {
-                                const smsMessage = `Thank you for using Tana Parking services! Your car (${data.car.licensePlate || 'N/A'}) has been received.\nParking fee: ${paymentInfo.feeDetails.parkingFee} ETB\nVAT (15%): ${paymentInfo.feeDetails.vatAmount} ETB\nTotal: ${paymentInfo.feeDetails.totalWithVat} ETB (${paymentInfo.feeDetails.hoursParked} hour${paymentInfo.feeDetails.hoursParked > 1 ? 's' : ''} × ${paymentInfo.feeDetails.pricePerHour} ETB/hour).\nPayment method: Online (Chapa).\nPayment Reference: ${refToVerify}.`;
+                                const smsMessage = `Dear customer,\nThank you for using Tana Parking services! Your car (${data.car.licensePlate || 'N/A'}) has been received.\nParking fee: ${paymentInfo.feeDetails.parkingFee} ETB\nVAT (15%): ${paymentInfo.feeDetails.vatAmount} ETB\nTotal: ${paymentInfo.feeDetails.totalWithVat} ETB (${paymentInfo.feeDetails.hoursParked} hour${paymentInfo.feeDetails.hoursParked > 1 ? 's' : ''} × ${paymentInfo.feeDetails.pricePerHour} ETB/hour).\nPayment method: Online (Chapa).\nPayment Reference: ${refToVerify}.`;
                                     
                                     await sendSmsNotification({
                                         phoneNumber: carPhoneNumber,
