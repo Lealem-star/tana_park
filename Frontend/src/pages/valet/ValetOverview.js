@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchParkedCars, updateParkedCar, sendSmsNotification, initializeChapaPayment, verifyChapaPayment, fetchDailyStats, fetchDailyStatsHistory } from '../../api/api';
-import { Car, CheckCircle, AlertCircle, Clock, X, Coins, CreditCard } from 'lucide-react';
+import { fetchParkedCars, updateParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchDailyStatsHistory } from '../../api/api';
+import { Car, CheckCircle, X, Coins, CreditCard } from 'lucide-react';
 import '../../css/valetOverview.scss';
 
 const ValetOverview = () => {
     const user = useSelector((state) => state.user);
     const navigate = useNavigate();
-    const [recentCars, setRecentCars] = useState([]);
+    const [, setRecentCars] = useState([]);
     const [dailyStats, setDailyStats] = useState({
         totalParked: 0,
         checkedOut: 0,
@@ -37,34 +37,6 @@ const ValetOverview = () => {
             fetchDailyStatsHistory({ token: user.token, limit: 10, setDailyStatsHistory });
         }
     }, [user]);
-
-
-    // Default pricing per hour for each plate code (in ETB)
-    const defaultPricing = {
-        '01': 50,
-        '02': 50,
-        '03': 50,
-        '04': 50,
-        '05': 50,
-        'police': 0,
-        'AO': 75,
-        'ተላላፊ': 60,
-        'የእለት': 40,
-        'DF': 100,
-        'AU': 80,
-        'AU-CD': 80,
-        'UN': 0,
-        'UN-CD': 0,
-        'CD': 90,
-    };
-
-    const formatTime = (dateString) => {
-        return new Date(dateString).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-    };
-
     const formatDate = (dateString) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { 
@@ -72,47 +44,6 @@ const ValetOverview = () => {
             month: 'short', 
             day: 'numeric' 
         });
-    };
-
-    const calculateFee = (car) => {
-        const parkedAt = new Date(car.parkedAt);
-        const now = new Date();
-
-        // Duration in minutes and human readable text
-        const diffMs = now - parkedAt;
-        const totalMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
-        const hoursForBilling = Math.max(1, Math.ceil(totalMinutes / 60)); // Minimum 1 hour for billing
-        const durationHours = Math.floor(totalMinutes / 60);
-        const durationMins = totalMinutes % 60;
-        const durationText = `${durationHours} Hours ${durationMins} Min`;
-        
-        const plateCode = car.plateCode || '01';
-        const pricePerHour = defaultPricing[plateCode] || defaultPricing['01'];
-
-        const parkingFee = hoursForBilling * pricePerHour;
-        const vatRate = 0.15;
-        const vatAmount = Math.round(parkingFee * vatRate * 100) / 100;
-        const totalWithVat = Math.round((parkingFee + vatAmount) * 100) / 100;
-
-        return {
-            hoursParked: hoursForBilling,
-            pricePerHour,
-            parkingFee,
-            vatAmount,
-            totalWithVat,
-            durationText,
-            parkedAt: parkedAt.toLocaleString(),
-            checkedOutAt: now.toLocaleString()
-        };
-    };
-
-    const handleParkedOut = (car) => {
-        if (car.status !== 'parked') return;
-        
-        const fee = calculateFee(car);
-        setSelectedCar(car);
-        setFeeDetails(fee);
-        setShowPaymentModal(true);
     };
 
     const handlePaymentMethod = async (paymentMethod) => {

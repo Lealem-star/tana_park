@@ -35,7 +35,8 @@
         margin-bottom: 30px;
 
         @media (max-width: 768px) {
-            grid-template-columns: 1fr; // Stack cards vertically on mobile
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
         }
 
         .stat-card {
@@ -126,9 +127,11 @@
                 border-bottom: 1px solid #e0e0e0;
 
                 @media (max-width: 768px) {
-                    flex-direction: column; // Stack elements vertically
-                    align-items: flex-start; // Align to the start when stacked
-                    gap: 10px; // Add some space between stacked elements
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 10px;
+                    margin-bottom: 15px;
+                    padding-bottom: 10px;
                 }
 
                 h2 {
@@ -138,7 +141,7 @@
                     margin: 0;
 
                     @media (max-width: 768px) {
-                        font-size: 18px;
+                        font-size: 16px;
                     }
                 }
 
@@ -231,8 +234,8 @@
                         white-space: nowrap; // Prevent text wrapping in table cells
 
                         @media (max-width: 768px) {
-                            font-size: 12px; // Smaller font size for mobile table
-                            padding: 8px 10px;
+                            font-size: 10px;
+                            padding: 8px 6px;
                         }
                     }
 
@@ -240,6 +243,10 @@
                         background-color: #f8f8f8;
                         font-weight: 600;
                         color: #555;
+
+                        @media (max-width: 768px) {
+                            font-size: 9px;
+                        }
                     }
 
                     tbody tr:hover {
@@ -256,58 +263,45 @@
             flex-direction: column;
             align-items: flex-start;
             gap: 15px;
-            margin-bottom: 20px; // Reduced margin
+            margin-bottom: 20px;
 
             h1 {
-                font-size: 22px; // Smaller heading
+                font-size: 18px;
             }
         }
 
         .stats-grid {
-            gap: 15px; // Reduced gap between cards
-            margin-bottom: 20px; // Reduced margin
+            gap: 8px;
+            margin-bottom: 20px;
 
-        .stat-card {
-            padding: 15px 20px; // Reduced padding (was 25px)
-            min-height: auto; // Remove fixed height
+            .stat-card {
+                padding: 10px 12px;
+                border-radius: 8px;
 
-            @media (max-width: 480px) {
-                padding: 12px 15px; // Even smaller padding on very small screens
-            }
+                .stat-content {
+                    h3 {
+                        font-size: 18px;
+                        margin-bottom: 2px;
+                    }
 
-            .stat-content {
-                h3 {
-                    font-size: 24px; // Smaller number (was 28px)
-                    margin-bottom: 4px;
-
-                    @media (max-width: 480px) {
-                        font-size: 22px; // Even smaller on very small screens
+                    p {
+                        font-size: 10px;
                     }
                 }
 
-                p {
-                    font-size: 12px; // Smaller text (was 13px)
-
-                    @media (max-width: 480px) {
-                        font-size: 11px;
-                    }
+                .stat-chart {
+                    width: 40px;
+                    height: 30px;
                 }
             }
-
-            .stat-chart {
-                width: 60px; // Smaller chart icon (was 80px)
-                height: 40px; // Smaller chart icon (was 50px)
-
-                @media (max-width: 480px) {
-                    width: 50px;
-                    height: 35px;
-                }
-            }
-        }
         }
 
         .dashboard-grid {
-            gap: 15px; // Reduced gap
+            gap: 15px;
+
+            .dashboard-card {
+                padding: 15px;
+            }
         }
     }
 }

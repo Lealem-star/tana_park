@@ -81,6 +81,43 @@
                 background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%); /* Green gradient */
             }
         }
+
+        @media (max-width: 768px) {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+
+            .stat-card {
+                padding: 10px;
+                gap: 8px;
+                border-radius: 8px;
+
+                .stat-icon {
+                    width: 35px;
+                    height: 35px;
+                    border-radius: 8px;
+                    flex-shrink: 0;
+
+                    svg {
+                        width: 16px;
+                        height: 16px;
+                    }
+                }
+
+                .stat-content {
+                    min-width: 0;
+
+                    h3 {
+                        font-size: 16px;
+                        margin: 0 0 2px 0;
+                    }
+
+                    p {
+                        font-size: 10px;
+                    }
+                }
+            }
+        }
     }
 
     .quick-actions {
@@ -113,6 +150,10 @@
                 color: #4facfe;
                 border: 2px solid #4facfe;
             }
+        }
+
+        @media (max-width: 768px) {
+            display: none;
         }
     }
 
@@ -319,20 +360,29 @@
         }
 
         @media (max-width: 768px) {
+            padding: 15px;
+            margin-top: 20px;
+
+            h2 {
+                font-size: 16px;
+                margin: 0 0 15px 0;
+            }
+
             .stats-table-container {
-                overflow-x: scroll;
+                overflow-x: auto;
             }
 
             .stats-table {
-                font-size: 12px;
+                font-size: 10px;
 
                 thead tr th {
-                    padding: 10px 8px;
-                    font-size: 11px;
+                    padding: 8px 6px;
+                    font-size: 9px;
+                    letter-spacing: 0.3px;
                 }
 
                 tbody tr td {
-                    padding: 10px 8px;
+                    padding: 8px 6px;
                 }
             }
         }

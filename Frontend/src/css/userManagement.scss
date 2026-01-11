@@ -259,20 +259,25 @@
 
     @media (max-width: 768px) {
         .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 15px;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
             margin-bottom: 20px;
 
             h1 {
-                font-size: 22px;
+                font-size: 18px;
+                flex: 1;
             }
 
             .btn-create {
-                width: 100%;
-                justify-content: center;
-                padding: 10px 20px;
-                font-size: 14px;
+                flex-shrink: 0;
+                padding: 6px 12px;
+                font-size: 12px;
+                
+                svg {
+                    width: 14px;
+                    height: 14px;
+                }
             }
         }
 
@@ -286,25 +291,29 @@
             padding: 15px;
 
             .users-table {
-                font-size: 13px;
+                font-size: 10px;
 
                 thead th {
-                    padding: 10px 8px;
-                    font-size: 12px;
+                    padding: 8px 6px;
+                    font-size: 9px;
                 }
 
                 tbody td {
-                    padding: 10px 8px;
-                    font-size: 13px;
+                    padding: 8px 6px;
+                    font-size: 10px;
 
                     .badge {
-                        padding: 4px 10px;
-                        font-size: 11px;
+                        padding: 3px 8px;
+                        font-size: 9px;
                     }
 
                     .btn-delete {
-                        padding: 6px;
-                        font-size: 12px;
+                        padding: 5px;
+                        
+                        svg {
+                            width: 14px;
+                            height: 14px;
+                        }
                     }
                 }
             }
