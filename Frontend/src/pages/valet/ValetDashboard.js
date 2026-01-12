@@ -11,7 +11,8 @@ import {
     LogOut, 
     Menu,
     X,
-    Bell
+    Bell,
+    User
 } from 'lucide-react';
 import '../../css/valetDashboard.scss';
 
@@ -202,6 +203,26 @@ const ValetDashboard = () => {
                                         </button>
                                     );
                                 })}
+                                <button
+                                    className={`nav-item ${isActive('/valet/profile') ? 'active' : ''}`}
+                                    onClick={() => {
+                                        navigate('/valet/profile');
+                                        setMobileMenuOpen(false);
+                                    }}
+                                >
+                                    <User size={20} />
+                                    <span>Profile</span>
+                                </button>
+                                <button
+                                    className="nav-item logout-item"
+                                    onClick={() => {
+                                        handleLogout();
+                                        setMobileMenuOpen(false);
+                                    }}
+                                >
+                                    <LogOut size={20} />
+                                    <span>Logout</span>
+                                </button>
                             </nav>
                         </aside>
                     </div>

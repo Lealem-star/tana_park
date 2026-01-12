@@ -385,6 +385,26 @@ const AdminDashboard = () => {
                                         </button>
                                     );
                                 })}
+                                <button
+                                    className={`nav-item ${isActive('/admin/dashboard/profile') ? 'active' : ''}`}
+                                    onClick={() => {
+                                        navigate('/admin/dashboard/profile');
+                                        setMobileMenuOpen(false);
+                                    }}
+                                >
+                                    <User size={20} />
+                                    <span>Profile</span>
+                                </button>
+                                <button
+                                    className="nav-item logout-item"
+                                    onClick={() => {
+                                        handleLogout();
+                                        setMobileMenuOpen(false);
+                                    }}
+                                >
+                                    <LogOut size={20} />
+                                    <span>Logout</span>
+                                </button>
                             </nav>
                         </aside>
                     </div>
