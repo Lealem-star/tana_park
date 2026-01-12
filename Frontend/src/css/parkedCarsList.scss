@@ -35,6 +35,15 @@
         display: flex;
         gap: 10px;
         margin-bottom: 20px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; // Firefox
+        -ms-overflow-style: none; // IE and Edge
+
+        &::-webkit-scrollbar {
+            display: none; // Chrome, Safari, Opera
+        }
 
         .filter-btn {
             padding: 8px 16px;
@@ -44,6 +53,9 @@
             cursor: pointer;
             transition: all 0.2s;
             font-size: 14px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: fit-content;
 
             &:hover {
                 background: #f5f7fa;
@@ -259,120 +271,130 @@
     // Mobile Responsive - Compress sizes only, keep same layout
     @media (max-width: 768px) {
         .page-header {
-            margin-bottom: 20px;
-            gap: 10px;
+            margin-bottom: 15px;
+            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
 
             h1 {
-                font-size: 20px;
+                font-size: 18px;
+                flex: 1;
+                min-width: 0;
+                margin: 0;
             }
 
             .btn-primary {
-                padding: 8px 16px;
-                font-size: 12px;
+                padding: 7px 12px;
+                font-size: 10px;
                 border-radius: 6px;
+                white-space: nowrap;
+                flex-shrink: 0;
             }
         }
 
         .filters {
-            gap: 8px;
+            gap: 6px;
             margin-bottom: 15px;
+            padding-bottom: 2px; // Add space for scrollbar if needed
 
             .filter-btn {
-                padding: 6px 12px;
-                font-size: 12px;
+                padding: 6px 10px;
+                font-size: 11px;
                 border-radius: 6px;
+                min-width: auto;
             }
         }
 
         .stats-grid {
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 8px;
+            margin-bottom: 15px;
 
             .stat-card {
-                padding: 10px;
-                gap: 8px;
-                border-radius: 10px;
+                padding: 8px;
+                gap: 6px;
+                border-radius: 8px;
 
                 .stat-icon {
-                    width: 35px;
-                    height: 35px;
-                    border-radius: 8px;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 6px;
                     flex-shrink: 0;
 
                     svg {
-                        width: 14px;
-                        height: 14px;
+                        width: 12px;
+                        height: 12px;
                     }
                 }
 
                 .stat-content {
                     h3 {
-                        font-size: 18px;
+                        font-size: 16px;
                         margin: 0 0 2px 0;
                     }
 
                     p {
-                        font-size: 10px;
+                        font-size: 9px;
                     }
                 }
             }
         }
 
         .cars-table-container {
-            padding: 12px;
-            border-radius: 10px;
+            padding: 10px;
+            border-radius: 8px;
 
             .cars-table {
-                font-size: 11px;
+                font-size: 10px;
 
                 thead {
                     th {
-                        padding: 10px 6px;
-                        font-size: 10px;
+                        padding: 8px 4px;
+                        font-size: 9px;
                         font-weight: 600;
+                        white-space: nowrap;
                     }
                 }
 
                 tbody {
                     tr {
                         td {
-                            padding: 10px 6px;
+                            padding: 8px 4px;
 
                             .license-plate {
-                                font-size: 13px;
+                                font-size: 11px;
                             }
 
                             .vehicle-info {
                                 gap: 2px;
 
                                 strong {
-                                    font-size: 11px;
+                                    font-size: 10px;
                                 }
 
                                 .color {
-                                    font-size: 10px;
+                                    font-size: 9px;
                                 }
                             }
 
                             .badge {
-                                padding: 4px 8px;
-                                font-size: 10px;
-                                gap: 3px;
-                                border-radius: 15px;
+                                padding: 3px 6px;
+                                font-size: 9px;
+                                gap: 2px;
+                                border-radius: 12px;
 
                                 svg {
-                                    width: 12px;
-                                    height: 12px;
+                                    width: 10px;
+                                    height: 10px;
                                 }
                             }
 
                             .actions {
-                                gap: 4px;
+                                gap: 3px;
 
                                 .btn-action {
-                                    padding: 6px 12px;
-                                    font-size: 10px;
+                                    padding: 5px 8px;
+                                    font-size: 9px;
                                     border-radius: 4px;
                                 }
                             }
@@ -399,105 +421,125 @@
 
     @media (max-width: 480px) {
         .page-header {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            gap: 6px;
+            justify-content: space-between;
+            align-items: center;
 
             h1 {
-                font-size: 18px;
+                font-size: 15px;
+                flex: 1;
+                min-width: 0;
+                margin: 0;
             }
 
             .btn-primary {
-                padding: 7px 14px;
-                font-size: 11px;
+                padding: 6px 10px;
+                font-size: 9px;
+                white-space: nowrap;
+                flex-shrink: 0;
             }
         }
 
         .filters {
-            gap: 6px;
+            gap: 5px;
             margin-bottom: 12px;
+            padding-bottom: 2px; // Add space for scrollbar if needed
 
             .filter-btn {
-                padding: 5px 10px;
-                font-size: 11px;
+                padding: 5px 8px;
+                font-size: 10px;
+                min-width: auto;
             }
         }
 
         .stats-grid {
-            gap: 8px;
-            margin-bottom: 15px;
+            gap: 6px;
+            margin-bottom: 12px;
 
             .stat-card {
-                padding: 8px;
-                gap: 6px;
+                padding: 6px;
+                gap: 5px;
 
                 .stat-icon {
-                    width: 30px;
-                    height: 30px;
-                    border-radius: 6px;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 5px;
 
                     svg {
-                        width: 12px;
-                        height: 12px;
+                        width: 10px;
+                        height: 10px;
                     }
                 }
 
                 .stat-content {
                     h3 {
-                        font-size: 16px;
+                        font-size: 14px;
                     }
 
                     p {
-                        font-size: 9px;
+                        font-size: 8px;
                     }
                 }
             }
         }
 
         .cars-table-container {
-            padding: 10px;
+            padding: 8px;
+            border-radius: 6px;
 
             .cars-table {
-                font-size: 10px;
+                font-size: 9px;
 
                 thead {
                     th {
-                        padding: 8px 4px;
-                        font-size: 9px;
+                        padding: 6px 3px;
+                        font-size: 8px;
+                        font-weight: 600;
+                        white-space: nowrap;
                     }
                 }
 
                 tbody {
                     tr {
                         td {
-                            padding: 8px 4px;
+                            padding: 6px 3px;
 
                             .license-plate {
-                                font-size: 12px;
+                                font-size: 10px;
                             }
 
                             .vehicle-info {
+                                gap: 1px;
+
                                 strong {
-                                    font-size: 10px;
+                                    font-size: 9px;
                                 }
 
                                 .color {
-                                    font-size: 9px;
+                                    font-size: 8px;
                                 }
                             }
 
                             .badge {
-                                padding: 3px 6px;
-                                font-size: 9px;
+                                padding: 2px 5px;
+                                font-size: 8px;
+                                gap: 2px;
+                                border-radius: 10px;
 
                                 svg {
-                                    width: 10px;
-                                    height: 10px;
+                                    width: 8px;
+                                    height: 8px;
                                 }
                             }
 
                             .actions {
+                                gap: 2px;
+
                                 .btn-action {
-                                    padding: 5px 10px;
-                                    font-size: 9px;
+                                    padding: 4px 7px;
+                                    font-size: 8px;
+                                    border-radius: 3px;
                                 }
                             }
                         }
