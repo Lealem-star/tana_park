@@ -1,15 +1,48 @@
 import './App.css';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Layout, Home, NoPage, Users, About, Login, Register, AdminDashboard, DashboardOverview, UserManagement, Settings, ValetDashboard, ValetOverview, RegisterCar, ParkedCarsList } from './pages/common';
 import Profile from './pages/valet/Profile';
 import PaymentCallback from './pages/valet/PaymentCallback';
+
+// Protected route wrapper - redirects logged-in users away from login/register
+function PublicRoute({ children }) {
+  const user = useSelector((state) => state.user);
+  
+  // If user is logged in, redirect to their dashboard
+  if (user && user.token) {
+    if (user.type === 'system_admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    } else if (user.type === 'valet') {
+      return <Navigate to="/valet/dashboard" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+}
+
+// Root redirect component - redirects based on user type
+function RootRedirect() {
+  const user = useSelector((state) => state.user);
+  
+  if (user && user.token) {
+    if (user.type === 'system_admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    } else if (user.type === 'valet') {
+      return <Navigate to="/valet/dashboard" replace />;
+    }
+  }
+  
+  return <Home />;
+}
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Home />} />
+          <Route index element={<RootRedirect />} />
           <Route path="profile" element={<Profile />} />
           <Route path="users" element={<Users />} />
           <Route path="about" element={<About />} />
@@ -28,8 +61,16 @@ function App() {
           <Route path="cars" element={<ParkedCarsList />} />
           <Route path="profile" element={<Profile />} />
         </Route>
-        <Route path="login" element={<Login />} />
-        <Route path="register" element={<Register />} />
+        <Route path="login" element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } />
+        <Route path="register" element={
+          <PublicRoute>
+            <Register />
+          </PublicRoute>
+        } />
         <Route path="payment/success" element={<PaymentCallback />} />
         <Route path="payment/callback" element={<PaymentCallback />} />
         <Route path="*" element={<NoPage />} />
