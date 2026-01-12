@@ -141,6 +141,7 @@
         padding: 20px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
 
         .cars-table {
             width: 100%;
@@ -341,61 +342,73 @@
         }
 
         .cars-table-container {
-            padding: 10px;
-            border-radius: 8px;
+            padding: 8px;
+            border-radius: 6px;
 
             .cars-table {
-                font-size: 10px;
+                font-size: 9px;
+                width: 100%;
+                table-layout: fixed;
 
                 thead {
                     th {
-                        padding: 8px 4px;
-                        font-size: 9px;
+                        padding: 6px 2px;
+                        font-size: 8px;
                         font-weight: 600;
                         white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
                 }
 
                 tbody {
                     tr {
                         td {
-                            padding: 8px 4px;
+                            padding: 6px 2px;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
 
                             .license-plate {
-                                font-size: 11px;
+                                font-size: 9px;
                             }
 
                             .vehicle-info {
-                                gap: 2px;
+                                gap: 1px;
+                                display: flex;
+                                flex-direction: column;
 
                                 strong {
-                                    font-size: 10px;
+                                    font-size: 9px;
                                 }
 
                                 .color {
-                                    font-size: 9px;
+                                    font-size: 8px;
                                 }
                             }
 
                             .badge {
-                                padding: 3px 6px;
-                                font-size: 9px;
+                                padding: 2px 4px;
+                                font-size: 8px;
                                 gap: 2px;
-                                border-radius: 12px;
+                                border-radius: 10px;
+                                display: inline-flex;
+                                align-items: center;
 
                                 svg {
-                                    width: 10px;
-                                    height: 10px;
+                                    width: 8px;
+                                    height: 8px;
                                 }
                             }
 
                             .actions {
-                                gap: 3px;
+                                gap: 2px;
 
                                 .btn-action {
-                                    padding: 5px 8px;
-                                    font-size: 9px;
-                                    border-radius: 4px;
+                                    padding: 4px 6px;
+                                    font-size: 8px;
+                                    border-radius: 3px;
+                                    white-space: nowrap;
                                 }
                             }
                         }
@@ -485,51 +498,62 @@
         }
 
         .cars-table-container {
-            padding: 8px;
-            border-radius: 6px;
+            padding: 6px;
+            border-radius: 5px;
 
             .cars-table {
-                font-size: 9px;
+                font-size: 8px;
+                width: 100%;
+                table-layout: fixed;
 
                 thead {
                     th {
-                        padding: 6px 3px;
-                        font-size: 8px;
+                        padding: 5px 1px;
+                        font-size: 7px;
                         font-weight: 600;
                         white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
                 }
 
                 tbody {
                     tr {
                         td {
-                            padding: 6px 3px;
+                            padding: 5px 1px;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
 
                             .license-plate {
-                                font-size: 10px;
+                                font-size: 8px;
                             }
 
                             .vehicle-info {
                                 gap: 1px;
+                                display: flex;
+                                flex-direction: column;
 
                                 strong {
-                                    font-size: 9px;
+                                    font-size: 8px;
                                 }
 
                                 .color {
-                                    font-size: 8px;
+                                    font-size: 7px;
                                 }
                             }
 
                             .badge {
-                                padding: 2px 5px;
-                                font-size: 8px;
-                                gap: 2px;
-                                border-radius: 10px;
+                                padding: 2px 3px;
+                                font-size: 7px;
+                                gap: 1px;
+                                border-radius: 8px;
+                                display: inline-flex;
+                                align-items: center;
 
                                 svg {
-                                    width: 8px;
-                                    height: 8px;
+                                    width: 7px;
+                                    height: 7px;
                                 }
                             }
 
@@ -537,9 +561,10 @@
                                 gap: 2px;
 
                                 .btn-action {
-                                    padding: 4px 7px;
-                                    font-size: 8px;
+                                    padding: 3px 5px;
+                                    font-size: 7px;
                                     border-radius: 3px;
+                                    white-space: nowrap;
                                 }
                             }
                         }
