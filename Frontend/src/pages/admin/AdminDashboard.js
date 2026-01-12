@@ -333,7 +333,7 @@ const AdminDashboard = () => {
                             <Menu size={24} />
                         </button>
                         <div className="welcome-message">
-                            <span>Welcome, {user?.type === 'system_admin' ? 'System Admin' : (user?.type === 'admin' ? 'Admin' : 'Manager')}</span>
+                            <span>Welcome, {user?.name || 'Admin'}</span>
                         </div>
                     </div>
                     

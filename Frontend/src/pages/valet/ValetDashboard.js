@@ -152,7 +152,7 @@ const ValetDashboard = () => {
                             <Menu size={24} />
                         </button>
                         <div className="welcome-message">
-                            <span>Welcome, {user?.type === 'valet' ? 'Valet' : (user?.type === 'admin' ? 'Admin' : 'Manager')}</span>
+                            <span>Welcome, {user?.name || 'Valet'}</span>
                         </div>
                     </div>
                     
