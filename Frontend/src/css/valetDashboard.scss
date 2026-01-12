@@ -351,6 +351,9 @@
         flex: 1;
         padding: 30px;
         overflow-y: auto;
+        overflow-x: hidden;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .mobile-overlay {
@@ -473,11 +476,17 @@
         }
 
         .dashboard-header {
+            padding: 15px 20px;
+
             .header-left {
                 .mobile-menu-btn {
                     display: block;
                 }
             }
+        }
+
+        .content-area {
+            padding: 15px;
         }
 
         .mobile-overlay {
