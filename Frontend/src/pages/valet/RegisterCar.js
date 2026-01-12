@@ -40,7 +40,7 @@ const RegisterCar = () => {
         setSuccess('');
         setLoading(true);
 
-        if (!formData.plateCode || !formData.region || !formData.licensePlateNumber || !formData.model || !formData.color || !formData.phoneNumber) {
+        if (!formData.plateCode || !formData.region || !formData.licensePlateNumber || !formData.phoneNumber) {
             setError('Please fill in all required fields');
             setLoading(false);
             return;
@@ -177,24 +177,22 @@ const RegisterCar = () => {
 
                     <div className="form-row">
                         <div className="form-group">
-                            <label>Model *</label>
+                            <label>Model</label>
                             <input
                                 type="text"
                                 value={formData.model}
                                 onChange={(e) => handleChange('model', e.target.value)}
                                 placeholder="Camry, Civic, etc."
-                                required
                             />
                         </div>
 
                         <div className="form-group">
-                            <label>Color *</label>
+                            <label>Color</label>
                             <input
                                 type="text"
                                 value={formData.color}
                                 onChange={(e) => handleChange('color', e.target.value)}
                                 placeholder="Red, Blue, Black, etc."
-                                required
                             />
                         </div>
                     </div>

@@ -70,6 +70,57 @@ const ParkedCarsList = () => {
         });
     }, [user, filter]);
 
+    // Auto-refresh to change delete button to check out after 2 minutes
+    useEffect(() => {
+        if (!user?.token || cars.length === 0) return;
+
+        // Check if any parked car is within 2 minutes (will need to switch to check out soon)
+        const parkedCars = cars.filter(car => car.status === 'parked');
+        if (parkedCars.length === 0) return;
+
+        const now = new Date();
+        const carsNeedingRefresh = parkedCars.filter(car => {
+            const parkedAt = new Date(car.parkedAt);
+            const diffMs = now - parkedAt;
+            const diffMinutes = diffMs / (1000 * 60);
+            // Cars that are between 0 and 2.5 minutes (will need refresh when they pass 2 minutes)
+            return diffMinutes >= 0 && diffMinutes < 2.5;
+        });
+
+        if (carsNeedingRefresh.length === 0) return;
+
+        // Calculate when the next car will pass 2 minutes
+        const nextRefreshTime = Math.min(
+            ...carsNeedingRefresh.map(car => {
+                const parkedAt = new Date(car.parkedAt);
+                const diffMs = now - parkedAt;
+                const diffMinutes = diffMs / (1000 * 60);
+                // Time until 2 minutes pass (in milliseconds)
+                return Math.max(0, (2 - diffMinutes) * 60 * 1000);
+            })
+        );
+
+        // Set up interval to check every 2 seconds when cars are close to 2 minutes
+        const checkInterval = nextRefreshTime < 30000 ? 2000 : 5000; // Check more frequently when close
+        const interval = setInterval(() => {
+            const currentTime = new Date();
+            const needsRefresh = parkedCars.some(car => {
+                const parkedAt = new Date(car.parkedAt);
+                const diffMs = currentTime - parkedAt;
+                const diffMinutes = diffMs / (1000 * 60);
+                // If a car just passed 2 minutes (between 2 and 2.1 minutes), refresh
+                return diffMinutes > 2 && diffMinutes < 2.1;
+            });
+
+            if (needsRefresh) {
+                loadCars();
+                fetchDailyStats({ token: user.token, setDailyStats });
+            }
+        }, checkInterval);
+
+        return () => clearInterval(interval);
+    }, [cars, user]);
+
     const loadCars = () => {
         const status = filter !== 'all' ? filter : null;
         fetchParkedCars({ 
