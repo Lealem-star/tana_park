@@ -256,5 +256,269 @@
         }
     }
 
+    // Mobile Responsive - Compress sizes only, keep same layout
+    @media (max-width: 768px) {
+        .page-header {
+            margin-bottom: 20px;
+            gap: 10px;
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .btn-primary {
+                padding: 8px 16px;
+                font-size: 12px;
+                border-radius: 6px;
+            }
+        }
+
+        .filters {
+            gap: 8px;
+            margin-bottom: 15px;
+
+            .filter-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+                border-radius: 6px;
+            }
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+
+            .stat-card {
+                padding: 10px;
+                gap: 8px;
+                border-radius: 10px;
+
+                .stat-icon {
+                    width: 35px;
+                    height: 35px;
+                    border-radius: 8px;
+                    flex-shrink: 0;
+
+                    svg {
+                        width: 14px;
+                        height: 14px;
+                    }
+                }
+
+                .stat-content {
+                    h3 {
+                        font-size: 18px;
+                        margin: 0 0 2px 0;
+                    }
+
+                    p {
+                        font-size: 10px;
+                    }
+                }
+            }
+        }
+
+        .cars-table-container {
+            padding: 12px;
+            border-radius: 10px;
+
+            .cars-table {
+                font-size: 11px;
+
+                thead {
+                    th {
+                        padding: 10px 6px;
+                        font-size: 10px;
+                        font-weight: 600;
+                    }
+                }
+
+                tbody {
+                    tr {
+                        td {
+                            padding: 10px 6px;
+
+                            .license-plate {
+                                font-size: 13px;
+                            }
+
+                            .vehicle-info {
+                                gap: 2px;
+
+                                strong {
+                                    font-size: 11px;
+                                }
+
+                                .color {
+                                    font-size: 10px;
+                                }
+                            }
+
+                            .badge {
+                                padding: 4px 8px;
+                                font-size: 10px;
+                                gap: 3px;
+                                border-radius: 15px;
+
+                                svg {
+                                    width: 12px;
+                                    height: 12px;
+                                }
+                            }
+
+                            .actions {
+                                gap: 4px;
+
+                                .btn-action {
+                                    padding: 6px 12px;
+                                    font-size: 10px;
+                                    border-radius: 4px;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            .no-data {
+                padding: 40px 15px;
+
+                p {
+                    font-size: 13px;
+                    margin-bottom: 15px;
+                }
+
+                .btn-primary {
+                    padding: 8px 16px;
+                    font-size: 12px;
+                }
+            }
+        }
+    }
+
+    @media (max-width: 480px) {
+        .page-header {
+            margin-bottom: 15px;
+
+            h1 {
+                font-size: 18px;
+            }
+
+            .btn-primary {
+                padding: 7px 14px;
+                font-size: 11px;
+            }
+        }
+
+        .filters {
+            gap: 6px;
+            margin-bottom: 12px;
+
+            .filter-btn {
+                padding: 5px 10px;
+                font-size: 11px;
+            }
+        }
+
+        .stats-grid {
+            gap: 8px;
+            margin-bottom: 15px;
+
+            .stat-card {
+                padding: 8px;
+                gap: 6px;
+
+                .stat-icon {
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 6px;
+
+                    svg {
+                        width: 12px;
+                        height: 12px;
+                    }
+                }
+
+                .stat-content {
+                    h3 {
+                        font-size: 16px;
+                    }
+
+                    p {
+                        font-size: 9px;
+                    }
+                }
+            }
+        }
+
+        .cars-table-container {
+            padding: 10px;
+
+            .cars-table {
+                font-size: 10px;
+
+                thead {
+                    th {
+                        padding: 8px 4px;
+                        font-size: 9px;
+                    }
+                }
+
+                tbody {
+                    tr {
+                        td {
+                            padding: 8px 4px;
+
+                            .license-plate {
+                                font-size: 12px;
+                            }
+
+                            .vehicle-info {
+                                strong {
+                                    font-size: 10px;
+                                }
+
+                                .color {
+                                    font-size: 9px;
+                                }
+                            }
+
+                            .badge {
+                                padding: 3px 6px;
+                                font-size: 9px;
+
+                                svg {
+                                    width: 10px;
+                                    height: 10px;
+                                }
+                            }
+
+                            .actions {
+                                .btn-action {
+                                    padding: 5px 10px;
+                                    font-size: 9px;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            .no-data {
+                padding: 30px 12px;
+
+                p {
+                    font-size: 12px;
+                }
+
+                .btn-primary {
+                    padding: 7px 14px;
+                    font-size: 11px;
+                }
+            }
+        }
+    }
+
 }
 

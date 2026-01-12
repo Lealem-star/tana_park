@@ -476,23 +476,169 @@
         }
 
         .dashboard-header {
-            padding: 15px 20px;
+            padding: 12px 15px;
 
             .header-left {
+                gap: 12px;
+
                 .mobile-menu-btn {
                     display: block;
+                    padding: 4px;
+
+                    svg {
+                        width: 20px;
+                        height: 20px;
+                    }
+                }
+
+                .welcome-message {
+                    span {
+                        font-size: 14px;
+                    }
+                }
+            }
+
+            .header-right {
+                gap: 10px;
+
+                .icon-btn {
+                    padding: 6px;
+
+                    svg {
+                        width: 18px;
+                        height: 18px;
+                    }
+
+                    .badge {
+                        width: 16px;
+                        height: 16px;
+                        font-size: 9px;
+                    }
                 }
             }
         }
 
         .content-area {
-            padding: 15px;
+            padding: 12px;
         }
 
         .mobile-overlay {
-            display: flex; /* Use flex to align children */
-            align-items: flex-start; /* Align the sidebar to the top */
-            justify-content: flex-start; /* Position the sidebar to the left */
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+
+        .mobile-sidebar {
+            width: 240px;
+
+            .sidebar-header {
+                padding: 15px;
+
+                .logo {
+                    font-size: 16px;
+                    gap: 8px;
+
+                    .logo-img {
+                        height: 35px;
+                    }
+                }
+
+                .sidebar-toggle {
+                    svg {
+                        width: 18px;
+                        height: 18px;
+                    }
+                }
+            }
+
+            .sidebar-nav {
+                padding: 15px 0;
+                gap: 4px;
+
+                .nav-item {
+                    padding: 10px 15px;
+                    font-size: 13px;
+                    gap: 10px;
+
+                    svg {
+                        width: 18px;
+                        height: 18px;
+                    }
+                }
+            }
+        }
+    }
+
+    @media (max-width: 480px) {
+        .dashboard-header {
+            padding: 10px 12px;
+
+            .header-left {
+                gap: 10px;
+
+                .mobile-menu-btn {
+                    svg {
+                        width: 18px;
+                        height: 18px;
+                    }
+                }
+
+                .welcome-message {
+                    span {
+                        font-size: 12px;
+                    }
+                }
+            }
+
+            .header-right {
+                .icon-btn {
+                    padding: 5px;
+
+                    svg {
+                        width: 16px;
+                        height: 16px;
+                    }
+
+                    .badge {
+                        width: 14px;
+                        height: 14px;
+                        font-size: 8px;
+                    }
+                }
+            }
+        }
+
+        .content-area {
+            padding: 10px;
+        }
+
+        .mobile-sidebar {
+            width: 220px;
+
+            .sidebar-header {
+                padding: 12px;
+
+                .logo {
+                    font-size: 14px;
+
+                    .logo-img {
+                        height: 30px;
+                    }
+                }
+            }
+
+            .sidebar-nav {
+                .nav-item {
+                    padding: 8px 12px;
+                    font-size: 12px;
+                    gap: 8px;
+
+                    svg {
+                        width: 16px;
+                        height: 16px;
+                    }
+                }
+            }
         }
     }
 
@@ -729,6 +875,127 @@
             margin: 0;
             border-radius: 0;
             max-height: 100vh;
+        }
+
+        .profile-modal-header {
+            padding: 15px 20px;
+
+            h2 {
+                font-size: 20px;
+            }
+
+            .modal-close-btn {
+                svg {
+                    width: 18px;
+                    height: 18px;
+                }
+            }
+        }
+
+        .profile-modal-body {
+            padding: 20px;
+
+            .profile-photo-section {
+                margin-bottom: 20px;
+
+                .profile-photo-preview {
+                    width: 100px;
+                    height: 100px;
+
+                    .profile-photo-upload-btn {
+                        width: 32px;
+                        height: 32px;
+                    }
+                }
+
+                .profile-photo-hint {
+                    font-size: 11px;
+                }
+            }
+
+            .form-group {
+                margin-bottom: 15px;
+
+                label {
+                    font-size: 13px;
+                    margin-bottom: 6px;
+                }
+
+                .form-control {
+                    padding: 10px;
+                    font-size: 13px;
+                }
+            }
+
+            .password-section {
+                margin-top: 20px;
+                padding-top: 20px;
+
+                h3 {
+                    font-size: 16px;
+                    margin-bottom: 15px;
+                }
+            }
+
+            .profile-modal-actions {
+                margin-top: 20px;
+                padding-top: 15px;
+                gap: 8px;
+
+                .btn-cancel,
+                .btn-submit {
+                    padding: 10px 20px;
+                    font-size: 13px;
+                }
+            }
+        }
+    }
+
+    @media (max-width: 480px) {
+        .profile-modal-header {
+            padding: 12px 15px;
+
+            h2 {
+                font-size: 18px;
+            }
+        }
+
+        .profile-modal-body {
+            padding: 15px;
+
+            .profile-photo-section {
+                .profile-photo-preview {
+                    width: 80px;
+                    height: 80px;
+
+                    .profile-photo-upload-btn {
+                        width: 28px;
+                        height: 28px;
+                    }
+                }
+            }
+
+            .form-group {
+                label {
+                    font-size: 12px;
+                }
+
+                .form-control {
+                    padding: 8px;
+                    font-size: 12px;
+                }
+            }
+
+            .profile-modal-actions {
+                flex-direction: column;
+
+                .btn-cancel,
+                .btn-submit {
+                    width: 100%;
+                    padding: 10px;
+                    font-size: 12px;
+                }
+            }
         }
     }
 }
