@@ -25,13 +25,13 @@ const Settings = () => {
                 const defaultCodes = ['01', '02', '03', '04', '05', 'police', 'AO', 'ተላላፊ', 'የእለት', 'DF', 'AU', 'AU-CD', 'UN', 'UN-CD', 'CD'];
                 
                 // Extract all plate codes from the data, or use defaults if empty
-                const codes = Object.keys(data).length > 0 ? Object.keys(data) : defaultCodes;
+                const codes = (data && typeof data === 'object' && Object.keys(data).length > 0) ? Object.keys(data) : defaultCodes;
                 setPlateCodes(codes);
                 
                 // Convert API format to settings format
                 const mergedSettings = {};
                 codes.forEach(code => {
-                    if (data[code] && data[code].pricePerHour !== undefined) {
+                    if (data && data[code] && data[code].pricePerHour !== undefined) {
                         mergedSettings[code] = { pricePerHour: data[code].pricePerHour.toString() };
                     } else {
                         mergedSettings[code] = { pricePerHour: '' };

@@ -59,11 +59,13 @@ const ParkedCarsList = () => {
             setPricingSettings: (data) => {
                 // Convert API format to simple object format
                 const pricing = {};
-                Object.keys(data).forEach(plateCode => {
-                    if (data[plateCode] && data[plateCode].pricePerHour !== undefined) {
-                        pricing[plateCode] = data[plateCode].pricePerHour;
-                    }
-                });
+                if (data && typeof data === 'object') {
+                    Object.keys(data).forEach(plateCode => {
+                        if (data[plateCode] && data[plateCode].pricePerHour !== undefined) {
+                            pricing[plateCode] = data[plateCode].pricePerHour;
+                        }
+                    });
+                }
                 // Merge with fallback to ensure all plate codes have values
                 setPricingSettings({ ...defaultPricingFallback, ...pricing });
             }
