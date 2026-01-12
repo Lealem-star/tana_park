@@ -217,6 +217,269 @@
                         }
                     }
                 }
+
+                // Chapa Inline Payment Form Container
+                #chapa-inline-form {
+                    margin-top: 20px;
+                    padding: 20px;
+                    background: #f8f9fa;
+                    border-radius: 10px;
+
+                    // Override Chapa default styles to match our design
+                    :global {
+                        .chapa-input {
+                            border-radius: 8px;
+                            border: 1px solid #e0e0e0;
+                            padding: 12px;
+                            font-size: 14px;
+                        }
+
+                        .chapa-payment-methods {
+                            display: grid;
+                            grid-template-columns: repeat(2, 1fr);
+                            gap: 12px;
+                            margin-top: 15px;
+                        }
+
+                        .chapa-payment-method {
+                            border-radius: 8px;
+                            border: 2px solid #e0e0e0;
+                            padding: 15px;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            background: white;
+
+                            &:hover {
+                                border-color: #4facfe;
+                                transform: translateY(-2px);
+                                box-shadow: 0 4px 12px rgba(79, 172, 254, 0.2);
+                            }
+
+                            &.selected {
+                                border-color: #4facfe;
+                                background: #f0f8ff;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Payment Form Modal - Separate modal for Chapa inline payment
+    .payment-form-modal {
+        background: white;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease-out;
+        position: relative;
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 28px;
+            border-bottom: 2px solid #f0f0f0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px 16px 0 0;
+
+            h2 {
+                font-size: 24px;
+                font-weight: 700;
+                color: white;
+                margin: 0;
+                letter-spacing: -0.5px;
+            }
+
+            .close-btn {
+                background: rgba(255, 255, 255, 0.2);
+                border: none;
+                cursor: pointer;
+                color: white;
+                padding: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 6px;
+                transition: background 0.2s;
+
+                &:hover:not(:disabled) {
+                    background: rgba(255, 255, 255, 0.3);
+                }
+
+                &:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+            }
+        }
+
+        .modal-content {
+            padding: 28px;
+            background: white;
+
+            .payment-summary-section {
+                margin-bottom: 24px;
+                background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+                padding: 20px;
+                border-radius: 12px;
+                border: 2px solid #e9ecef;
+
+                h3 {
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: #2c3e50;
+                    margin: 0 0 16px 0;
+                    padding-bottom: 12px;
+                    border-bottom: 3px solid #667eea;
+                    letter-spacing: -0.3px;
+                }
+
+                .summary-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 12px 0;
+                    border-bottom: 1px solid #e9ecef;
+
+                    &:last-child {
+                        border-bottom: none;
+                    }
+
+                    .label {
+                        font-weight: 600;
+                        color: #495057;
+                        font-size: 15px;
+                    }
+
+                    .value {
+                        font-weight: 700;
+                        color: #2c3e50;
+                        font-size: 15px;
+                    }
+                }
+            }
+
+            .chapa-payment-form-section {
+                background: #f8f9fa;
+                padding: 24px;
+                border-radius: 12px;
+                border: 2px solid #e9ecef;
+
+                h3 {
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: #2c3e50;
+                    margin: 0 0 20px 0;
+                    padding-bottom: 12px;
+                    border-bottom: 3px solid #667eea;
+                    letter-spacing: -0.3px;
+                }
+
+                // Chapa Inline Payment Form Container
+                #chapa-inline-form {
+                    margin-top: 20px;
+                    padding: 20px;
+                    background: white;
+                    border-radius: 10px;
+                    min-height: 300px;
+
+                    // Override Chapa default styles to match our design
+                    :global {
+                        .chapa-input {
+                            border-radius: 8px;
+                            border: 1px solid #e0e0e0;
+                            padding: 12px;
+                            font-size: 14px;
+                            width: 100%;
+                            margin-bottom: 12px;
+                        }
+
+                        .chapa-payment-methods {
+                            display: grid;
+                            grid-template-columns: repeat(2, 1fr);
+                            gap: 12px;
+                            margin-top: 15px;
+                        }
+
+                        .chapa-payment-method {
+                            border-radius: 8px;
+                            border: 2px solid #e0e0e0;
+                            padding: 15px;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            background: white;
+
+                            &:hover {
+                                border-color: #667eea;
+                                transform: translateY(-2px);
+                                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+                            }
+
+                            &.selected {
+                                border-color: #667eea;
+                                background: #f0f4ff;
+                            }
+                        }
+
+                        .chapa-pay-button {
+                            margin-top: 20px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Mobile responsiveness for payment form modal
+    @media (max-width: 768px) {
+        .payment-form-modal {
+            max-width: 95%;
+            margin: 10px;
+
+            .modal-header {
+                padding: 18px 20px;
+
+                h2 {
+                    font-size: 20px;
+                }
+            }
+
+            .modal-content {
+                padding: 20px;
+
+                .payment-summary-section,
+                .chapa-payment-form-section {
+                    padding: 16px;
+
+                    h3 {
+                        font-size: 16px;
+                    }
+
+                    .summary-row {
+                        .label,
+                        .value {
+                            font-size: 14px;
+                        }
+                    }
+                }
+
+                .chapa-payment-form-section {
+                    #chapa-inline-form {
+                        padding: 16px;
+                        min-height: 250px;
+
+                        :global {
+                            .chapa-payment-methods {
+                                grid-template-columns: 1fr;
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -9,6 +9,7 @@ const paymentRouter = Router();
 
 // Chapa API configuration
 const CHAPA_SECRET_KEY = process.env.CHAPA_SECRET_KEY || "CHASECK_TEST-xxxxxxxxxxxxx"; // Replace with your Chapa secret key
+const CHAPA_PUBLIC_KEY = process.env.CHAPA_PUBLIC_KEY || ""; // Chapa public key for frontend
 const CHAPA_BASE_URL = "https://api.chapa.co/v1/transaction";
 
 // Initialize Chapa payment
@@ -80,6 +81,7 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
                 success: true,
                 paymentUrl: chapaResponse.data.data.checkout_url,
                 txRef: chapaRequest.tx_ref,
+                publicKey: CHAPA_PUBLIC_KEY, // Include public key for frontend inline.js
                 message: "Payment initialized successfully"
             });
         } else {
@@ -222,6 +224,119 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
     }
 });
 
+// Callback endpoint for Chapa payment results (used by Inline.js)
+// This endpoint handles both POST (webhook) and GET (redirect) requests
+paymentRouter.post("/chapa/callback", async (req, res) => {
+    try {
+        const { tx_ref, status, amount, meta } = req.body;
+
+        console.log("Chapa callback received:", { tx_ref, status, amount, meta });
+
+        if (status === 'successful' && tx_ref) {
+            // Extract carId from meta (preferred) or verify payment to get meta
+            let carId = null;
+            
+            if (meta && meta.carId) {
+                carId = meta.carId;
+            } else {
+                // Verify payment with Chapa to get full transaction details including meta
+                try {
+                    const verifyResponse = await axios.get(
+                        `${CHAPA_BASE_URL}/verify/${tx_ref}`,
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
+                            }
+                        }
+                    );
+
+                    if (verifyResponse.data.status === 'success' && verifyResponse.data.data) {
+                        const transaction = verifyResponse.data.data;
+                        
+                        if (transaction.meta && transaction.meta.carId) {
+                            carId = transaction.meta.carId;
+                        }
+                    }
+                } catch (verifyError) {
+                    console.error("Error verifying payment in callback:", verifyError);
+                }
+            }
+
+            if (carId && Types.ObjectId.isValid(carId)) {
+                const car = await ParkedCar.findById(carId);
+                
+                if (car && car.status === 'parked') {
+                    car.status = 'checked_out';
+                    car.checkedOutAt = new Date();
+                    car.paymentMethod = 'online';
+                    car.paymentReference = tx_ref;
+                    if (amount) {
+                        car.totalPaidAmount = parseFloat(amount);
+                    }
+                    await car.save();
+                    console.log(`Car ${carId} checked out successfully via Chapa callback`);
+                }
+            }
+        }
+
+        // Always return 200 to acknowledge receipt
+        res.status(200).json({ received: true, message: "Callback processed" });
+    } catch (error) {
+        console.error("Chapa callback error:", error);
+        res.status(200).json({ received: true }); // Still return 200 to prevent retries
+    }
+});
+
+// Also handle GET requests for callback (in case Chapa redirects)
+paymentRouter.get("/chapa/callback", async (req, res) => {
+    try {
+        const { tx_ref, status } = req.query;
+
+        if (status === 'successful' && tx_ref) {
+            // Verify payment to get meta data
+            try {
+                const verifyResponse = await axios.get(
+                    `${CHAPA_BASE_URL}/verify/${tx_ref}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
+                        }
+                    }
+                );
+
+                if (verifyResponse.data.status === 'success' && verifyResponse.data.data) {
+                    const transaction = verifyResponse.data.data;
+                    const carId = transaction.meta?.carId;
+
+                    if (carId && Types.ObjectId.isValid(carId)) {
+                        const car = await ParkedCar.findById(carId);
+                        
+                        if (car && car.status === 'parked' && transaction.status === 'successful') {
+                            car.status = 'checked_out';
+                            car.checkedOutAt = new Date();
+                            car.paymentMethod = 'online';
+                            car.paymentReference = tx_ref;
+                            if (transaction.amount) {
+                                car.totalPaidAmount = transaction.amount;
+                            }
+                            await car.save();
+                            console.log(`Car ${carId} checked out successfully via Chapa callback (GET)`);
+                        }
+                    }
+                }
+            } catch (verifyError) {
+                console.error("Error verifying payment in callback (GET):", verifyError);
+            }
+        }
+
+        // Redirect to success page or return JSON
+        res.status(200).json({ received: true, message: "Callback processed" });
+    } catch (error) {
+        console.error("Chapa callback error (GET):", error);
+        res.status(200).json({ received: true });
+    }
+});
+
 // Webhook endpoint for Chapa callbacks (optional but recommended)
 paymentRouter.post("/chapa/webhook", async (req, res) => {
     try {
@@ -229,7 +344,7 @@ paymentRouter.post("/chapa/webhook", async (req, res) => {
 
         if (status === 'successful' && tx_ref) {
             // Extract carId from tx_ref
-            const carIdMatch = tx_ref.match(/tana-parking-([a-f0-9]{24})/);
+            const carIdMatch = tx_ref.match(/tana-([a-f0-9]{10,24})/);
             const carId = carIdMatch ? carIdMatch[1] : null;
 
             if (carId && Types.ObjectId.isValid(carId)) {
