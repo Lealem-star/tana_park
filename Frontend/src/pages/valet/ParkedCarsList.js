@@ -138,8 +138,7 @@ const ParkedCarsList = () => {
 
         // Duration in minutes and human readable text
         const diffMs = now - parkedAt;
-        const totalMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
-        const hoursForBilling = Math.max(1, Math.ceil(totalMinutes / 60)); // Minimum 1 hour for billing
+        const totalMinutes = Math.max(1, Math.round(diffMs / (1000 * 60))); // Minimum 1 minute
         const durationHours = Math.floor(totalMinutes / 60);
         const durationMins = totalMinutes % 60;
         const durationText = `${durationHours} Hours ${durationMins} Min`;
@@ -147,13 +146,16 @@ const ParkedCarsList = () => {
         const plateCode = car.plateCode || '01';
         const pricePerHour = pricingSettings[plateCode] || pricingSettings['01'] || 50;
 
-        const parkingFee = hoursForBilling * pricePerHour;
+        // Calculate fee based on actual minutes parked (per-minute billing)
+        // Convert minutes to hours: totalMinutes / 60
+        const hoursParked = totalMinutes / 60;
+        const parkingFee = Math.round((hoursParked * pricePerHour) * 100) / 100;
         const vatRate = 0.15;
         const vatAmount = Math.round(parkingFee * vatRate * 100) / 100;
         const totalWithVat = Math.round((parkingFee + vatAmount) * 100) / 100;
 
         return {
-            hoursParked: hoursForBilling,
+            hoursParked: hoursParked,
             pricePerHour,
             parkingFee,
             vatAmount,
@@ -248,7 +250,11 @@ const ParkedCarsList = () => {
                     token: user?.token,
                     handleUpdateParkedCarSuccess: async () => {
                         // Send SMS to customer
-                        const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${feeDetails.hoursParked} hour${feeDetails.hoursParked > 1 ? 's' : ''} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Cash.`;
+                        const totalMinutes = Math.round(feeDetails.hoursParked * 60);
+                        const durationDisplay = totalMinutes >= 60 
+                            ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
+                            : `${totalMinutes} min`;
+                        const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Cash.`;
                         
                         await sendSmsNotification({
                             phoneNumber: selectedCar.phoneNumber,

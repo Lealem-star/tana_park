@@ -97,7 +97,11 @@ const ValetOverview = () => {
                     token: user?.token,
                     handleUpdateParkedCarSuccess: async () => {
                         // Send SMS to customer
-                        const smsMessage = `Dear customer,\nThank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee} ETB\nVAT (15%): ${feeDetails.vatAmount} ETB\nTotal: ${feeDetails.totalWithVat} ETB (${feeDetails.hoursParked} hour${feeDetails.hoursParked > 1 ? 's' : ''} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Cash.`;
+                        const totalMinutes = Math.round(feeDetails.hoursParked * 60);
+                        const durationDisplay = totalMinutes >= 60 
+                            ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
+                            : `${totalMinutes} min`;
+                        const smsMessage = `Dear customer,\nThank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Cash.`;
                         
                         await sendSmsNotification({
                             phoneNumber: selectedCar.phoneNumber,
