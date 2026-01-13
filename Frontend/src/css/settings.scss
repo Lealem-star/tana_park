@@ -161,6 +161,14 @@
                             font-size: 14px;
                             font-weight: 500;
 
+                            // Remove spinner controls
+                            &::-webkit-inner-spin-button,
+                            &::-webkit-outer-spin-button {
+                                -webkit-appearance: none;
+                                margin: 0;
+                            }
+                            -moz-appearance: textfield;
+
                             &:focus {
                                 outline: none;
                                 border-color: #764ba2;
@@ -314,6 +322,16 @@
                         border-radius: 8px;
                         font-size: 14px;
                         transition: border-color 0.2s;
+
+                        // Remove spinner controls for number inputs
+                        &[type="number"] {
+                            &::-webkit-inner-spin-button,
+                            &::-webkit-outer-spin-button {
+                                -webkit-appearance: none;
+                                margin: 0;
+                            }
+                            -moz-appearance: textfield;
+                        }
 
                         &:focus {
                             outline: none;

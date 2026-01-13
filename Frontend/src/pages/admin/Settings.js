@@ -195,7 +195,6 @@ const Settings = () => {
                                             {editingCode === code ? (
                                                 <input
                                                     type="number"
-                                                    step="0.01"
                                                     min="0"
                                                     value={editPrice}
                                                     onChange={(e) => setEditPrice(e.target.value)}
@@ -289,7 +288,6 @@ const Settings = () => {
                                 <label>Price Per Hour (ETB)</label>
                                 <input
                                     type="number"
-                                    step="0.01"
                                     min="0"
                                     value={newPlateCode.pricePerHour}
                                     onChange={(e) => {
