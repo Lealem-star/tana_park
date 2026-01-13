@@ -757,14 +757,14 @@ const ParkedCarsList = () => {
                                         onClick={() => handlePaymentMethod('manual')}
                                         disabled={loading}
                                     >
-                                        Manual Payment
+                                        pay with cash
                                     </button>
                                     <button 
                                         className="payment-btn online"
                                         onClick={() => handlePaymentMethod('online')}
                                         disabled={loading}
                                     >
-                                        Online Payment
+                                        pay with online
                                     </button>
                                 </div>
                             </div>
