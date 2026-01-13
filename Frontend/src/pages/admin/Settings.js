@@ -153,7 +153,7 @@ const Settings = () => {
 
     return (
         <div className="settings-page">
-            <h1>Settings</h1>
+            {/* <h1>Settings</h1> */}
             
             <div className="settings-card">
                 <div className="card-header-row">
