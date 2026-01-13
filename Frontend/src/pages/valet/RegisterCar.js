@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { createParkedCar, sendSmsNotification } from '../../api/api';
+import { createParkedCar, sendSmsNotification, fetchPricingSettings } from '../../api/api';
 import '../../css/registerCar.scss';
 
-const plateCodes = [
+// Default plate codes fallback (used if database is empty)
+const defaultPlateCodes = [
     '01', '02', '03', '04', '05', 'police', 'AO', 'ተላላፊ', 'የእለት', 'DF', 'AU', 'AU-CD', 'UN', 'UN-CD', 'CD',
 ];
 
@@ -24,9 +25,27 @@ const RegisterCar = () => {
         phoneNumber: '',
         notes: ''
     });
+    const [plateCodes, setPlateCodes] = useState(defaultPlateCodes);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Fetch plate codes from database on component mount
+    useEffect(() => {
+        fetchPricingSettings({
+            setPricingSettings: (data) => {
+                // Extract plate codes from pricing settings
+                // If database has settings, use those keys; otherwise use defaults
+                if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                    const codes = Object.keys(data);
+                    setPlateCodes(codes);
+                } else {
+                    // Use default codes if database is empty
+                    setPlateCodes(defaultPlateCodes);
+                }
+            }
+        });
+    }, []);
 
     const handleChange = (field, value) => {
         setFormData({ ...formData, [field]: value });
