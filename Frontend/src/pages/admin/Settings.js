@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { fetchPricingSettings, updatePricingSettings } from '../../api/api';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
 import '../../css/settings.scss';
 
 const Settings = () => {
@@ -17,6 +17,8 @@ const Settings = () => {
         pricePerHour: ''
     });
     const [modalError, setModalError] = useState('');
+    const [editingCode, setEditingCode] = useState(null);
+    const [editPrice, setEditPrice] = useState('');
 
     useEffect(() => {
         fetchPricingSettings({
@@ -42,27 +44,16 @@ const Settings = () => {
         });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const handleChange = (code, field, value) => {
-        setSettings(prevSettings => ({
-            ...prevSettings,
-            [code]: {
-                ...prevSettings[code],
-                [field]: value,
-            },
-        }));
-        setError('');
-        setSuccess('');
-    };
-
-    const handleSave = () => {
+    // Save settings to database
+    const saveSettings = (updatedSettings) => {
         setLoading(true);
         setError('');
         setSuccess('');
 
         // Convert settings to the format expected by API
         const settingsToSave = {};
-        Object.keys(settings).forEach(code => {
-            const priceValue = settings[code].pricePerHour;
+        Object.keys(updatedSettings).forEach(code => {
+            const priceValue = updatedSettings[code].pricePerHour;
             if (priceValue !== '' && priceValue !== null && priceValue !== undefined) {
                 settingsToSave[code] = {
                     pricePerHour: parseFloat(priceValue) || 0
@@ -85,6 +76,48 @@ const Settings = () => {
         });
     };
 
+    // Handle edit button click
+    const handleEdit = (code) => {
+        setEditingCode(code);
+        setEditPrice(settings[code]?.pricePerHour || '');
+    };
+
+    // Handle save edit
+    const handleSaveEdit = () => {
+        if (!editingCode) return;
+        
+        const updatedSettings = {
+            ...settings,
+            [editingCode]: {
+                pricePerHour: editPrice
+            }
+        };
+        
+        setSettings(updatedSettings);
+        setEditingCode(null);
+        setEditPrice('');
+        saveSettings(updatedSettings);
+    };
+
+    // Handle cancel edit
+    const handleCancelEdit = () => {
+        setEditingCode(null);
+        setEditPrice('');
+    };
+
+    // Handle delete plate code
+    const handleDelete = (code) => {
+        if (window.confirm(`Are you sure you want to delete plate code "${code}"?`)) {
+            const updatedPlateCodes = plateCodes.filter(c => c !== code);
+            const updatedSettings = { ...settings };
+            delete updatedSettings[code];
+            
+            setPlateCodes(updatedPlateCodes);
+            setSettings(updatedSettings);
+            saveSettings(updatedSettings);
+        }
+    };
+
     const handleAddPlateCode = () => {
         setModalError('');
         if (!newPlateCode.code || !newPlateCode.code.trim()) {
@@ -102,14 +135,20 @@ const Settings = () => {
         }
 
         // Add new plate code to the list and settings
-        setPlateCodes([...plateCodes, code]);
-        setSettings({
+        const updatedPlateCodes = [...plateCodes, code];
+        const updatedSettings = {
             ...settings,
             [code]: { pricePerHour: newPlateCode.pricePerHour }
-        });
+        };
+        
+        setPlateCodes(updatedPlateCodes);
+        setSettings(updatedSettings);
         setNewPlateCode({ code: '', pricePerHour: '' });
         setShowAddModal(false);
         setModalError('');
+        
+        // Save immediately after adding
+        saveSettings(updatedSettings);
     };
 
     return (
@@ -122,6 +161,7 @@ const Settings = () => {
                     <button 
                         className="btn-add-plate-code"
                         onClick={() => setShowAddModal(true)}
+                        disabled={loading}
                     >
                         <Plus size={18} />
                         Add Plate Code
@@ -131,27 +171,87 @@ const Settings = () => {
                 {success && <div className="alert alert-success">{success}</div>}
                 {error && <div className="alert alert-danger">{error}</div>}
                 
-                {plateCodes.map((code) => (
-                    <div className="form-group" key={code}>
-                        <label>Price Per Hour for {code}</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={settings[code].pricePerHour}
-                            onChange={(e) => handleChange(code, 'pricePerHour', e.target.value)}
-                            placeholder="0.00"
-                            disabled={loading}
-                        />
-                    </div>
-                ))}
-                <button 
-                    className="btn-save" 
-                    onClick={handleSave}
-                    disabled={loading}
-                >
-                    {loading ? 'Saving...' : 'Save Settings'}
-                </button>
+                <div className="table-container">
+                    <table className="settings-table">
+                        <thead>
+                            <tr>
+                                <th>Plate Code</th>
+                                <th>Price Per Hour (ETB)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {plateCodes.length === 0 ? (
+                                <tr>
+                                    <td colSpan="3" className="empty-state">
+                                        No plate codes configured. Click "Add Plate Code" to get started.
+                                    </td>
+                                </tr>
+                            ) : (
+                                plateCodes.map((code) => (
+                                    <tr key={code}>
+                                        <td className="plate-code-cell">{code}</td>
+                                        <td className="price-cell">
+                                            {editingCode === code ? (
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={editPrice}
+                                                    onChange={(e) => setEditPrice(e.target.value)}
+                                                    placeholder="0.00"
+                                                    className="edit-input"
+                                                    autoFocus
+                                                />
+                                            ) : (
+                                                <span>{settings[code]?.pricePerHour || '0.00'}</span>
+                                            )}
+                                        </td>
+                                        <td className="actions-cell">
+                                            {editingCode === code ? (
+                                                <div className="action-buttons">
+                                                    <button
+                                                        className="btn-icon btn-save-edit"
+                                                        onClick={handleSaveEdit}
+                                                        title="Save"
+                                                    >
+                                                        <Check size={16} />
+                                                    </button>
+                                                    <button
+                                                        className="btn-icon btn-cancel-edit"
+                                                        onClick={handleCancelEdit}
+                                                        title="Cancel"
+                                                    >
+                                                        <XIcon size={16} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="action-buttons">
+                                                    <button
+                                                        className="btn-icon btn-edit"
+                                                        onClick={() => handleEdit(code)}
+                                                        title="Edit"
+                                                        disabled={loading}
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button
+                                                        className="btn-icon btn-delete"
+                                                        onClick={() => handleDelete(code)}
+                                                        title="Delete"
+                                                        disabled={loading}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Add Plate Code Modal */}
