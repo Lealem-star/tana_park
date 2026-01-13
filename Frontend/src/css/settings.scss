@@ -167,6 +167,7 @@
                                 -webkit-appearance: none;
                                 margin: 0;
                             }
+                            appearance: textfield;
                             -moz-appearance: textfield;
 
                             &:focus {
@@ -330,6 +331,7 @@
                                 -webkit-appearance: none;
                                 margin: 0;
                             }
+                            appearance: textfield;
                             -moz-appearance: textfield;
                         }
 
@@ -374,6 +376,48 @@
                             transform: translateY(-2px);
                             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
                         }
+                    }
+
+                    &.btn-delete-confirm {
+                        background: #dc3545;
+                        border: none;
+                        color: white;
+
+                        &:hover:not(:disabled) {
+                            background: #c82333;
+                            transform: translateY(-2px);
+                            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+                        }
+
+                        &:disabled {
+                            opacity: 0.6;
+                            cursor: not-allowed;
+                        }
+                    }
+                }
+            }
+
+            // Delete confirmation modal specific styles
+            &.delete-confirm-modal {
+                .modal-body {
+                    p {
+                        margin: 0 0 12px 0;
+                        font-size: 16px;
+                        color: #333;
+                        line-height: 1.5;
+
+                        .plate-code-highlight {
+                            color: #dc3545;
+                            font-weight: 600;
+                        }
+                    }
+
+                    .warning-text {
+                        margin-top: 12px;
+                        color: #dc3545;
+                        font-size: 14px;
+                        font-weight: 500;
+                        font-style: italic;
                     }
                 }
             }

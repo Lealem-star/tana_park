@@ -19,6 +19,8 @@ const Settings = () => {
     const [modalError, setModalError] = useState('');
     const [editingCode, setEditingCode] = useState(null);
     const [editPrice, setEditPrice] = useState('');
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [plateCodeToDelete, setPlateCodeToDelete] = useState(null);
 
     useEffect(() => {
         fetchPricingSettings({
@@ -105,17 +107,31 @@ const Settings = () => {
         setEditPrice('');
     };
 
-    // Handle delete plate code
+    // Handle delete plate code - show confirmation modal
     const handleDelete = (code) => {
-        if (window.confirm(`Are you sure you want to delete plate code "${code}"?`)) {
-            const updatedPlateCodes = plateCodes.filter(c => c !== code);
-            const updatedSettings = { ...settings };
-            delete updatedSettings[code];
-            
-            setPlateCodes(updatedPlateCodes);
-            setSettings(updatedSettings);
-            saveSettings(updatedSettings);
-        }
+        setPlateCodeToDelete(code);
+        setShowDeleteModal(true);
+    };
+
+    // Confirm delete action
+    const confirmDelete = () => {
+        if (!plateCodeToDelete) return;
+        
+        const updatedPlateCodes = plateCodes.filter(c => c !== plateCodeToDelete);
+        const updatedSettings = { ...settings };
+        delete updatedSettings[plateCodeToDelete];
+        
+        setPlateCodes(updatedPlateCodes);
+        setSettings(updatedSettings);
+        setShowDeleteModal(false);
+        setPlateCodeToDelete(null);
+        saveSettings(updatedSettings);
+    };
+
+    // Cancel delete action
+    const cancelDelete = () => {
+        setShowDeleteModal(false);
+        setPlateCodeToDelete(null);
     };
 
     const handleAddPlateCode = () => {
@@ -252,6 +268,44 @@ const Settings = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div className="modal-overlay" onClick={cancelDelete}>
+                    <div className="modal-content delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Delete Plate Code</h2>
+                            <button 
+                                className="modal-close"
+                                onClick={cancelDelete}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p>
+                                Are you sure you want to delete plate code <strong className="plate-code-highlight">"{plateCodeToDelete}"</strong>?
+                            </p>
+                            <p className="warning-text">This action cannot be undone.</p>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                className="btn-cancel"
+                                onClick={cancelDelete}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                className="btn-delete-confirm"
+                                onClick={confirmDelete}
+                                disabled={loading}
+                            >
+                                {loading ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Add Plate Code Modal */}
             {showAddModal && (
