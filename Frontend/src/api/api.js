@@ -285,9 +285,14 @@ export const verifyChapaPayment = async ({ txRef, token, handleVerifySuccess, ha
     }
 };
 
-export const fetchDailyStats = async ({ token, setDailyStats }) => {
+export const fetchDailyStats = async ({ token, date, setDailyStats }) => {
     try {
-        const response = await axios.get(`${BASE_URL}parkedCar/stats/daily`, {
+        // Build URL with optional date query param
+        const url = date 
+            ? `${BASE_URL}parkedCar/stats/daily?date=${date}` 
+            : `${BASE_URL}parkedCar/stats/daily`;
+
+        const response = await axios.get(url, {
             headers: {
                 'Authorization': `Bearer ${token}`,
             },

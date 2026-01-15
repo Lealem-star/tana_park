@@ -98,7 +98,6 @@ const DashboardOverview = () => {
                     <div className="card-header">
                         <h2>Daily Revenue by Valet</h2>
                         <div className="date-selector">
-                            <label>Select Date:</label>
                             <input
                                 type="date"
                                 value={selectedDate}

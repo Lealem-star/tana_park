@@ -12,6 +12,7 @@ const ParkedCarsList = () => {
     const navigate = useNavigate();
     const [cars, setCars] = useState([]);
     const [filter, setFilter] = useState('all'); // all, parked, checked_out
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
     const [selectedCar, setSelectedCar] = useState(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
@@ -57,15 +58,16 @@ const ParkedCarsList = () => {
         fetchParkedCars({ 
             token: user.token, 
             status,
+            date: selectedDate,
             setParkedCars: setCars 
         });
-    }, [user?.token, filter]);
+    }, [user?.token, filter, selectedDate]);
 
     useEffect(() => {
         if (user?.token) {
             loadCars();
-            // Fetch daily statistics
-            fetchDailyStats({ token: user.token, setDailyStats });
+            // Fetch daily statistics for the selected date
+            fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
         }
         // Fetch pricing settings (no auth required)
         fetchPricingSettings({
@@ -83,7 +85,7 @@ const ParkedCarsList = () => {
                 setPricingSettings({ ...defaultPricingFallback, ...pricing });
             }
         });
-    }, [user, filter, loadCars]);
+    }, [user, filter, selectedDate, loadCars]);
 
     // Auto-refresh to change delete button to check out after 2 minutes
     useEffect(() => {
@@ -129,12 +131,12 @@ const ParkedCarsList = () => {
 
             if (needsRefresh) {
                 loadCars();
-                fetchDailyStats({ token: user.token, setDailyStats });
+                fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
             }
         }, checkInterval);
 
         return () => clearInterval(interval);
-    }, [cars, user, loadCars]);
+    }, [cars, user, selectedDate, loadCars]);
 
     const calculateFee = (car) => {
         const parkedAt = new Date(car.parkedAt);
@@ -193,7 +195,7 @@ const ParkedCarsList = () => {
                 token: user.token,
                 handleUpdateParkedCarSuccess: () => {
                     loadCars();
-                    fetchDailyStats({ token: user.token, setDailyStats });
+                    fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
                     setShowStatusModal(false);
                     setSelectedCar(null);
                 },
@@ -350,7 +352,7 @@ const ParkedCarsList = () => {
 
                                             // Refresh cars list and stats
                                             loadCars();
-                                            fetchDailyStats({ token: user.token, setDailyStats });
+                                            fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
 
                                             setShowPaymentFormModal(false);
                                             setShowInlinePayment(false);
@@ -442,7 +444,7 @@ const ParkedCarsList = () => {
 
                         // Refresh cars list and stats
                         loadCars();
-                        fetchDailyStats({ token: user.token, setDailyStats });
+                        fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
 
                         setShowPaymentModal(false);
                         setSelectedCar(null);
@@ -553,24 +555,34 @@ const ParkedCarsList = () => {
             </div>
 
             <div className="filters">
-                <button 
-                    className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-                    onClick={() => setFilter('all')}
-                >
-                    All
-                </button>
-                <button 
-                    className={`filter-btn ${filter === 'parked' ? 'active' : ''}`}
-                    onClick={() => setFilter('parked')}
-                >
-                    Parked
-                </button>
-                <button 
-                    className={`filter-btn ${filter === 'checked_out' ? 'active' : ''}`}
-                    onClick={() => setFilter('checked_out')}
-                >
-                    Checked Out
-                </button>
+                <div className="filter-buttons">
+                    <button 
+                        className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+                        onClick={() => setFilter('all')}
+                    >
+                        All
+                    </button>
+                    <button 
+                        className={`filter-btn ${filter === 'parked' ? 'active' : ''}`}
+                        onClick={() => setFilter('parked')}
+                    >
+                        Parked
+                    </button>
+                    <button 
+                        className={`filter-btn ${filter === 'checked_out' ? 'active' : ''}`}
+                        onClick={() => setFilter('checked_out')}
+                    >
+                        Checked Out
+                    </button>
+                </div>
+                <div className="date-selector">
+                    {/* <label>Select Date:</label> */}
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                    />
+                </div>
             </div>
 
             <div className="stats-grid">
