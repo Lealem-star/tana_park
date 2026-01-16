@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { 
     fetchActivityReport, 
@@ -30,11 +30,7 @@ const OperationalReports = () => {
     const [peakHoursData, setPeakHoursData] = useState(null);
     const [plateCodeDistData, setPlateCodeDistData] = useState(null);
 
-    useEffect(() => {
-        loadReport();
-    }, [activeReport, startDate, endDate]);
-
-    const loadReport = () => {
+    const loadReport = useCallback(() => {
         setLoading(true);
         setError('');
 
@@ -109,7 +105,11 @@ const OperationalReports = () => {
                 }
             });
         }
-    };
+    }, [user?.token, activeReport, startDate, endDate]);
+
+    useEffect(() => {
+        loadReport();
+    }, [loadReport]);
 
     const handleExportPDF = async (type) => {
         try {

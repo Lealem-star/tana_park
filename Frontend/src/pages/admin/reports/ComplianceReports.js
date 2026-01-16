@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { 
     fetchTransactionsReport, 
@@ -25,15 +25,7 @@ const ComplianceReports = () => {
     const [transactionsData, setTransactionsData] = useState(null);
     const [systemActivityData, setSystemActivityData] = useState(null);
 
-    useEffect(() => {
-        if (activeReport === 'transactions') {
-            loadTransactionsReport();
-        } else if (activeReport === 'system-activity') {
-            loadSystemActivityReport();
-        }
-    }, [activeReport]);
-
-    const loadTransactionsReport = () => {
+    const loadTransactionsReport = useCallback(() => {
         setLoading(true);
         setError('');
         fetchTransactionsReport({
@@ -50,9 +42,9 @@ const ComplianceReports = () => {
                 setLoading(false);
             }
         });
-    };
+    }, [user?.token, startDate, endDate, paymentMethod]);
 
-    const loadSystemActivityReport = () => {
+    const loadSystemActivityReport = useCallback(() => {
         setLoading(true);
         setError('');
         fetchSystemActivityReport({
@@ -68,7 +60,15 @@ const ComplianceReports = () => {
                 setLoading(false);
             }
         });
-    };
+    }, [user?.token, startDate, endDate]);
+
+    useEffect(() => {
+        if (activeReport === 'transactions') {
+            loadTransactionsReport();
+        } else if (activeReport === 'system-activity') {
+            loadSystemActivityReport();
+        }
+    }, [activeReport, loadTransactionsReport, loadSystemActivityReport]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-ET', {

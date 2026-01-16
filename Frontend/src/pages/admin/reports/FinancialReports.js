@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { 
     fetchDailyRevenueReport, 
@@ -47,19 +47,7 @@ const FinancialReports = () => {
     const [paymentEndDate, setPaymentEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [paymentData, setPaymentData] = useState(null);
 
-    useEffect(() => {
-        if (activeReport === 'daily') {
-            loadDailyReport();
-        } else if (activeReport === 'period') {
-            loadPeriodReport();
-        } else if (activeReport === 'plate-code') {
-            loadPlateCodeReport();
-        } else if (activeReport === 'payment-methods') {
-            loadPaymentMethodsReport();
-        }
-    }, [activeReport]);
-
-    const loadDailyReport = () => {
+    const loadDailyReport = useCallback(() => {
         setLoading(true);
         setError('');
         fetchDailyRevenueReport({
@@ -74,9 +62,9 @@ const FinancialReports = () => {
                 setLoading(false);
             }
         });
-    };
+    }, [user?.token, dailyDate]);
 
-    const loadPeriodReport = () => {
+    const loadPeriodReport = useCallback(() => {
         setLoading(true);
         setError('');
         fetchPeriodRevenueReport({
@@ -92,9 +80,9 @@ const FinancialReports = () => {
                 setLoading(false);
             }
         });
-    };
+    }, [user?.token, periodStartDate, periodEndDate]);
 
-    const loadPlateCodeReport = () => {
+    const loadPlateCodeReport = useCallback(() => {
         setLoading(true);
         setError('');
         fetchPlateCodeRevenueReport({
@@ -110,9 +98,9 @@ const FinancialReports = () => {
                 setLoading(false);
             }
         });
-    };
+    }, [user?.token, plateCodeStartDate, plateCodeEndDate]);
 
-    const loadPaymentMethodsReport = () => {
+    const loadPaymentMethodsReport = useCallback(() => {
         setLoading(true);
         setError('');
         fetchPaymentMethodsReport({
@@ -128,7 +116,19 @@ const FinancialReports = () => {
                 setLoading(false);
             }
         });
-    };
+    }, [user?.token, paymentStartDate, paymentEndDate]);
+
+    useEffect(() => {
+        if (activeReport === 'daily') {
+            loadDailyReport();
+        } else if (activeReport === 'period') {
+            loadPeriodReport();
+        } else if (activeReport === 'plate-code') {
+            loadPlateCodeReport();
+        } else if (activeReport === 'payment-methods') {
+            loadPaymentMethodsReport();
+        }
+    }, [activeReport, loadDailyReport, loadPeriodReport, loadPlateCodeReport, loadPaymentMethodsReport]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-ET', {

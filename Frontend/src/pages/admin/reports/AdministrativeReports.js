@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { 
     fetchUsersReport, 
@@ -24,15 +24,7 @@ const AdministrativeReports = () => {
     const [usersData, setUsersData] = useState(null);
     const [valetPerformanceData, setValetPerformanceData] = useState(null);
 
-    useEffect(() => {
-        if (activeReport === 'users') {
-            loadUsersReport();
-        } else if (activeReport === 'valet-performance') {
-            loadValetPerformanceReport();
-        }
-    }, [activeReport]);
-
-    const loadUsersReport = () => {
+    const loadUsersReport = useCallback(() => {
         setLoading(true);
         setError('');
         fetchUsersReport({
@@ -46,9 +38,9 @@ const AdministrativeReports = () => {
                 setLoading(false);
             }
         });
-    };
+    }, [user?.token]);
 
-    const loadValetPerformanceReport = () => {
+    const loadValetPerformanceReport = useCallback(() => {
         setLoading(true);
         setError('');
         fetchValetPerformanceReport({
@@ -64,7 +56,15 @@ const AdministrativeReports = () => {
                 setLoading(false);
             }
         });
-    };
+    }, [user?.token, startDate, endDate]);
+
+    useEffect(() => {
+        if (activeReport === 'users') {
+            loadUsersReport();
+        } else if (activeReport === 'valet-performance') {
+            loadValetPerformanceReport();
+        }
+    }, [activeReport, loadUsersReport, loadValetPerformanceReport]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-ET', {
