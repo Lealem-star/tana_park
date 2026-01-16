@@ -76,6 +76,12 @@
         border-radius: 12px;
         padding: 2rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+        // Chat-specific styles
+        .chat-container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
     }
 }
 
@@ -549,6 +555,44 @@
                 padding: 0.5rem 1rem;
             }
         }
+
+        // Chat-specific mobile styles - reduce padding and center content
+        &.chat-mobile {
+            padding: 0 !important;
+            background: transparent !important;
+            min-height: 100vh !important;
+
+            .reports-content {
+                padding: 0 !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                background: transparent !important;
+            }
+
+            .chat-container {
+                max-width: 100% !important;
+                margin: 0 auto !important;
+                width: 100% !important;
+                height: calc(100vh - 80px) !important;
+            }
+
+            .chat-messages {
+                padding: 0.5rem 0.25rem !important;
+            }
+        }
+
+        .reports-content {
+            padding: 0.5rem;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .chat-container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
     }
 
     .stats-grid {
@@ -574,11 +618,13 @@
 
     // Chat message boxes responsive styles
     .chat-container {
-        height: 60vh !important;
+        height: calc(100vh - 100px) !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
     }
 
     .chat-messages {
-        padding: 0.75rem !important;
+        padding: 0.5rem !important;
     }
 
     .chat-message-bubble {

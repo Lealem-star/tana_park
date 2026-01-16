@@ -157,16 +157,16 @@ const GroupChat = () => {
     };
 
     return (
-        <div className="reports-container">
+        <div className={`reports-container ${isMobile ? 'chat-mobile' : ''}`} style={isMobile ? { padding: '0', margin: '0' } : {}}>
 
-            <div className="reports-content">
+            <div className="reports-content" style={isMobile ? { padding: '0', margin: '0', borderRadius: '0' } : {}}>
                 {error && (
                     <div className="alert alert-danger">
                         {error}
                     </div>
                 )}
 
-                <div className="chat-container" style={{ display: 'flex', flexDirection: 'column', height: isMobile ? '60vh' : '70vh', position: 'relative' }}>
+                <div className="chat-container" style={{ display: 'flex', flexDirection: 'column', height: isMobile ? 'calc(100vh - 100px)' : '70vh', position: 'relative', maxWidth: isMobile ? '100%' : '100%', margin: '0 auto' }}>
                     <div
                         className="chat-messages"
                         style={{
