@@ -7,6 +7,25 @@ import { CheckCircle, Clock, X, Car } from 'lucide-react';
 import '../../css/parkedCarsList.scss';
 import '../../css/valetOverview.scss';
 
+// Default pricing per hour for each plate code (in ETB) - fallback values
+const defaultPricingFallback = {
+    '01': 50,
+    '02': 50,
+    '03': 50,
+    '04': 50,
+    '05': 50,
+    'police': 0,
+    'AO': 75,
+    'ተላላፊ': 60,
+    'የእለት': 40,
+    'DF': 100,
+    'AU': 80,
+    'AU-CD': 80,
+    'UN': 0,
+    'UN-CD': 0,
+    'CD': 90,
+};
+
 const ParkedCarsList = () => {
     const user = useSelector((state) => state.user);
     const navigate = useNavigate();
@@ -21,7 +40,6 @@ const ParkedCarsList = () => {
     const [showPaymentFormModal, setShowPaymentFormModal] = useState(false);
     const [feeDetails, setFeeDetails] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [showInlinePayment, setShowInlinePayment] = useState(false);
     const chapaInstanceRef = useRef(null);
     const [dailyStats, setDailyStats] = useState({
         totalParked: 0,
@@ -30,25 +48,6 @@ const ParkedCarsList = () => {
         manualPayments: 0,
         onlinePayments: 0,
     });
-
-    // Default pricing per hour for each plate code (in ETB) - fallback values
-    const defaultPricingFallback = {
-        '01': 50,
-        '02': 50,
-        '03': 50,
-        '04': 50,
-        '05': 50,
-        'police': 0,
-        'AO': 75,
-        'ተላላፊ': 60,
-        'የእለት': 40,
-        'DF': 100,
-        'AU': 80,
-        'AU-CD': 80,
-        'UN': 0,
-        'UN-CD': 0,
-        'CD': 90,
-    };
 
     const [pricingSettings, setPricingSettings] = useState(defaultPricingFallback);
 
@@ -85,7 +84,7 @@ const ParkedCarsList = () => {
                 setPricingSettings({ ...defaultPricingFallback, ...pricing });
             }
         });
-    }, [user, filter, selectedDate, loadCars]);
+    }, [user, filter, selectedDate, loadCars, defaultPricingFallback]);
 
     // Auto-refresh to change delete button to check out after 2 minutes
     useEffect(() => {
@@ -355,7 +354,6 @@ const ParkedCarsList = () => {
                                             fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
 
                                             setShowPaymentFormModal(false);
-                                            setShowInlinePayment(false);
                                             setSelectedCar(null);
                                             setFeeDetails(null);
                                             setLoading(false);
@@ -374,16 +372,14 @@ const ParkedCarsList = () => {
                                 },
                                 onClose: () => {
                                     setShowPaymentFormModal(false);
-                                    setShowInlinePayment(false);
                                     setLoading(false);
                                 }
                             });
 
                             chapaInstanceRef.current = chapa;
                             
-                            // Open payment form modal and set showInlinePayment
+                            // Open payment form modal
                             setShowPaymentFormModal(true);
-                            setShowInlinePayment(true);
                             
                             // Wait for DOM to update, then initialize Chapa
                             setTimeout(() => {
@@ -395,7 +391,6 @@ const ParkedCarsList = () => {
                                     console.error('Chapa container not found after rendering');
                                     alert('Failed to load payment form. Please try again.');
                                     setShowPaymentFormModal(false);
-                                    setShowInlinePayment(false);
                                     setLoading(false);
                                 }
                             }, 100);
@@ -484,7 +479,6 @@ const ParkedCarsList = () => {
                 chapaInstanceRef.current = null;
             }
             setShowPaymentFormModal(false);
-            setShowInlinePayment(false);
         }
     };
 

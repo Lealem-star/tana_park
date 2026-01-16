@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { verifyChapaPayment, sendSmsNotification, fetchParkedCars } from '../../api/api';
+import { verifyChapaPayment, sendSmsNotification } from '../../api/api';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
 import '../../css/paymentCallback.scss';
 
@@ -11,7 +11,6 @@ const PaymentCallback = () => {
     const user = useSelector((state) => state.user);
     const [paymentStatus, setPaymentStatus] = useState('verifying'); // verifying, success, failed
     const [message, setMessage] = useState('Verifying payment...');
-    const [carId, setCarId] = useState(null);
 
     useEffect(() => {
         const verifyPayment = async () => {
@@ -24,8 +23,6 @@ const PaymentCallback = () => {
                 setMessage('Payment reference not found. Please contact support.');
                 return;
             }
-
-            setCarId(urlCarId);
 
             // Try to get payment info from localStorage
             let paymentInfo = null;

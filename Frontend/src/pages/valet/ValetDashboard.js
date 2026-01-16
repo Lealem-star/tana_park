@@ -7,7 +7,6 @@ import {
     LayoutDashboard, 
     Car, 
     List, 
-    BarChart3,
     LogOut, 
     Menu,
     X,
