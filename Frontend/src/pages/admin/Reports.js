@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { FileText, DollarSign, Activity, Users, Shield, TrendingUp, Calendar, Download } from 'lucide-react';
+import { FileText, DollarSign, Activity, Users, Shield } from 'lucide-react';
 import FinancialReports from './reports/FinancialReports';
 import OperationalReports from './reports/OperationalReports';
 import CustomerReports from './reports/CustomerReports';
