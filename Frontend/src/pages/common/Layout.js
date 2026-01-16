@@ -94,16 +94,16 @@ const Layout = () => {
                     <div className="col-md-4">
                     </div>
                     <div className="col-md-4 d-flex justify-content-end">
-                        <a href="#" className="hover:text-blue">
+                        <button type="button" className="btn-link hover:text-blue" aria-label="Instagram">
                         <Instagram />
-                        </a>
-                        <a href="#">
+                        </button>
+                        <button type="button" className="btn-link" aria-label="Github">
                         <Github />
-                        </a>
-                        <a href="#">
+                        </button>
+                        <button type="button" className="btn-link" aria-label="LinkedIn">
                         <LinkedinIcon />
-                        </a>
-                        <a href="mailto:enqopatechplc@gmail.com">
+                        </button>
+                        <a href="mailto:enqopatechplc@gmail.com" aria-label="Email">
                         <Mail />
                         </a>
                     </div>

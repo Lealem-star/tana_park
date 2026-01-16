@@ -84,7 +84,7 @@ const ParkedCarsList = () => {
                 setPricingSettings({ ...defaultPricingFallback, ...pricing });
             }
         });
-    }, [user, filter, selectedDate, loadCars, defaultPricingFallback]);
+    }, [user, filter, selectedDate, loadCars]);
 
     // Auto-refresh to change delete button to check out after 2 minutes
     useEffect(() => {

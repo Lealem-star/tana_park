@@ -47,6 +47,19 @@ footer {
     a:hover{
         color: #0DCAF0;
     }
+    .btn-link {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0 10px;
+        color: #fff;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+    }
+    .btn-link:hover{
+        color: #0DCAF0;
+    }
     p:hover{
         color: #0DCAF0;
     }
