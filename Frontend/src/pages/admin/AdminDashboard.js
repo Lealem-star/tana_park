@@ -13,8 +13,10 @@ import {
     X,
     Bell,
     User,
-    Camera
+    Camera,
+    FileText
 } from 'lucide-react';
+import { socket } from '../../utils/chatSocket';
 
 import '../../css/adminDashboard.scss';
 
@@ -22,6 +24,7 @@ const AdminDashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [profileForm, setProfileForm] = useState({
         name: '',
@@ -224,9 +227,27 @@ const AdminDashboard = () => {
             });
     };
 
+    // Subscribe to chat messages for unread count
+    useEffect(() => {
+        const handleNewMessage = (msg) => {
+            if (location.pathname === '/admin/chat') return;
+            setUnreadCount((prev) => prev + 1);
+        };
+        socket.on('chat:newMessage', handleNewMessage);
+        return () => {
+            socket.off('chat:newMessage', handleNewMessage);
+        };
+    }, [location.pathname]);
+
+    const handleBellClick = () => {
+        navigate('/admin/chat');
+        setUnreadCount(0);
+    };
+
     const menuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
         { icon: Users, label: 'User Management', path: '/admin/users' },
+        { icon: FileText, label: 'Reports', path: '/admin/reports' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
     ];
 
@@ -338,9 +359,11 @@ const AdminDashboard = () => {
                     </div>
                     
                     <div className="header-right">
-                        <button className="icon-btn">
+                        <button className="icon-btn" onClick={handleBellClick}>
                             <Bell size={20} />
-                            <span className="badge">2</span>
+                            {unreadCount > 0 && (
+                                <span className="badge">{unreadCount}</span>
+                            )}
                         </button>
                     </div>
                 </header>

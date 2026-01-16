@@ -356,3 +356,318 @@ export const updatePricingSettings = async ({ settings, token, handleUpdateSucce
         handleUpdateFailure(errorMessage);
     }
 };
+
+// ==================== CHAT API ====================
+
+export const fetchChatMessages = async ({ token, limit = 50, before, setMessages, handleError }) => {
+    try {
+        let url = `${BASE_URL}chat/messages?limit=${limit}`;
+        if (before) {
+            url += `&before=${encodeURIComponent(before)}`;
+        }
+        const response = await axios.get(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (response.data && Array.isArray(response.data)) {
+            setMessages(response.data);
+        }
+    } catch (error) {
+        console.error('Error fetching chat messages:', error);
+        if (handleError) {
+            handleError(error?.response?.data?.error || 'Failed to load chat messages');
+        }
+    }
+};
+
+export const sendChatMessage = async ({ token, text, replyTo, handleSuccess, handleError }) => {
+    try {
+        const body = { text };
+        if (replyTo) body.replyTo = replyTo;
+        
+        const response = await axios.post(`${BASE_URL}chat/messages`, body, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (response.data && handleSuccess) {
+            handleSuccess(response.data);
+        }
+    } catch (error) {
+        console.error('Error sending chat message:', error);
+        if (handleError) {
+            handleError(error?.response?.data?.error || 'Failed to send message');
+        }
+    }
+};
+
+// ==================== REPORTS API ====================
+
+// Financial Reports
+export const fetchDailyRevenueReport = async ({ token, date, setData, handleError }) => {
+    try {
+        const url = date ? `${BASE_URL}reports/financial/daily?date=${date}` : `${BASE_URL}reports/financial/daily`;
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching daily revenue:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchPeriodRevenueReport = async ({ token, startDate, endDate, period, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/financial/period`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (period) params.append('period', period);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching period revenue:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchPlateCodeRevenueReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/financial/plate-code`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching plate code revenue:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchPaymentMethodsReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/financial/payment-methods`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching payment methods:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+// Operational Reports
+export const fetchActivityReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/operational/activity`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching activity report:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchDurationReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/operational/duration`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching duration report:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchLocationReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/operational/location`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching location report:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchPeakHoursReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/operational/peak-hours`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching peak hours:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchPlateCodeDistributionReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/operational/plate-code-distribution`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching plate code distribution:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+// Customer Reports
+export const fetchVehicleHistoryReport = async ({ token, licensePlate, phoneNumber, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/customer/vehicle-history`;
+        const params = new URLSearchParams();
+        if (licensePlate) params.append('licensePlate', licensePlate);
+        if (phoneNumber) params.append('phoneNumber', phoneNumber);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching vehicle history:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchCustomerActivityReport = async ({ token, startDate, endDate, minVisits, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/customer/activity`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (minVisits) params.append('minVisits', minVisits);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching customer activity:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+// Administrative Reports
+export const fetchUsersReport = async ({ token, setData, handleError }) => {
+    try {
+        const response = await axios.get(`${BASE_URL}reports/administrative/users`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching users report:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchValetPerformanceReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/administrative/valet-performance`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching valet performance:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+// Compliance & Audit Reports
+export const fetchTransactionsReport = async ({ token, startDate, endDate, paymentMethod, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/compliance/transactions`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (paymentMethod) params.append('paymentMethod', paymentMethod);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching transactions:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};
+
+export const fetchSystemActivityReport = async ({ token, startDate, endDate, setData, handleError }) => {
+    try {
+        let url = `${BASE_URL}reports/compliance/system-activity`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setData(response.data);
+    } catch (error) {
+        console.error("Error fetching system activity:", error);
+        if (handleError) handleError(error?.response?.data?.error || 'Failed to fetch report');
+    }
+};

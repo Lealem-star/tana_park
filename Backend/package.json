@@ -22,6 +22,7 @@
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.1.1",
     "multer": "^2.0.2",
+    "socket.io": "^4.8.3",
     "twilio": "^5.11.1"
   },
   "devDependencies": {

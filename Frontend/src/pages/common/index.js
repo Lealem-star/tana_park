@@ -16,6 +16,8 @@ import AdminDashboard from "../admin/AdminDashboard";
 import DashboardOverview from "../admin/DashboardOverview";
 import UserManagement from "../admin/UserManagement";
 import Settings from "../admin/Settings";
+import Reports from "../admin/Reports";
+import GroupChat from "./GroupChat";
 
 export {
     Layout,
@@ -33,5 +35,7 @@ export {
     AdminDashboard,
     DashboardOverview,
     UserManagement,
-    Settings
+    Settings,
+    Reports,
+    GroupChat
 }

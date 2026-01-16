@@ -1,4 +1,6 @@
 const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const app = express();
 const bodyParser = require("body-parser");
 const { connectDB } = require("./config/db.config");
@@ -10,6 +12,8 @@ const paymentRouter = require("./controllers/payment");
 const parkedCarRouter = require("./controllers/parkedCar");
 const smsRouter = require("./controllers/sms");
 const pricingSettingsRouter = require("./controllers/pricingSettings");
+const reportsRouter = require("./controllers/reports");
+const chatRouter = require("./controllers/chat");
 const cors = require('cors');
 
 const port = process.env.PORT || 4000;
@@ -55,9 +59,44 @@ app.use(bodyParser.json())
 // Serve static files (uploaded images)
 app.use('/uploads', express.static('uploads'));
 
-// Connect Database
-connectDB();
+// Connect Database (non-blocking - server will start even if DB connection fails)
+connectDB().catch(err => {
+    console.error('Database connection failed:', err.message);
+    console.log('Server will continue to run, but database operations may fail');
+});
 
+// Create HTTP server and Socket.IO instance
+const server = http.createServer(app);
+
+const io = new Server(server, {
+    cors: {
+        origin: (origin, callback) => {
+            // Allow requests with no origin (mobile apps, curl)
+            if (!origin || process.env.NODE_ENV !== 'production') {
+                return callback(null, true);
+            }
+            if (allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+            } else {
+                console.warn(`Socket.IO CORS blocked origin: ${origin}`);
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
+});
+
+// Make io available in routes
+app.set('io', io);
+
+io.on('connection', (socket) => {
+    console.log('Socket.IO client connected:', socket.id);
+
+    socket.on('disconnect', () => {
+        console.log('Socket.IO client disconnected:', socket.id);
+    });
+});
 
 app.get('/', isLoggedIn, async (req, res) => {
     res.json({ message: 'Hello world!'})
@@ -69,6 +108,8 @@ app.use("/payment", paymentRouter)
 app.use("/parkedCar", parkedCarRouter)
 app.use("/sms", smsRouter)
 app.use("/pricingSettings", pricingSettingsRouter)
+app.use("/reports", reportsRouter)
+app.use("/chat", chatRouter)
 
 // Error handler
 
@@ -82,6 +123,6 @@ app.use((error, req, res, next) => {
     handleError(error, res);
 })
 
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Running on http://localhost:${port}`)
 })

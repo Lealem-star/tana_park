@@ -14,12 +14,14 @@ import {
     Bell,
     User
 } from 'lucide-react';
+import { socket } from '../../utils/chatSocket';
 import '../../css/valetDashboard.scss';
 
 const ValetDashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
     const user = useSelector((state) => state.user);
     const navigate = useNavigate();
     const location = useLocation();
@@ -41,6 +43,22 @@ const ValetDashboard = () => {
 
     const handleProfileUpdate = () => {
         navigate('/valet/profile'); // Assuming 'profile' is the existing route for profile management
+    };
+
+    useEffect(() => {
+        const handleNewMessage = (msg) => {
+            if (location.pathname === '/valet/chat') return;
+            setUnreadCount((prev) => prev + 1);
+        };
+        socket.on('chat:newMessage', handleNewMessage);
+        return () => {
+            socket.off('chat:newMessage', handleNewMessage);
+        };
+    }, [location.pathname]);
+
+    const handleBellClick = () => {
+        navigate('/valet/chat');
+        setUnreadCount(0);
     };
 
     const menuItems = [
@@ -157,9 +175,11 @@ const ValetDashboard = () => {
                     </div>
                     
                     <div className="header-right">
-                        <button className="icon-btn">
+                        <button className="icon-btn" onClick={handleBellClick}>
                             <Bell size={20} />
-                            <span className="badge">2</span>
+                            {unreadCount > 0 && (
+                                <span className="badge">{unreadCount}</span>
+                            )}
                         </button>
                     </div>
                 </header>
