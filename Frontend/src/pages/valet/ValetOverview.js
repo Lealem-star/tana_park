@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchParkedCars, updateParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchDailyStatsHistory } from '../../api/api';
-import { Car, CheckCircle, X, CreditCard } from 'lucide-react';
+import { fetchParkedCars, fetchDailyStats, fetchDailyStatsHistory } from '../../api/api';
+import { Car, CheckCircle, CreditCard } from 'lucide-react';
 import '../../css/valetOverview.scss';
 
 const ValetOverview = () => {
@@ -16,10 +16,6 @@ const ValetOverview = () => {
         onlinePayments: 0,
     });
     const [dailyStatsHistory, setDailyStatsHistory] = useState([]);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [selectedCar, setSelectedCar] = useState(null);
-    const [feeDetails, setFeeDetails] = useState(null);
-    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (user?.token) {
@@ -43,58 +39,6 @@ const ValetOverview = () => {
             month: 'short', 
             day: 'numeric' 
         });
-    };
-
-    const handlePaymentMethod = async (paymentMethod) => {
-        if (!selectedCar || !feeDetails) return;
-
-        setLoading(true);
-        
-        try {
-            // Initialize Chapa payment for online payment
-            const customerName = selectedCar.customerName || 'Customer';
-            const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
-            const customerPhone = selectedCar.phoneNumber;
-
-            await initializeChapaPayment({
-                carId: selectedCar._id,
-                amount: feeDetails.totalWithVat,
-                customerName: customerName,
-                customerEmail: customerEmail,
-                customerPhone: customerPhone,
-                token: user?.token,
-                handleInitSuccess: (data) => {
-                    // Store payment reference for later verification
-                    localStorage.setItem(`chapa_payment_${selectedCar._id}`, JSON.stringify({
-                        txRef: data.txRef,
-                        carId: selectedCar._id,
-                        feeDetails: feeDetails,
-                        customerPhone: selectedCar.phoneNumber || customerPhone,
-                        totalPaidAmount: feeDetails.totalWithVat,
-                    }));
-                    
-                    // Redirect to Chapa payment page
-                    window.location.href = data.paymentUrl;
-                },
-                handleInitFailure: (error) => {
-                    console.error('Failed to initialize Chapa payment:', error);
-                    alert(`Failed to initialize payment: ${error}`);
-                    setLoading(false);
-                }
-            });
-        } catch (error) {
-            console.error('Error processing payment:', error);
-            alert('An error occurred. Please try again.');
-            setLoading(false);
-        }
-    };
-
-    const handleCloseModal = () => {
-        if (!loading) {
-            setShowPaymentModal(false);
-            setSelectedCar(null);
-            setFeeDetails(null);
-        }
     };
 
     return (
@@ -164,75 +108,6 @@ const ValetOverview = () => {
                     </div>
                 )}
             </div>
-
-            {/* Payment Modal */}
-            {showPaymentModal && selectedCar && feeDetails && (
-                <div className="payment-modal-overlay" onClick={handleCloseModal}>
-                    <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Parked Out - Payment Details</h2>
-                            <button className="close-btn" onClick={handleCloseModal} disabled={loading}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        
-                        <div className="modal-content">
-                            <div className="parking-details-section">
-                                <h3>Parking Detail</h3>
-                                <div className="detail-row">
-                                    <span className="label">Parking Zone:</span>
-                                    <span className="value">{selectedCar.location || 'N/A'}</span>
-                                </div>
-                            </div>
-
-                            <div className="vehicle-details-section">
-                                <h3>Vehicle Detail</h3>
-                                <div className="detail-row">
-                                    <span className="label">Phone Number:</span>
-                                    <span className="value">{selectedCar.phoneNumber || 'N/A'}</span>
-                                </div>
-                                <div className="detail-row">
-                                    <span className="label">Plate Number:</span>
-                                    <span className="value">{selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}</span>
-                                </div>
-                            </div>
-
-                            <div className="duration-section">
-                                <h3>Duration</h3>
-                                <div className="detail-row">
-                                    <span className="label">Start Time:</span>
-                                    <span className="value">{feeDetails.parkedAt}</span>
-                                </div>
-                                <div className="detail-row">
-                                    <span className="label">End Time:</span>
-                                    <span className="value">{feeDetails.checkedOutAt}</span>
-                                </div>
-                                <div className="detail-row">
-                                    <span className="label">Duration:</span>
-                                    <span className="value">{feeDetails.durationText}</span>
-                                </div>
-                            </div>
-
-                            <div className="payment-details-section">
-                                <h3>Payment Detail</h3>
-                                <div className="detail-row">
-                                    <span className="label">Parking Fee:</span>
-                                    <span className="value">{feeDetails.parkingFee.toFixed(2)} ETB</span>
-                                </div>
-                                <div className="detail-row">
-                                    <span className="label">VAT (15%):</span>
-                                    <span className="value">{feeDetails.vatAmount.toFixed(2)} ETB</span>
-                                </div>
-                                <div className="detail-row total-fee">
-                                    <span className="label">Total:</span>
-                                    <span className="value">{feeDetails.totalWithVat.toFixed(2)} ETB</span>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
