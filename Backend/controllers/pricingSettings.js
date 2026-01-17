@@ -29,14 +29,23 @@ pricingSettingsRouter.put("/", isLoggedIn, async (req, res) => {
 
         const { settings } = req.body;
 
-        // Input validation
+        // Input validation - support price levels structure: {priceLevels: {[name]: {carType: {...}}}}
+        const carTypePricingSchema = Joi.object({
+            hourly: Joi.number().min(0).optional(),
+            weekly: Joi.number().min(0).optional(),
+            monthly: Joi.number().min(0).optional(),
+            yearly: Joi.number().min(0).optional()
+        }).or('hourly', 'weekly', 'monthly', 'yearly');
+
+        const priceLevelSchema = Joi.object().pattern(
+            Joi.string().valid('tripod', 'automobile', 'truck', 'trailer'),
+            carTypePricingSchema
+        );
+
         const schema = Joi.object({
-            settings: Joi.object().pattern(
-                Joi.string(),
-                Joi.object({
-                    pricePerHour: Joi.number().min(0).required()
-                })
-            ).required()
+            settings: Joi.object({
+                priceLevels: Joi.object().pattern(Joi.string(), priceLevelSchema).optional()
+            }).allow({}) // Allow other fields for backward compatibility
         });
 
         const { error } = schema.validate({ settings });

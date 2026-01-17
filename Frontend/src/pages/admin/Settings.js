@@ -1,73 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { fetchPricingSettings, updatePricingSettings } from '../../api/api';
-import { Plus, X, Edit2, Trash2, Check, X as XIcon } from 'lucide-react';
+import { Edit2, Check, X as XIcon, Plus, Trash2 } from 'lucide-react';
 import '../../css/settings.scss';
+
+const carTypes = ['tripod', 'automobile', 'truck', 'trailer'];
 
 const Settings = () => {
     const user = useSelector((state) => state.user);
-    const [plateCodes, setPlateCodes] = useState([]);
-    const [settings, setSettings] = useState({});
+    const [priceLevels, setPriceLevels] = useState({});
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [newPlateCode, setNewPlateCode] = useState({
-        code: '',
-        pricePerHour: ''
+    const [editingPriceLevel, setEditingPriceLevel] = useState(null);
+    const [editingCarType, setEditingCarType] = useState(null);
+    const [editPrices, setEditPrices] = useState({
+        hourly: '',
+        weekly: '',
+        monthly: '',
+        yearly: ''
     });
-    const [modalError, setModalError] = useState('');
-    const [editingCode, setEditingCode] = useState(null);
-    const [editPrice, setEditPrice] = useState('');
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [newPriceLevelName, setNewPriceLevelName] = useState('');
+    const [newPriceLevelPricing, setNewPriceLevelPricing] = useState({
+        tripod: { hourly: '', weekly: '', monthly: '', yearly: '' },
+        automobile: { hourly: '', weekly: '', monthly: '', yearly: '' },
+        truck: { hourly: '', weekly: '', monthly: '', yearly: '' },
+        trailer: { hourly: '', weekly: '', monthly: '', yearly: '' }
+    });
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [plateCodeToDelete, setPlateCodeToDelete] = useState(null);
+    const [priceLevelToDelete, setPriceLevelToDelete] = useState(null);
 
     useEffect(() => {
         fetchPricingSettings({
             setPricingSettings: (data) => {
-                // Default plate codes if database is empty
-                const defaultCodes = ['01', '02', '03', '04', '05', 'police', 'AO', 'ተላላፊ', 'የእለት', 'DF', 'AU', 'AU-CD', 'UN', 'UN-CD', 'CD'];
-                
-                // Extract all plate codes from the data, or use defaults if empty
-                const codes = (data && typeof data === 'object' && Object.keys(data).length > 0) ? Object.keys(data) : defaultCodes;
-                setPlateCodes(codes);
-                
-                // Convert API format to settings format
-                const mergedSettings = {};
-                codes.forEach(code => {
-                    if (data && data[code] && data[code].pricePerHour !== undefined) {
-                        mergedSettings[code] = { pricePerHour: data[code].pricePerHour.toString() };
-                    } else {
-                        mergedSettings[code] = { pricePerHour: '' };
-                    }
-                });
-                setSettings(mergedSettings);
+                // Support price levels structure: {priceLevels: {[name]: {carType: {...}}}}
+                if (data && data.priceLevels) {
+                    setPriceLevels(data.priceLevels);
+                } else {
+                    // Backward compatibility or empty state
+                    setPriceLevels({});
+                }
             }
         });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Save settings to database
-    const saveSettings = (updatedSettings) => {
+    // Save price levels to database
+    const savePriceLevels = (updatedPriceLevels) => {
         setLoading(true);
         setError('');
         setSuccess('');
 
-        // Convert settings to the format expected by API
-        const settingsToSave = {};
-        Object.keys(updatedSettings).forEach(code => {
-            const priceValue = updatedSettings[code].pricePerHour;
-            if (priceValue !== '' && priceValue !== null && priceValue !== undefined) {
-                settingsToSave[code] = {
-                    pricePerHour: parseFloat(priceValue) || 0
+        // Convert to API format: {priceLevels: {[name]: {carType: {...}}}}
+        const settingsToSave = { priceLevels: {} };
+        Object.keys(updatedPriceLevels).forEach(priceLevelName => {
+            const priceLevel = updatedPriceLevels[priceLevelName];
+            settingsToSave.priceLevels[priceLevelName] = {};
+            carTypes.forEach(carType => {
+                const carPricing = priceLevel[carType] || {};
+                settingsToSave.priceLevels[priceLevelName][carType] = {
+                    hourly: carPricing.hourly ? parseFloat(carPricing.hourly) || 0 : 0,
+                    weekly: carPricing.weekly ? parseFloat(carPricing.weekly) || 0 : 0,
+                    monthly: carPricing.monthly ? parseFloat(carPricing.monthly) || 0 : 0,
+                    yearly: carPricing.yearly ? parseFloat(carPricing.yearly) || 0 : 0
                 };
-            }
+            });
         });
 
         updatePricingSettings({
             settings: settingsToSave,
             token: user?.token,
             handleUpdateSuccess: (data) => {
-                setSuccess('Settings saved successfully!');
+                setSuccess('Price level saved successfully!');
                 setLoading(false);
                 setTimeout(() => setSuccess(''), 3000);
             },
@@ -78,93 +82,101 @@ const Settings = () => {
         });
     };
 
-    // Handle edit button click
-    const handleEdit = (code) => {
-        setEditingCode(code);
-        setEditPrice(settings[code]?.pricePerHour || '');
+    // Handle edit price level car type pricing
+    const handleEditCarTypePricing = (priceLevelName, carType) => {
+        setEditingPriceLevel(priceLevelName);
+        setEditingCarType(carType);
+        const priceLevel = priceLevels[priceLevelName] || {};
+        const carPricing = priceLevel[carType] || {};
+        setEditPrices({
+            hourly: carPricing.hourly?.toString() || '',
+            weekly: carPricing.weekly?.toString() || '',
+            monthly: carPricing.monthly?.toString() || '',
+            yearly: carPricing.yearly?.toString() || ''
+        });
     };
 
     // Handle save edit
     const handleSaveEdit = () => {
-        if (!editingCode) return;
+        if (!editingPriceLevel || !editingCarType) return;
         
-        const updatedSettings = {
-            ...settings,
-            [editingCode]: {
-                pricePerHour: editPrice
+        const updatedPriceLevels = {
+            ...priceLevels,
+            [editingPriceLevel]: {
+                ...priceLevels[editingPriceLevel],
+                [editingCarType]: {
+                    hourly: editPrices.hourly,
+                    weekly: editPrices.weekly,
+                    monthly: editPrices.monthly,
+                    yearly: editPrices.yearly
+                }
             }
         };
         
-        setSettings(updatedSettings);
-        setEditingCode(null);
-        setEditPrice('');
-        saveSettings(updatedSettings);
+        setPriceLevels(updatedPriceLevels);
+        setEditingPriceLevel(null);
+        setEditingCarType(null);
+        setEditPrices({ hourly: '', weekly: '', monthly: '', yearly: '' });
+        savePriceLevels(updatedPriceLevels);
     };
 
     // Handle cancel edit
     const handleCancelEdit = () => {
-        setEditingCode(null);
-        setEditPrice('');
+        setEditingPriceLevel(null);
+        setEditingCarType(null);
+        setEditPrices({ hourly: '', weekly: '', monthly: '', yearly: '' });
     };
 
-    // Handle delete plate code - show confirmation modal
-    const handleDelete = (code) => {
-        setPlateCodeToDelete(code);
+    // Handle add price level
+    const handleAddPriceLevel = () => {
+        if (!newPriceLevelName || !newPriceLevelName.trim()) {
+            setError('Price level name is required');
+            return;
+        }
+        if (priceLevels[newPriceLevelName.trim()]) {
+            setError('Price level name already exists');
+            return;
+        }
+
+        const updatedPriceLevels = {
+            ...priceLevels,
+            [newPriceLevelName.trim()]: newPriceLevelPricing
+        };
+        
+        setPriceLevels(updatedPriceLevels);
+        setNewPriceLevelName('');
+        setNewPriceLevelPricing({
+            tripod: { hourly: '', weekly: '', monthly: '', yearly: '' },
+            automobile: { hourly: '', weekly: '', monthly: '', yearly: '' },
+            truck: { hourly: '', weekly: '', monthly: '', yearly: '' },
+            trailer: { hourly: '', weekly: '', monthly: '', yearly: '' }
+        });
+        setShowAddModal(false);
+        setError('');
+        savePriceLevels(updatedPriceLevels);
+    };
+
+    // Handle delete price level
+    const handleDelete = (priceLevelName) => {
+        setPriceLevelToDelete(priceLevelName);
         setShowDeleteModal(true);
     };
 
-    // Confirm delete action
+    // Confirm delete
     const confirmDelete = () => {
-        if (!plateCodeToDelete) return;
-        
-        const updatedPlateCodes = plateCodes.filter(c => c !== plateCodeToDelete);
-        const updatedSettings = { ...settings };
-        delete updatedSettings[plateCodeToDelete];
-        
-        setPlateCodes(updatedPlateCodes);
-        setSettings(updatedSettings);
+        if (!priceLevelToDelete) return;
+        const updatedPriceLevels = { ...priceLevels };
+        delete updatedPriceLevels[priceLevelToDelete];
+        setPriceLevels(updatedPriceLevels);
         setShowDeleteModal(false);
-        setPlateCodeToDelete(null);
-        saveSettings(updatedSettings);
+        setPriceLevelToDelete(null);
+        savePriceLevels(updatedPriceLevels);
     };
 
-    // Cancel delete action
+    // Cancel delete
     const cancelDelete = () => {
         setShowDeleteModal(false);
-        setPlateCodeToDelete(null);
-    };
-
-    const handleAddPlateCode = () => {
-        setModalError('');
-        if (!newPlateCode.code || !newPlateCode.code.trim()) {
-            setModalError('Plate code is required');
-            return;
-        }
-        if (!newPlateCode.pricePerHour || newPlateCode.pricePerHour === '') {
-            setModalError('Price per hour is required');
-            return;
-        }
-        const code = newPlateCode.code.trim();
-        if (plateCodes.includes(code)) {
-            setModalError('Plate code already exists');
-            return;
-        }
-
-        // Add new plate code to the list and settings
-        const updatedPlateCodes = [...plateCodes, code];
-        const updatedSettings = {
-            ...settings,
-            [code]: { pricePerHour: newPlateCode.pricePerHour }
-        };
-        
-        setPlateCodes(updatedPlateCodes);
-        setSettings(updatedSettings);
-        setNewPlateCode({ code: '', pricePerHour: '' });
-        setShowAddModal(false);
-        setModalError('');
-        
-        // Save immediately after adding
-        saveSettings(updatedSettings);
+        setPriceLevelToDelete(null);
     };
 
     return (
@@ -173,118 +185,304 @@ const Settings = () => {
             
             <div className="settings-card">
                 <div className="card-header-row">
-                    <h2>Pricing Configuration</h2>
+                    <h2>Car Type Pricing Configuration</h2>
                     <button 
                         className="btn-add-plate-code"
                         onClick={() => setShowAddModal(true)}
                         disabled={loading}
                     >
                         <Plus size={18} />
-                        Add Plate Code
+                        Add Price Level
                     </button>
                 </div>
                 
                 {success && <div className="alert alert-success">{success}</div>}
                 {error && <div className="alert alert-danger">{error}</div>}
                 
-                <div className="table-container">
-                    <table className="settings-table">
-                        <thead>
-                            <tr>
-                                <th>Plate Code</th>
-                                <th>Price Per Hour (ETB)</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {plateCodes.length === 0 ? (
-                                <tr>
-                                    <td colSpan="3" className="empty-state">
-                                        No plate codes configured. Click "Add Plate Code" to get started.
-                                    </td>
-                                </tr>
-                            ) : (
-                                plateCodes.map((code) => (
-                                    <tr key={code}>
-                                        <td className="plate-code-cell">{code}</td>
-                                        <td className="price-cell">
-                                            {editingCode === code ? (
+                {Object.keys(priceLevels).length === 0 ? (
+                    <div className="empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
+                        <p>No price levels configured. Click "Add Price Level" to get started.</p>
+                    </div>
+                ) : (
+                    Object.keys(priceLevels).map((priceLevelName) => {
+                        const priceLevel = priceLevels[priceLevelName] || {};
+                        return (
+                            <div key={priceLevelName} style={{ marginBottom: '2rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                    <h3 style={{ margin: 0 }}>{priceLevelName}</h3>
+                                    <button
+                                        className="btn-icon btn-delete"
+                                        onClick={() => handleDelete(priceLevelName)}
+                                        title="Delete Price Level"
+                                        disabled={loading}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                                <div className="table-container">
+                                    <table className="settings-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Car Type</th>
+                                                <th>Hourly Rate (ETB)</th>
+                                                <th>Weekly Package (ETB)</th>
+                                                <th>Monthly Package (ETB)</th>
+                                                <th>Yearly Package (ETB)</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {carTypes.map((carType) => {
+                                                const carPricing = priceLevel[carType] || {};
+                                                const isEditing = editingPriceLevel === priceLevelName && editingCarType === carType;
+                                                return (
+                                                    <tr key={carType}>
+                                                        <td className="car-type-cell" style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
+                                                            {carType}
+                                                        </td>
+                                                        <td className="price-cell">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={editPrices.hourly}
+                                                                    onChange={(e) => setEditPrices({ ...editPrices, hourly: e.target.value })}
+                                                                    placeholder="0.00"
+                                                                    className="edit-input"
+                                                                />
+                                                            ) : (
+                                                                <span>{carPricing.hourly || '0.00'}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="price-cell">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={editPrices.weekly}
+                                                                    onChange={(e) => setEditPrices({ ...editPrices, weekly: e.target.value })}
+                                                                    placeholder="0.00"
+                                                                    className="edit-input"
+                                                                />
+                                                            ) : (
+                                                                <span>{carPricing.weekly || '0.00'}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="price-cell">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={editPrices.monthly}
+                                                                    onChange={(e) => setEditPrices({ ...editPrices, monthly: e.target.value })}
+                                                                    placeholder="0.00"
+                                                                    className="edit-input"
+                                                                />
+                                                            ) : (
+                                                                <span>{carPricing.monthly || '0.00'}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="price-cell">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={editPrices.yearly}
+                                                                    onChange={(e) => setEditPrices({ ...editPrices, yearly: e.target.value })}
+                                                                    placeholder="0.00"
+                                                                    className="edit-input"
+                                                                />
+                                                            ) : (
+                                                                <span>{carPricing.yearly || '0.00'}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="actions-cell">
+                                                            {isEditing ? (
+                                                                <div className="action-buttons">
+                                                                    <button
+                                                                        className="btn-icon btn-save-edit"
+                                                                        onClick={handleSaveEdit}
+                                                                        title="Save"
+                                                                    >
+                                                                        <Check size={16} />
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn-icon btn-cancel-edit"
+                                                                        onClick={handleCancelEdit}
+                                                                        title="Cancel"
+                                                                    >
+                                                                        <XIcon size={16} />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="action-buttons">
+                                                                    <button
+                                                                        className="btn-icon btn-edit"
+                                                                        onClick={() => handleEditCarTypePricing(priceLevelName, carType)}
+                                                                        title="Edit"
+                                                                        disabled={loading}
+                                                                    >
+                                                                        <Edit2 size={16} />
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* Add Price Level Modal */}
+            {showAddModal && (
+                <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'auto' }}>
+                        <div className="modal-header">
+                            <h2>Add New Price Level</h2>
+                            <button 
+                                className="modal-close"
+                                onClick={() => {
+                                    setShowAddModal(false);
+                                    setNewPriceLevelName('');
+                                    setNewPriceLevelPricing({
+                                        tripod: { hourly: '', weekly: '', monthly: '', yearly: '' },
+                                        automobile: { hourly: '', weekly: '', monthly: '', yearly: '' },
+                                        truck: { hourly: '', weekly: '', monthly: '', yearly: '' },
+                                        trailer: { hourly: '', weekly: '', monthly: '', yearly: '' }
+                                    });
+                                    setError('');
+                                }}
+                            >
+                                <XIcon size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            {error && <div className="alert alert-danger">{error}</div>}
+                            <div className="form-group">
+                                <label>Price Level Name</label>
+                                <input
+                                    type="text"
+                                    value={newPriceLevelName}
+                                    onChange={(e) => {
+                                        setNewPriceLevelName(e.target.value);
+                                        setError('');
+                                    }}
+                                    placeholder="e.g., Premium Zone, Standard Zone"
+                                />
+                            </div>
+                            <div style={{ marginTop: '1.5rem' }}>
+                                <h4 style={{ marginBottom: '1rem', color: '#333', fontWeight: '600' }}>Pricing for Each Car Type:</h4>
+                                {carTypes.map((carType) => (
+                                    <div key={carType} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+                                        <h5 style={{ marginBottom: '0.5rem', textTransform: 'capitalize', color: '#333', fontWeight: '600' }}>{carType}</h5>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                                            <div className="form-group">
+                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>Hourly (ETB)</label>
                                                 <input
                                                     type="number"
                                                     min="0"
-                                                    value={editPrice}
-                                                    onChange={(e) => setEditPrice(e.target.value)}
+                                                    value={newPriceLevelPricing[carType].hourly}
+                                                    onChange={(e) => setNewPriceLevelPricing({
+                                                        ...newPriceLevelPricing,
+                                                        [carType]: { ...newPriceLevelPricing[carType], hourly: e.target.value }
+                                                    })}
                                                     placeholder="0.00"
-                                                    className="edit-input"
-                                                    autoFocus
                                                 />
-                                            ) : (
-                                                <span>{settings[code]?.pricePerHour || '0.00'}</span>
-                                            )}
-                                        </td>
-                                        <td className="actions-cell">
-                                            {editingCode === code ? (
-                                                <div className="action-buttons">
-                                                    <button
-                                                        className="btn-icon btn-save-edit"
-                                                        onClick={handleSaveEdit}
-                                                        title="Save"
-                                                    >
-                                                        <Check size={16} />
-                                                    </button>
-                                                    <button
-                                                        className="btn-icon btn-cancel-edit"
-                                                        onClick={handleCancelEdit}
-                                                        title="Cancel"
-                                                    >
-                                                        <XIcon size={16} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="action-buttons">
-                                                    <button
-                                                        className="btn-icon btn-edit"
-                                                        onClick={() => handleEdit(code)}
-                                                        title="Edit"
-                                                        disabled={loading}
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button
-                                                        className="btn-icon btn-delete"
-                                                        onClick={() => handleDelete(code)}
-                                                        title="Delete"
-                                                        disabled={loading}
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                            </div>
+                                            <div className="form-group">
+                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>Weekly (ETB)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={newPriceLevelPricing[carType].weekly}
+                                                    onChange={(e) => setNewPriceLevelPricing({
+                                                        ...newPriceLevelPricing,
+                                                        [carType]: { ...newPriceLevelPricing[carType], weekly: e.target.value }
+                                                    })}
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>Monthly (ETB)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={newPriceLevelPricing[carType].monthly}
+                                                    onChange={(e) => setNewPriceLevelPricing({
+                                                        ...newPriceLevelPricing,
+                                                        [carType]: { ...newPriceLevelPricing[carType], monthly: e.target.value }
+                                                    })}
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>Yearly (ETB)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={newPriceLevelPricing[carType].yearly}
+                                                    onChange={(e) => setNewPriceLevelPricing({
+                                                        ...newPriceLevelPricing,
+                                                        [carType]: { ...newPriceLevelPricing[carType], yearly: e.target.value }
+                                                    })}
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button 
+                                className="btn-cancel"
+                                onClick={() => {
+                                    setShowAddModal(false);
+                                    setNewPriceLevelName('');
+                                    setNewPriceLevelPricing({
+                                        tripod: { hourly: '', weekly: '', monthly: '', yearly: '' },
+                                        automobile: { hourly: '', weekly: '', monthly: '', yearly: '' },
+                                        truck: { hourly: '', weekly: '', monthly: '', yearly: '' },
+                                        trailer: { hourly: '', weekly: '', monthly: '', yearly: '' }
+                                    });
+                                    setError('');
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                className="btn-submit"
+                                onClick={handleAddPriceLevel}
+                            >
+                                Add Price Level
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Delete Confirmation Modal */}
             {showDeleteModal && (
                 <div className="modal-overlay" onClick={cancelDelete}>
                     <div className="modal-content delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>Delete Plate Code</h2>
+                            <h2>Delete Price Level</h2>
                             <button 
                                 className="modal-close"
                                 onClick={cancelDelete}
                             >
-                                <X size={20} />
+                                <XIcon size={20} />
                             </button>
                         </div>
                         <div className="modal-body">
                             <p>
-                                Are you sure you want to delete plate code <strong className="plate-code-highlight">"{plateCodeToDelete}"</strong>?
+                                Are you sure you want to delete price level <strong>"{priceLevelToDelete}"</strong>?
                             </p>
                             <p className="warning-text">This action cannot be undone.</p>
                         </div>
@@ -307,72 +505,6 @@ const Settings = () => {
                 </div>
             )}
 
-            {/* Add Plate Code Modal */}
-            {showAddModal && (
-                <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Add New Plate Code</h2>
-                            <button 
-                                className="modal-close"
-                                onClick={() => {
-                                    setShowAddModal(false);
-                                    setNewPlateCode({ code: '', pricePerHour: '' });
-                                    setModalError('');
-                                }}
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            {modalError && <div className="alert alert-danger">{modalError}</div>}
-                            <div className="form-group">
-                                <label>Plate Code</label>
-                                <input
-                                    type="text"
-                                    value={newPlateCode.code}
-                                    onChange={(e) => {
-                                        setNewPlateCode({ ...newPlateCode, code: e.target.value });
-                                        setModalError('');
-                                    }}
-                                    placeholder="Enter plate code (e.g., 01, AO, etc.)"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Price Per Hour (ETB)</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={newPlateCode.pricePerHour}
-                                    onChange={(e) => {
-                                        setNewPlateCode({ ...newPlateCode, pricePerHour: e.target.value });
-                                        setModalError('');
-                                    }}
-                                    placeholder="0.00"
-                                />
-                            </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button 
-                                className="btn-cancel"
-                                onClick={() => {
-                                    setShowAddModal(false);
-                                    setNewPlateCode({ code: '', pricePerHour: '' });
-                                    setModalError('');
-                                }}
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                className="btn-submit"
-                                onClick={handleAddPlateCode}
-                            >
-                                Add Plate Code
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

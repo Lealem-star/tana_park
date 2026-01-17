@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { fetchParkedCars, updateParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchDailyStatsHistory } from '../../api/api';
-import { Car, CheckCircle, X, Coins, CreditCard } from 'lucide-react';
+import { Car, CheckCircle, X, CreditCard } from 'lucide-react';
 import '../../css/valetOverview.scss';
 
 const ValetOverview = () => {
@@ -13,7 +13,6 @@ const ValetOverview = () => {
         totalParked: 0,
         checkedOut: 0,
         stillParked: 0,
-        manualPayments: 0,
         onlinePayments: 0,
     });
     const [dailyStatsHistory, setDailyStatsHistory] = useState([]);
@@ -52,92 +51,37 @@ const ValetOverview = () => {
         setLoading(true);
         
         try {
-            if (paymentMethod === 'online') {
-                // Initialize Chapa payment for online payment
-                const customerName = selectedCar.customerName || 'Customer';
-                const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
-                const customerPhone = selectedCar.phoneNumber;
+            // Initialize Chapa payment for online payment
+            const customerName = selectedCar.customerName || 'Customer';
+            const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
+            const customerPhone = selectedCar.phoneNumber;
 
-                await initializeChapaPayment({
-                    carId: selectedCar._id,
-                    amount: feeDetails.totalWithVat,
-                    customerName: customerName,
-                    customerEmail: customerEmail,
-                    customerPhone: customerPhone,
-                    token: user?.token,
-                    handleInitSuccess: (data) => {
-                        // Store payment reference for later verification
-                        localStorage.setItem(`chapa_payment_${selectedCar._id}`, JSON.stringify({
-                            txRef: data.txRef,
-                            carId: selectedCar._id,
-                            feeDetails: feeDetails,
-                            customerPhone: selectedCar.phoneNumber || customerPhone,
-                            totalPaidAmount: feeDetails.totalWithVat,
-                        }));
-                        
-                        // Redirect to Chapa payment page
-                        window.location.href = data.paymentUrl;
-                    },
-                    handleInitFailure: (error) => {
-                        console.error('Failed to initialize Chapa payment:', error);
-                        alert(`Failed to initialize payment: ${error}`);
-                        setLoading(false);
-                    }
-                });
-            } else {
-                // Manual payment - update car status directly
-                await updateParkedCar({
-                    id: selectedCar._id,
-                    body: {
-                        status: 'checked_out',
-                        checkedOutAt: new Date().toISOString(),
-                        paymentMethod: paymentMethod,
+            await initializeChapaPayment({
+                carId: selectedCar._id,
+                amount: feeDetails.totalWithVat,
+                customerName: customerName,
+                customerEmail: customerEmail,
+                customerPhone: customerPhone,
+                token: user?.token,
+                handleInitSuccess: (data) => {
+                    // Store payment reference for later verification
+                    localStorage.setItem(`chapa_payment_${selectedCar._id}`, JSON.stringify({
+                        txRef: data.txRef,
+                        carId: selectedCar._id,
+                        feeDetails: feeDetails,
+                        customerPhone: selectedCar.phoneNumber || customerPhone,
                         totalPaidAmount: feeDetails.totalWithVat,
-                    },
-                    token: user?.token,
-                    handleUpdateParkedCarSuccess: async () => {
-                        // Send SMS to customer
-                        const totalMinutes = Math.round(feeDetails.hoursParked * 60);
-                        const durationDisplay = totalMinutes >= 60 
-                            ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
-                            : `${totalMinutes} min`;
-                        const smsMessage = `Dear customer,\nThank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Cash.`;
-                        
-                        await sendSmsNotification({
-                            phoneNumber: selectedCar.phoneNumber,
-                            message: smsMessage,
-                            token: user?.token,
-                            handleSendSmsSuccess: () => {
-                                console.log('SMS sent successfully');
-                            },
-                            handleSendSmsFailure: (error) => {
-                                console.error('Failed to send SMS:', error);
-                            }
-                        });
-
-                        // Refresh cars list
-                        fetchParkedCars({ 
-                            token: user.token, 
-                            setParkedCars: (cars) => {
-                                setRecentCars(cars.slice(0, 5));
-                            }
-                        });
-
-                        // Refresh daily statistics
-                        fetchDailyStats({ token: user.token, setDailyStats });
-
-                        setShowPaymentModal(false);
-                        setSelectedCar(null);
-                        setFeeDetails(null);
-                        setLoading(false);
-                    },
-                    handleUpdateParkedCarFailure: (error) => {
-                        console.error('Failed to update car:', error);
-                        alert('Failed to update car status. Please try again.');
-                        setLoading(false);
-                    }
-                });
-            }
+                    }));
+                    
+                    // Redirect to Chapa payment page
+                    window.location.href = data.paymentUrl;
+                },
+                handleInitFailure: (error) => {
+                    console.error('Failed to initialize Chapa payment:', error);
+                    alert(`Failed to initialize payment: ${error}`);
+                    setLoading(false);
+                }
+            });
         } catch (error) {
             console.error('Error processing payment:', error);
             alert('An error occurred. Please try again.');
@@ -173,13 +117,6 @@ const ValetOverview = () => {
             </div>
 
             <div className="stats-grid">
-                <div className="stat-card stat-manual-payment">
-                    <div className="stat-icon"><Coins size={14} /></div>
-                    <div className="stat-content">
-                        <h3>{dailyStats.manualPayments.toFixed(2)} ETB</h3>
-                        <p>Manual Payments</p>
-                    </div>
-                </div>
                 <div className="stat-card stat-online-payment">
                     <div className="stat-icon"><CreditCard size={14} /></div>
                     <div className="stat-content">
@@ -201,13 +138,12 @@ const ValetOverview = () => {
                                     <th>Total Parked</th>
                                     <th>Still Parked</th>
                                     <th>Checked Out</th>
-                                    <th>Manual Payments</th>
-                                    <th>Online Payments</th>
-                                    <th>Total Payments</th>
+                                    <th>Payments</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {dailyStatsHistory.map((stat, index) => {
+                                    // Calculate total payments (manual + online) to show all historical payments
                                     const totalPayments = (stat.manualPayments || 0) + (stat.onlinePayments || 0);
                                     return (
                                         <tr key={index}>
@@ -215,9 +151,7 @@ const ValetOverview = () => {
                                             <td>{stat.totalParked || 0}</td>
                                             <td>{stat.stillParked || 0}</td>
                                             <td>{stat.checkedOut || 0}</td>
-                                            <td>{stat.manualPayments ? stat.manualPayments.toFixed(2) : '0.00'} ETB</td>
-                                            <td>{stat.onlinePayments ? stat.onlinePayments.toFixed(2) : '0.00'} ETB</td>
-                                            <td className="total-payments">{totalPayments.toFixed(2)} ETB</td>
+                                            <td>{totalPayments.toFixed(2)} ETB</td>
                                         </tr>
                                     );
                                 })}
@@ -295,25 +229,6 @@ const ValetOverview = () => {
                                 </div>
                             </div>
 
-                            <div className="payment-methods-section">
-                                <h3>Select Payment Method</h3>
-                                <div className="payment-buttons">
-                                    <button 
-                                        className="payment-btn manual"
-                                        onClick={() => handlePaymentMethod('manual')}
-                                        disabled={loading}
-                                    >
-                                        Manual Payment
-                                    </button>
-                                    <button 
-                                        className="payment-btn online"
-                                        onClick={() => handlePaymentMethod('online')}
-                                        disabled={loading}
-                                    >
-                                        Online Payment
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { createParkedCar, sendSmsNotification, fetchPricingSettings } from '../../api/api';
+import { createParkedCar, sendSmsNotification, fetchPricingSettings, initializeChapaPayment } from '../../api/api';
 import '../../css/registerCar.scss';
 
 // Default plate codes fallback (used if database is empty)
@@ -13,6 +13,8 @@ const regions = [
     'ET', 'AA', 'AF', 'AM', 'BG', 'DR', 'GM', 'HR', 'OR', 'SM', 'TG', 'SD', 'DE', 'ME', 'DM',
 ];
 
+const carTypes = ['tripod', 'automobile', 'truck', 'trailer'];
+
 const RegisterCar = () => {
     const user = useSelector((state) => state.user);
     const navigate = useNavigate();
@@ -20,25 +22,50 @@ const RegisterCar = () => {
         plateCode: '',
         region: '', // New field for region
         licensePlateNumber: '', // New field for license plate number
+        carType: '', // New field for car type
         model: '',
         color: '',
         phoneNumber: '',
         notes: ''
     });
     const [plateCodes, setPlateCodes] = useState(defaultPlateCodes);
+    const [pricingSettings, setPricingSettings] = useState({}); // Store pricing settings for car types
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showServiceModal, setShowServiceModal] = useState(false);
+    const [showPackageModal, setShowPackageModal] = useState(false);
+    const [serviceType, setServiceType] = useState(''); // 'hourly' or 'package'
+    const [packageDuration, setPackageDuration] = useState(''); // 'weekly', 'monthly', 'yearly'
 
-    // Fetch plate codes from database on component mount
+    // Fetch plate codes and pricing settings from database on component mount
     useEffect(() => {
         fetchPricingSettings({
             setPricingSettings: (data) => {
-                // Extract plate codes from pricing settings
+                // Store pricing settings with price levels structure
+                // Structure: {priceLevels: {[name]: {carType: {hourly, weekly, monthly, yearly}}}}
+                if (data && typeof data === 'object' && data.priceLevels) {
+                    setPricingSettings(data);
+                } else {
+                    // Default fallback structure
+                    setPricingSettings({
+                        priceLevels: {}
+                    });
+                }
+                
+                // Extract plate codes from pricing settings (for backward compatibility)
                 // If database has settings, use those keys; otherwise use defaults
                 if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-                    const codes = Object.keys(data);
-                    setPlateCodes(codes);
+                    // Check if data has car type structure or plate code structure
+                    const hasCarTypes = ['tripod', 'automobile', 'truck', 'trailer'].some(type => data[type]);
+                    if (!hasCarTypes && !data.priceLevels) {
+                        // Old format - plate codes
+                        const codes = Object.keys(data);
+                        setPlateCodes(codes);
+                    } else {
+                        // New format - keep using default codes for plate codes field
+                        setPlateCodes(defaultPlateCodes);
+                    }
                 } else {
                     // Use default codes if database is empty
                     setPlateCodes(defaultPlateCodes);
@@ -46,6 +73,30 @@ const RegisterCar = () => {
             }
         });
     }, []);
+
+    // Calculate package fee based on valet's price level, car type and package duration
+    const calculatePackageFee = (carType, duration) => {
+        // Get valet's price level from user object
+        const valetPriceLevel = user?.priceLevel || null;
+        
+        // Get pricing from price level structure: pricingSettings.priceLevels[priceLevel][carType]
+        let carPricing = {};
+        if (valetPriceLevel && pricingSettings?.priceLevels && pricingSettings.priceLevels[valetPriceLevel]) {
+            carPricing = pricingSettings.priceLevels[valetPriceLevel][carType] || {};
+        } else {
+            // Fallback: try first available price level
+            const priceLevelNames = pricingSettings?.priceLevels ? Object.keys(pricingSettings.priceLevels) : [];
+            if (priceLevelNames.length > 0) {
+                carPricing = pricingSettings.priceLevels[priceLevelNames[0]][carType] || {};
+            }
+        }
+        
+        const packagePrice = carPricing[duration] || 0;
+        const vatRate = 0.15;
+        const vatAmount = Math.round(packagePrice * vatRate * 100) / 100;
+        const totalWithVat = Math.round((packagePrice + vatAmount) * 100) / 100;
+        return totalWithVat;
+    };
 
     const handleChange = (field, value) => {
         setFormData({ ...formData, [field]: value });
@@ -57,23 +108,50 @@ const RegisterCar = () => {
         e.preventDefault();
         setError('');
         setSuccess('');
-        setLoading(true);
 
-        if (!formData.plateCode || !formData.region || !formData.licensePlateNumber || !formData.phoneNumber) {
+        if (!formData.plateCode || !formData.region || !formData.licensePlateNumber || !formData.phoneNumber || !formData.carType) {
             setError('Please fill in all required fields');
-            setLoading(false);
             return;
         }
 
+        // Show service subscription modal instead of directly creating car
+        setShowServiceModal(true);
+    };
+
+    const handleServiceTypeSelect = (type) => {
+        setServiceType(type);
+        if (type === 'package') {
+            // Show package duration selection modal
+            setShowServiceModal(false);
+            setShowPackageModal(true);
+        } else {
+            // Hourly service - proceed to create car and payment
+            setShowServiceModal(false);
+            createCarAndProceedToPayment();
+        }
+    };
+
+    const handlePackageDurationSelect = (duration) => {
+        setPackageDuration(duration);
+        setShowPackageModal(false);
+        // Proceed to create car and payment
+        createCarAndProceedToPayment();
+    };
+
+    const createCarAndProceedToPayment = () => {
+        setLoading(true);
         createParkedCar({
             body: {
                 plateCode: formData.plateCode,
                 region: formData.region,
                 licensePlateNumber: formData.licensePlateNumber,
+                carType: formData.carType,
                 model: formData.model,
                 color: formData.color,
                 phoneNumber: formData.phoneNumber,
-                notes: formData.notes
+                notes: formData.notes,
+                serviceType: serviceType || 'hourly',
+                packageDuration: packageDuration || null
             },
             token: user?.token,
             handleCreateParkedCarSuccess,
@@ -82,6 +160,23 @@ const RegisterCar = () => {
     };
 
     const handleCreateParkedCarSuccess = async (carData) => {
+        const createdCar = carData?.car || carData;
+
+        // If package service, proceed to payment immediately
+        if (serviceType === 'package' && packageDuration && createdCar?._id) {
+            const packageFee = calculatePackageFee(formData.carType, packageDuration);
+            if (packageFee > 0) {
+                // Proceed to payment
+                await proceedToPackagePayment(createdCar, packageFee);
+                return;
+            } else {
+                setError('Package pricing not configured. Please contact administrator.');
+                setLoading(false);
+                return;
+            }
+        }
+
+        // For hourly service, just show success message and redirect
         setSuccess('Car registered successfully!');
 
         // Construct SMS message
@@ -104,19 +199,68 @@ const RegisterCar = () => {
             console.error('Error sending SMS notification:', smsError);
         }
 
+        // Reset form
+        resetForm();
+
+        setTimeout(() => {
+            navigate('/valet/cars');
+        }, 1500);
+    };
+
+    const proceedToPackagePayment = async (car, amount) => {
+        const customerName = 'Customer';
+        const customerEmail = `${formData.phoneNumber}@tana-parking.com`;
+        const customerPhone = formData.phoneNumber;
+
+        try {
+            await initializeChapaPayment({
+                carId: car._id,
+                amount: amount,
+                customerName: customerName,
+                customerEmail: customerEmail,
+                customerPhone: customerPhone,
+                token: user?.token,
+                handleInitSuccess: (data) => {
+                    // Store payment reference
+                    localStorage.setItem(`chapa_payment_${car._id}`, JSON.stringify({
+                        txRef: data.txRef,
+                        carId: car._id,
+                        serviceType: 'package',
+                        packageDuration: packageDuration,
+                        totalPaidAmount: amount,
+                        customerPhone: customerPhone
+                    }));
+                    
+                    // Redirect to Chapa payment page
+                    window.location.href = data.paymentUrl;
+                },
+                handleInitFailure: (error) => {
+                    console.error('Failed to initialize Chapa payment:', error);
+                    setError(`Failed to initialize payment: ${error}`);
+                    setLoading(false);
+                }
+            });
+        } catch (error) {
+            console.error('Error processing payment:', error);
+            setError('An error occurred. Please try again.');
+            setLoading(false);
+        }
+    };
+
+    const resetForm = () => {
         setFormData({
             plateCode: '',
             region: '',
             licensePlateNumber: '',
+            carType: '',
             model: '',
             color: '',
             phoneNumber: '',
             notes: ''
         });
+        setServiceType('');
+        setPackageDuration('');
         setLoading(false);
-        setTimeout(() => {
-            navigate('/valet/cars');
-        }, 1500);
     };
 
     const handleCreateParkedCarFailure = (error) => {
@@ -178,6 +322,22 @@ const RegisterCar = () => {
                                 placeholder="A12345"
                                 required
                             />
+                        </div>
+
+                        <div className="form-group">
+                            <label>Car Type *</label>
+                            <select
+                                value={formData.carType}
+                                onChange={(e) => handleChange('carType', e.target.value)}
+                                required
+                            >
+                                <option value="" disabled>Select Car Type</option>
+                                {carTypes.map((type) => (
+                                    <option key={type} value={type}>
+                                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
@@ -244,6 +404,303 @@ const RegisterCar = () => {
                     </div>
                 </form>
             </div>
+
+            {/* Service Subscription Modal */}
+            {showServiceModal && (
+                <div 
+                    className="modal-overlay" 
+                    onClick={() => setShowServiceModal(false)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 3000
+                    }}
+                >
+                    <div 
+                        className="modal-content" 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'white',
+                            borderRadius: '12px',
+                            width: '90%',
+                            maxWidth: '500px',
+                            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                            padding: '0'
+                        }}
+                    >
+                        <div style={{ padding: '24px', borderBottom: '1px solid #e0e0e0' }}>
+                            <h3 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '600', color: '#333' }}>
+                                Select Service Type
+                            </h3>
+                            <p style={{ margin: '0', fontSize: '14px', color: '#666' }}>
+                                Choose the service type for this vehicle
+                            </p>
+                        </div>
+                        
+                        <div style={{ padding: '24px' }}>
+                            <div style={{ display: 'flex', gap: '1rem', flexDirection: 'row' }}>
+                                <button 
+                                    type="button"
+                                    className="btn-service hourly"
+                                    onClick={() => handleServiceTypeSelect('hourly')}
+                                    style={{ 
+                                        flex: 1,
+                                        padding: '12px 20px', 
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        borderRadius: '8px',
+                                        border: '2px solid #667eea',
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.transform = 'translateY(-2px)';
+                                        e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.transform = 'translateY(0)';
+                                        e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                                    }}
+                                >
+                                    Hourly Service
+                                </button>
+                                <button 
+                                    type="button"
+                                    className="btn-service package"
+                                    onClick={() => handleServiceTypeSelect('package')}
+                                    style={{ 
+                                        flex: 1,
+                                        padding: '12px 20px', 
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        borderRadius: '8px',
+                                        border: '2px solid #667eea',
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.transform = 'translateY(-2px)';
+                                        e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.transform = 'translateY(0)';
+                                        e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                                    }}
+                                >
+                                    Package Service
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{ 
+                            padding: '20px 24px', 
+                            borderTop: '1px solid #e0e0e0',
+                            display: 'flex',
+                            justifyContent: 'flex-end'
+                        }}>
+                            <button 
+                                className="btn-cancel" 
+                                onClick={() => setShowServiceModal(false)}
+                                style={{
+                                    padding: '10px 20px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #e0e0e0',
+                                    background: '#f5f7fa',
+                                    color: '#666',
+                                    cursor: 'pointer',
+                                    fontWeight: '500',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.target.style.background = '#e0e0e0';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.style.background = '#f5f7fa';
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Package Duration Selection Modal */}
+            {showPackageModal && (
+                <div 
+                    className="modal-overlay" 
+                    onClick={() => setShowPackageModal(false)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 3000
+                    }}
+                >
+                    <div 
+                        className="modal-content" 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'white',
+                            borderRadius: '12px',
+                            width: '90%',
+                            maxWidth: '500px',
+                            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                            padding: '0'
+                        }}
+                    >
+                        <div style={{ padding: '24px', borderBottom: '1px solid #e0e0e0' }}>
+                            <h3 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '600', color: '#333' }}>
+                                Select Package Duration
+                            </h3>
+                            <p style={{ margin: '0', fontSize: '14px', color: '#666' }}>
+                                Choose the package duration for this vehicle
+                            </p>
+                        </div>
+                        
+                        <div style={{ padding: '24px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <button 
+                                    type="button"
+                                    className="btn-package weekly"
+                                    onClick={() => handlePackageDurationSelect('weekly')}
+                                    style={{ 
+                                        width: '100%',
+                                        padding: '16px 24px', 
+                                        fontSize: '16px',
+                                        fontWeight: '600',
+                                        borderRadius: '8px',
+                                        border: '2px solid #667eea',
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.transform = 'translateY(-2px)';
+                                        e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.transform = 'translateY(0)';
+                                        e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                                    }}
+                                >
+                                    Weekly
+                                </button>
+                                <button 
+                                    type="button"
+                                    className="btn-package monthly"
+                                    onClick={() => handlePackageDurationSelect('monthly')}
+                                    style={{ 
+                                        width: '100%',
+                                        padding: '16px 24px', 
+                                        fontSize: '16px',
+                                        fontWeight: '600',
+                                        borderRadius: '8px',
+                                        border: '2px solid #667eea',
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.transform = 'translateY(-2px)';
+                                        e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.transform = 'translateY(0)';
+                                        e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                                    }}
+                                >
+                                    Monthly
+                                </button>
+                                <button 
+                                    type="button"
+                                    className="btn-package yearly"
+                                    onClick={() => handlePackageDurationSelect('yearly')}
+                                    style={{ 
+                                        width: '100%',
+                                        padding: '16px 24px', 
+                                        fontSize: '16px',
+                                        fontWeight: '600',
+                                        borderRadius: '8px',
+                                        border: '2px solid #667eea',
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.transform = 'translateY(-2px)';
+                                        e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.transform = 'translateY(0)';
+                                        e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                                    }}
+                                >
+                                    Yearly
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{ 
+                            padding: '20px 24px', 
+                            borderTop: '1px solid #e0e0e0',
+                            display: 'flex',
+                            justifyContent: 'flex-end'
+                        }}>
+                            <button 
+                                className="btn-cancel" 
+                                onClick={() => {
+                                    setShowPackageModal(false);
+                                    setShowServiceModal(true);
+                                }}
+                                style={{
+                                    padding: '10px 20px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #e0e0e0',
+                                    background: '#f5f7fa',
+                                    color: '#666',
+                                    cursor: 'pointer',
+                                    fontWeight: '500',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.target.style.background = '#e0e0e0';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.style.background = '#f5f7fa';
+                                }}
+                            >
+                                Back
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

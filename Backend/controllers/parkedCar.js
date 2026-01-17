@@ -19,20 +19,27 @@ parkedCarRouter.post("/", isLoggedIn, async (req, res) => {
             return res.status(403).json({ error: "Only valets can register parked cars" });
         }
 
-        let { plateCode, region, licensePlateNumber, model, color, phoneNumber, notes } = req.body;
+        let { plateCode, region, licensePlateNumber, carType, model, color, phoneNumber, notes, serviceType, packageDuration } = req.body;
 
         // Input validation
         const schema = Joi.object({
             plateCode: Joi.string().required().trim(),
             region: Joi.string().required().trim(),
             licensePlateNumber: Joi.string().required().trim(),
+            carType: Joi.string().valid('tripod', 'automobile', 'truck', 'trailer').required(),
             model: Joi.string().required().trim(),
             color: Joi.string().required().trim(),
             phoneNumber: Joi.string().required().trim(),
             notes: Joi.string().allow('').optional(),
+            serviceType: Joi.string().valid('hourly', 'package').default('hourly'),
+            packageDuration: Joi.when('serviceType', {
+                is: 'package',
+                then: Joi.string().valid('weekly', 'monthly', 'yearly').required(),
+                otherwise: Joi.string().valid('weekly', 'monthly', 'yearly').allow(null).optional()
+            })
         })
 
-            const { error } = schema.validate({ plateCode, region, licensePlateNumber, model, color, phoneNumber, notes });
+        const { error } = schema.validate({ plateCode, region, licensePlateNumber, carType, model, color, phoneNumber, notes, serviceType, packageDuration });
         if (error) {
             return res.status(400).json({ error: error.details[0].message });
         }
@@ -60,16 +67,19 @@ parkedCarRouter.post("/", isLoggedIn, async (req, res) => {
             plateCode: plateCode,
             region: region,
             licensePlateNumber: licensePlateNumber.toUpperCase(),
+            carType: carType,
             model: model,
             color: color,
             phoneNumber: phoneNumber,
             location: location,
             notes: notes || '',
+            serviceType: serviceType || 'hourly',
+            packageDuration: serviceType === 'package' ? packageDuration : null,
             valet_id: currentUser._id,
             status: 'parked'
         });
 
-        const populatedCar = await ParkedCar.findById(parkedCar._id).populate('valet_id', 'name phoneNumber');
+        const populatedCar = await ParkedCar.findById(parkedCar._id).populate('valet_id', 'name phoneNumber priceLevel');
 
         res.json({ message: "Parked car registered successfully", car: populatedCar });
     } catch (error) {
@@ -107,7 +117,7 @@ parkedCarRouter.get("/", isLoggedIn, async (req, res) => {
         }
 
         const cars = await ParkedCar.find(query)
-            .populate('valet_id', 'name phoneNumber')
+            .populate('valet_id', 'name phoneNumber priceLevel')
             .populate('checkedOutBy', 'name phoneNumber')
             .sort({ parkedAt: -1 });
 
@@ -128,7 +138,7 @@ parkedCarRouter.get("/:id", isLoggedIn, async (req, res) => {
         }
 
         const car = await ParkedCar.findById(id)
-            .populate('valet_id', 'name phoneNumber')
+            .populate('valet_id', 'name phoneNumber priceLevel')
             .populate('checkedOutBy', 'name phoneNumber');
 
         if (!car) {
@@ -204,7 +214,7 @@ parkedCarRouter.put("/:id", isLoggedIn, async (req, res) => {
         await car.save();
 
         const updatedCar = await ParkedCar.findById(id)
-            .populate('valet_id', 'name phoneNumber')
+            .populate('valet_id', 'name phoneNumber priceLevel')
             .populate('checkedOutBy', 'name phoneNumber');
 
         res.json({ message: "Parked car updated successfully", car: updatedCar });

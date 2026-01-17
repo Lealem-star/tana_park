@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { deleteUser, fetchUsers, createUser } from '../../api/api';
+import { deleteUser, fetchUsers, createUser, fetchPricingSettings } from '../../api/api';
 import { useSelector } from 'react-redux';
 import { DeleteModal } from '../../components';
 import { Plus, Trash2 } from 'lucide-react';
@@ -15,14 +15,28 @@ const UserManagement = () => {
         phoneNumber: '',
         password: '',
         type: '',
-        parkZoneCode: ''
+        parkZoneCode: '',
+        priceLevel: ''
     });
+    const [priceLevels, setPriceLevels] = useState([]);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const user = useSelector((state) => state.user);
 
     useEffect(() => {
         fetchUsers({ setUsers });
+        // Fetch price levels for valet user creation
+        fetchPricingSettings({
+            setPricingSettings: (data) => {
+                if (data && data.priceLevels) {
+                    // Extract price level names
+                    const levelNames = Object.keys(data.priceLevels);
+                    setPriceLevels(levelNames);
+                } else {
+                    setPriceLevels([]);
+                }
+            }
+        });
     }, []);
 
     const handleFormChange = (field, value) => {
@@ -40,9 +54,15 @@ const UserManagement = () => {
             return;
         }
 
-        if (formData.type === 'valet' && !formData.parkZoneCode) {
-            setError('Park Zone Code is required for valet users');
-            return;
+        if (formData.type === 'valet') {
+            if (!formData.parkZoneCode) {
+                setError('Park Zone Code is required for valet users');
+                return;
+            }
+            if (!formData.priceLevel) {
+                setError('Price Level is required for valet users');
+                return;
+            }
         }
 
         createUser({
@@ -55,7 +75,7 @@ const UserManagement = () => {
 
     const handleCreateUserSuccess = () => {
         setSuccess('User created successfully!');
-        setFormData({ name: '', phoneNumber: '', password: '', type: '', parkZoneCode: '' });
+        setFormData({ name: '', phoneNumber: '', password: '', type: '', parkZoneCode: '', priceLevel: '' });
         fetchUsers({ setUsers });
         setTimeout(() => {
             setShowCreateModal(false);
@@ -209,16 +229,38 @@ const UserManagement = () => {
                                 </select>
                             </div>
                             {formData.type === 'valet' && (
-                                <div className="form-group">
-                                    <label>Park Zone Code *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.parkZoneCode}
-                                        onChange={(e) => handleFormChange('parkZoneCode', e.target.value)}
-                                        placeholder="Enter park zone code"
-                                        required
-                                    />
-                                </div>
+                                <>
+                                    <div className="form-group">
+                                        <label>Park Zone Code *</label>
+                                        <input
+                                            type="text"
+                                            value={formData.parkZoneCode}
+                                            onChange={(e) => handleFormChange('parkZoneCode', e.target.value)}
+                                            placeholder="Enter park zone code"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Price Level *</label>
+                                        <select
+                                            value={formData.priceLevel}
+                                            onChange={(e) => handleFormChange('priceLevel', e.target.value)}
+                                            required
+                                        >
+                                            <option value="">Select Price Level</option>
+                                            {priceLevels.map((levelName) => (
+                                                <option key={levelName} value={levelName}>
+                                                    {levelName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {priceLevels.length === 0 && (
+                                            <small style={{ color: '#dc3545', display: 'block', marginTop: '4px' }}>
+                                                No price levels available. Please create price levels in Settings first.
+                                            </small>
+                                        )}
+                                    </div>
+                                </>
                             )}
                         </div>
                         <div className="modal-footer">

@@ -79,6 +79,21 @@ const parkedCarSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    carType: {
+        type: String,
+        enum: ['tripod', 'automobile', 'truck', 'trailer'],
+        default: null
+    },
+    serviceType: {
+        type: String,
+        enum: ['hourly', 'package'],
+        default: 'hourly'
+    },
+    packageDuration: {
+        type: String,
+        enum: ['weekly', 'monthly', 'yearly'],
+        default: null
+    },
     totalPaidAmount: {
         type: Number,
         default: 0

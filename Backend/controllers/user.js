@@ -46,7 +46,7 @@ userRouter.post("/create", isLoggedIn, async (req, res) => {
             return res.status(403).json({ error: "Only system admin can create users" });
         }
 
-        let { name, phoneNumber, password, type, parkZoneCode } = req.body;
+        let { name, phoneNumber, password, type, parkZoneCode, priceLevel } = req.body;
         
         // Normalize phone number: remove spaces, dashes, parentheses, and other formatting
         if (phoneNumber) {
@@ -110,7 +110,11 @@ userRouter.post("/create", isLoggedIn, async (req, res) => {
                         "string.empty": `"parkZoneCode" cannot be empty`
                     }),
                     otherwise: Joi.string().optional().allow('', null)
-                })
+                }),
+            priceLevel: Joi.string()
+                .trim()
+                .optional()
+                .allow('', null)
         })
 
         // Clean and prepare data for validation (phone number already normalized above)
@@ -119,7 +123,8 @@ userRouter.post("/create", isLoggedIn, async (req, res) => {
             phoneNumber: phoneNumber || '',
             password: password || '',
             type: type || '',
-            parkZoneCode: parkZoneCode?.trim() || ''
+            parkZoneCode: parkZoneCode?.trim() || '',
+            priceLevel: priceLevel?.trim() || null
         };
 
         const { error: validationError, value: validatedData } = schema.validate(cleanData);
@@ -134,6 +139,7 @@ userRouter.post("/create", isLoggedIn, async (req, res) => {
         password = validatedData.password;
         type = validatedData.type;
         parkZoneCode = validatedData.parkZoneCode || '';
+        priceLevel = validatedData.priceLevel || null;
         
         // Normalize phone number to handle different formats (same as login)
         let normalizedPhone = phoneNumber.trim();
@@ -160,7 +166,7 @@ userRouter.post("/create", isLoggedIn, async (req, res) => {
             // Password encryption
             const rawPassword = password; // Store raw password before hashing for SMS
             const hashedPassword = bcrypt.hashSync(password, 10);
-            const newUser = await User.create({ name, phoneNumber: phoneToUse, password: hashedPassword, type, parkZoneCode });
+            const newUser = await User.create({ name, phoneNumber: phoneToUse, password: hashedPassword, type, parkZoneCode, priceLevel });
             
             // Send SMS with credentials (use normalized phone for SMS)
             try {

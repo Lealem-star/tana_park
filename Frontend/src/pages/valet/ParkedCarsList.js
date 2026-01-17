@@ -1,30 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchParkedCars, updateParkedCar, deleteParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchPricingSettings } from '../../api/api';
-import { DeleteModal, EthiopianDatePicker } from '../../components';
+import { fetchParkedCars, updateParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchPricingSettings } from '../../api/api';
+import { EthiopianDatePicker } from '../../components';
 import { CheckCircle, Clock, X, Car } from 'lucide-react';
 import '../../css/parkedCarsList.scss';
 import '../../css/valetOverview.scss';
-
-// Default pricing per hour for each plate code (in ETB) - fallback values
-const defaultPricingFallback = {
-    '01': 50,
-    '02': 50,
-    '03': 50,
-    '04': 50,
-    '05': 50,
-    'police': 0,
-    'AO': 75,
-    'ተላላፊ': 60,
-    'የእለት': 40,
-    'DF': 100,
-    'AU': 80,
-    'AU-CD': 80,
-    'UN': 0,
-    'UN-CD': 0,
-    'CD': 90,
-};
 
 const ParkedCarsList = () => {
     const user = useSelector((state) => state.user);
@@ -33,7 +14,6 @@ const ParkedCarsList = () => {
     const [filter, setFilter] = useState('all'); // all, parked, checked_out
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
     const [selectedCar, setSelectedCar] = useState(null);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [newStatus, setNewStatus] = useState('');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -45,11 +25,10 @@ const ParkedCarsList = () => {
         totalParked: 0,
         checkedOut: 0,
         stillParked: 0,
-        manualPayments: 0,
         onlinePayments: 0,
     });
 
-    const [pricingSettings, setPricingSettings] = useState(defaultPricingFallback);
+    const [pricingSettings, setPricingSettings] = useState({});
 
     const loadCars = useCallback(() => {
         if (!user?.token) return;
@@ -71,71 +50,23 @@ const ParkedCarsList = () => {
         // Fetch pricing settings (no auth required)
         fetchPricingSettings({
             setPricingSettings: (data) => {
-                // Convert API format to simple object format
-                const pricing = {};
+                // Store pricing settings as-is (car type based structure)
+                // Structure: {carType: {hourly: price, weekly: price, monthly: price, yearly: price}}
                 if (data && typeof data === 'object') {
-                    Object.keys(data).forEach(plateCode => {
-                        if (data[plateCode] && data[plateCode].pricePerHour !== undefined) {
-                            pricing[plateCode] = data[plateCode].pricePerHour;
-                        }
+                    setPricingSettings(data);
+                } else {
+                    // Default fallback for car types
+                    setPricingSettings({
+                        tripod: { hourly: 50, weekly: 0, monthly: 0, yearly: 0 },
+                        automobile: { hourly: 50, weekly: 0, monthly: 0, yearly: 0 },
+                        truck: { hourly: 75, weekly: 0, monthly: 0, yearly: 0 },
+                        trailer: { hourly: 100, weekly: 0, monthly: 0, yearly: 0 }
                     });
                 }
-                // Merge with fallback to ensure all plate codes have values
-                setPricingSettings({ ...defaultPricingFallback, ...pricing });
             }
         });
     }, [user, filter, selectedDate, loadCars]);
 
-    // Auto-refresh to change delete button to check out after 2 minutes
-    useEffect(() => {
-        if (!user?.token || cars.length === 0) return;
-
-        // Check if any parked car is within 2 minutes (will need to switch to check out soon)
-        const parkedCars = cars.filter(car => car.status === 'parked');
-        if (parkedCars.length === 0) return;
-
-        const now = new Date();
-        const carsNeedingRefresh = parkedCars.filter(car => {
-            const parkedAt = new Date(car.parkedAt);
-            const diffMs = now - parkedAt;
-            const diffMinutes = diffMs / (1000 * 60);
-            // Cars that are between 0 and 2.5 minutes (will need refresh when they pass 2 minutes)
-            return diffMinutes >= 0 && diffMinutes < 2.5;
-        });
-
-        if (carsNeedingRefresh.length === 0) return;
-
-        // Calculate when the next car will pass 2 minutes
-        const nextRefreshTime = Math.min(
-            ...carsNeedingRefresh.map(car => {
-                const parkedAt = new Date(car.parkedAt);
-                const diffMs = now - parkedAt;
-                const diffMinutes = diffMs / (1000 * 60);
-                // Time until 2 minutes pass (in milliseconds)
-                return Math.max(0, (2 - diffMinutes) * 60 * 1000);
-            })
-        );
-
-        // Set up interval to check every 2 seconds when cars are close to 2 minutes
-        const checkInterval = nextRefreshTime < 30000 ? 2000 : 5000; // Check more frequently when close
-        const interval = setInterval(() => {
-            const currentTime = new Date();
-            const needsRefresh = parkedCars.some(car => {
-                const parkedAt = new Date(car.parkedAt);
-                const diffMs = currentTime - parkedAt;
-                const diffMinutes = diffMs / (1000 * 60);
-                // If a car just passed 2 minutes (between 2 and 2.1 minutes), refresh
-                return diffMinutes > 2 && diffMinutes < 2.1;
-            });
-
-            if (needsRefresh) {
-                loadCars();
-                fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
-            }
-        }, checkInterval);
-
-        return () => clearInterval(interval);
-    }, [cars, user, selectedDate, loadCars]);
 
     const calculateFee = (car) => {
         const parkedAt = new Date(car.parkedAt);
@@ -148,36 +79,63 @@ const ParkedCarsList = () => {
         const durationMins = totalMinutes % 60;
         const durationText = `${durationHours} Hours ${durationMins} Min`;
         
-        const plateCode = car.plateCode || '01';
-        const pricePerHour = pricingSettings[plateCode] || pricingSettings['01'] || 50;
+        // Get valet's price level from car (valet_id is populated)
+        const valetPriceLevel = car.valet_id?.priceLevel || null;
+        const carType = car.carType || 'automobile';
+        
+        // Get pricing from price level structure: pricingSettings.priceLevels[priceLevel][carType]
+        let carPricing = {};
+        if (valetPriceLevel && pricingSettings?.priceLevels && pricingSettings.priceLevels[valetPriceLevel]) {
+            carPricing = pricingSettings.priceLevels[valetPriceLevel][carType] || {};
+        } else {
+            // Fallback: try first available price level or use defaults
+            const priceLevelNames = pricingSettings?.priceLevels ? Object.keys(pricingSettings.priceLevels) : [];
+            if (priceLevelNames.length > 0) {
+                carPricing = pricingSettings.priceLevels[priceLevelNames[0]][carType] || {};
+            }
+        }
+        
+        let parkingFee = 0;
+        let pricePerHour = 0;
 
-        // Calculate fee based on actual minutes parked (per-minute billing)
-        // Convert minutes to hours: totalMinutes / 60
-        const hoursParked = totalMinutes / 60;
-        const parkingFee = Math.round((hoursParked * pricePerHour) * 100) / 100;
+        // Check if car has package service
+        if (car.serviceType === 'package' && car.packageDuration) {
+            // Package service - use package price from price level
+            const packagePrice = carPricing[car.packageDuration] || 0;
+            parkingFee = packagePrice;
+            pricePerHour = 0; // Not applicable for packages
+        } else {
+            // Hourly service - calculate based on time parked
+            pricePerHour = carPricing.hourly || 50; // Default fallback
+            const hoursParked = totalMinutes / 60;
+            parkingFee = Math.round((hoursParked * pricePerHour) * 100) / 100;
+        }
+
         const vatRate = 0.15;
         const vatAmount = Math.round(parkingFee * vatRate * 100) / 100;
         const totalWithVat = Math.round((parkingFee + vatAmount) * 100) / 100;
 
         return {
-            hoursParked: hoursParked,
+            hoursParked: totalMinutes / 60,
             pricePerHour,
             parkingFee,
             vatAmount,
             totalWithVat,
             durationText,
             parkedAt: parkedAt.toLocaleString(),
-            checkedOutAt: now.toLocaleString()
+            checkedOutAt: now.toLocaleString(),
+            serviceType: car.serviceType || 'hourly',
+            packageDuration: car.packageDuration || null
         };
     };
 
     const handleStatusChange = (car, status) => {
         if (status === 'checked_out') {
-            // Show payment modal for checkout
+            // Show payment form modal directly for online payment
             const fee = calculateFee(car);
             setSelectedCar(car);
             setFeeDetails(fee);
-            setShowPaymentModal(true);
+            handlePaymentMethod('online');
         } else {
             // Show confirmation modal for other status changes
             setSelectedCar(car);
@@ -211,248 +169,197 @@ const ParkedCarsList = () => {
         setLoading(true);
         
         try {
-            if (paymentMethod === 'online') {
-                // Close payment details modal and open payment form modal
-                setShowPaymentModal(false);
-                
-                // Initialize Chapa payment to get txRef and public key
-                const customerName = selectedCar.customerName || 'Customer';
-                const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
-                const customerPhone = selectedCar.phoneNumber;
+            // Initialize Chapa payment for online payment
+            const customerName = selectedCar.customerName || 'Customer';
+            const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
+            const customerPhone = selectedCar.phoneNumber;
 
-                await initializeChapaPayment({
-                    carId: selectedCar._id,
-                    amount: feeDetails.totalWithVat,
-                    customerName: customerName,
-                    customerEmail: customerEmail,
-                    customerPhone: customerPhone,
-                    token: user?.token,
-                    handleInitSuccess: async (data) => {
-                        // Store payment reference for later verification
-                        localStorage.setItem(`chapa_payment_${selectedCar._id}`, JSON.stringify({
-                            txRef: data.txRef,
-                            carId: selectedCar._id,
-                            feeDetails: feeDetails,
-                            customerPhone: selectedCar.phoneNumber || customerPhone
-                        }));
+            await initializeChapaPayment({
+                carId: selectedCar._id,
+                amount: feeDetails.totalWithVat,
+                customerName: customerName,
+                customerEmail: customerEmail,
+                customerPhone: customerPhone,
+                token: user?.token,
+                handleInitSuccess: async (data) => {
+                    // Store payment reference for later verification
+                    localStorage.setItem(`chapa_payment_${selectedCar._id}`, JSON.stringify({
+                        txRef: data.txRef,
+                        carId: selectedCar._id,
+                        feeDetails: feeDetails,
+                        customerPhone: selectedCar.phoneNumber || customerPhone
+                    }));
 
-                        // Get Chapa public key from API response or environment variables
-                        // Backend should provide publicKey in the response, fallback to env variable
-                        const chapaPublicKey = data.publicKey || process.env.REACT_APP_CHAPA_PUBLIC_KEY;
+                    // Get Chapa public key from API response or environment variables
+                    // Backend should provide publicKey in the response, fallback to env variable
+                    const chapaPublicKey = data.publicKey || process.env.REACT_APP_CHAPA_PUBLIC_KEY;
+                    
+                    if (!chapaPublicKey) {
+                        console.error('Chapa public key is not configured. Please add CHAPA_PUBLIC_KEY to backend .env or REACT_APP_CHAPA_PUBLIC_KEY to frontend .env');
+                        alert('Payment system is not configured. Please contact administrator.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    // Initialize Chapa Inline.js
+                    try {
+                        // Clean up any existing instance
+                        if (chapaInstanceRef.current) {
+                            const container = document.getElementById('chapa-inline-form');
+                            if (container) {
+                                container.innerHTML = '';
+                            }
+                        }
+
+                        // Get ChapaCheckout from window (loaded via CDN) or try to import
+                        let ChapaCheckout;
                         
-                        if (!chapaPublicKey) {
-                            console.error('Chapa public key is not configured. Please add CHAPA_PUBLIC_KEY to backend .env or REACT_APP_CHAPA_PUBLIC_KEY to frontend .env');
-                            alert('Payment system is not configured. Please contact administrator.');
+                        if (window.ChapaCheckout) {
+                            ChapaCheckout = window.ChapaCheckout;
+                        } else {
+                            // Wait for script to load (max 3 seconds)
+                            let attempts = 0;
+                            await new Promise((resolve, reject) => {
+                                const checkInterval = setInterval(() => {
+                                    attempts++;
+                                    if (window.ChapaCheckout) {
+                                        clearInterval(checkInterval);
+                                        ChapaCheckout = window.ChapaCheckout;
+                                        resolve();
+                                    } else if (attempts > 30) { // 3 seconds max
+                                        clearInterval(checkInterval);
+                                        reject(new Error('Chapa library failed to load'));
+                                    }
+                                }, 100);
+                            });
+                        }
+                        
+                        if (!ChapaCheckout) {
+                            alert('Chapa payment library is not loaded. Please refresh the page.');
                             setLoading(false);
                             return;
                         }
 
-                        // Initialize Chapa Inline.js
-                        try {
-                            // Clean up any existing instance
-                            if (chapaInstanceRef.current) {
-                                const container = document.getElementById('chapa-inline-form');
-                                if (container) {
-                                    container.innerHTML = '';
-                                }
-                            }
-
-                            // Get ChapaCheckout from window (loaded via CDN) or try to import
-                            let ChapaCheckout;
-                            
-                            if (window.ChapaCheckout) {
-                                ChapaCheckout = window.ChapaCheckout;
-                            } else {
-                                // Wait for script to load (max 3 seconds)
-                                let attempts = 0;
-                                await new Promise((resolve, reject) => {
-                                    const checkInterval = setInterval(() => {
-                                        attempts++;
-                                        if (window.ChapaCheckout) {
-                                            clearInterval(checkInterval);
-                                            ChapaCheckout = window.ChapaCheckout;
-                                            resolve();
-                                        } else if (attempts > 30) { // 3 seconds max
-                                            clearInterval(checkInterval);
-                                            reject(new Error('Chapa library failed to load'));
-                                        }
-                                    }, 100);
-                                });
-                            }
-                            
-                            if (!ChapaCheckout) {
-                                alert('Chapa payment library is not loaded. Please refresh the page.');
-                                setLoading(false);
-                                return;
-                            }
-
-                            const chapa = new ChapaCheckout({
-                                publicKey: chapaPublicKey,
-                                amount: feeDetails.totalWithVat.toString(),
-                                currency: 'ETB',
-                                txRef: data.txRef,
-                                phoneNumber: customerPhone, // Pre-fill phone number
-                                availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
-                                customizations: {
-                                    buttonText: 'Pay Now',
-                                    styles: `
-                                        .chapa-pay-button { 
-                                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                            color: white;
-                                            border: none;
-                                            padding: 16px 24px;
-                                            border-radius: 10px;
-                                            font-size: 16px;
-                                            font-weight: 700;
-                                            cursor: pointer;
-                                            width: 100%;
-                                            transition: all 0.3s ease;
-                                        }
-                                        .chapa-pay-button:hover {
-                                            transform: translateY(-2px);
-                                            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-                                        }
-                                    `
-                                },
-                                callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}payment/chapa/callback`,
-                                returnUrl: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
-                                showFlag: true,
-                                showPaymentMethodsNames: true,
-                                onSuccessfulPayment: async (response) => {
-                                    // Update car status after successful payment
-                                    await updateParkedCar({
-                                        id: selectedCar._id,
-                                        body: {
-                                            status: 'checked_out',
-                                            checkedOutAt: new Date().toISOString(),
-                                            paymentMethod: 'online',
-                                            totalPaidAmount: feeDetails.totalWithVat,
-                                        },
-                                        token: user?.token,
-                                        handleUpdateParkedCarSuccess: async () => {
-                                            // Send SMS to customer
-                                            const totalMinutes = Math.round(feeDetails.hoursParked * 60);
-                                            const durationDisplay = totalMinutes >= 60 
-                                                ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
-                                                : `${totalMinutes} min`;
-                                            const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Online Payment.`;
-                                            
-                                            await sendSmsNotification({
-                                                phoneNumber: selectedCar.phoneNumber,
-                                                message: smsMessage,
-                                                token: user?.token,
-                                                handleSendSmsSuccess: () => {
-                                                    console.log('SMS sent successfully');
-                                                },
-                                                handleSendSmsFailure: (error) => {
-                                                    console.error('Failed to send SMS:', error);
-                                                }
-                                            });
-
-                                            // Refresh cars list and stats
-                                            loadCars();
-                                            fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
-
-                                            setShowPaymentFormModal(false);
-                                            setSelectedCar(null);
-                                            setFeeDetails(null);
-                                            setLoading(false);
-                                        },
-                                        handleUpdateParkedCarFailure: (error) => {
-                                            console.error('Failed to update car:', error);
-                                            alert('Payment successful but failed to update car status. Please contact support.');
-                                            setLoading(false);
-                                        }
-                                    });
-                                },
-                                onPaymentFailure: (error) => {
-                                    console.error('Payment failed:', error);
-                                    alert(`Payment failed: ${error?.message || 'Please try again'}`);
-                                    setLoading(false);
-                                },
-                                onClose: () => {
-                                    setShowPaymentFormModal(false);
-                                    setLoading(false);
-                                }
-                            });
-
-                            chapaInstanceRef.current = chapa;
-                            
-                            // Open payment form modal
-                            setShowPaymentFormModal(true);
-                            
-                            // Wait for DOM to update, then initialize Chapa
-                            setTimeout(() => {
-                                const container = document.getElementById('chapa-inline-form');
-                                if (container) {
-                                    chapa.initialize('chapa-inline-form');
-                                    setLoading(false);
-                                } else {
-                                    console.error('Chapa container not found after rendering');
-                                    alert('Failed to load payment form. Please try again.');
-                                    setShowPaymentFormModal(false);
-                                    setLoading(false);
-                                }
-                            }, 100);
-                        } catch (error) {
-                            console.error('Failed to initialize Chapa Inline:', error);
-                            alert('Failed to load payment form. Please try again.');
-                            setLoading(false);
-                        }
-                    },
-                    handleInitFailure: (error) => {
-                        console.error('Failed to initialize Chapa payment:', error);
-                        alert(`Failed to initialize payment: ${error}`);
-                        setLoading(false);
-                    }
-                });
-            } else {
-                // Manual payment - update car status directly
-                await updateParkedCar({
-                    id: selectedCar._id,
-                    body: {
-                        status: 'checked_out',
-                        checkedOutAt: new Date().toISOString(),
-                        paymentMethod: paymentMethod,
-                        totalPaidAmount: feeDetails.totalWithVat,
-                    },
-                    token: user?.token,
-                    handleUpdateParkedCarSuccess: async () => {
-                        // Send SMS to customer
-                        const totalMinutes = Math.round(feeDetails.hoursParked * 60);
-                        const durationDisplay = totalMinutes >= 60 
-                            ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
-                            : `${totalMinutes} min`;
-                        const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Cash.`;
-                        
-                        await sendSmsNotification({
-                            phoneNumber: selectedCar.phoneNumber,
-                            message: smsMessage,
-                            token: user?.token,
-                            handleSendSmsSuccess: () => {
-                                console.log('SMS sent successfully');
+                        const chapa = new ChapaCheckout({
+                            publicKey: chapaPublicKey,
+                            amount: feeDetails.totalWithVat.toString(),
+                            currency: 'ETB',
+                            txRef: data.txRef,
+                            phoneNumber: customerPhone, // Pre-fill phone number
+                            availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
+                            customizations: {
+                                buttonText: 'Pay Now',
+                                styles: `
+                                    .chapa-pay-button { 
+                                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                        color: white;
+                                        border: none;
+                                        padding: 16px 24px;
+                                        border-radius: 10px;
+                                        font-size: 16px;
+                                        font-weight: 700;
+                                        cursor: pointer;
+                                        width: 100%;
+                                        transition: all 0.3s ease;
+                                    }
+                                    .chapa-pay-button:hover {
+                                        transform: translateY(-2px);
+                                        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+                                    }
+                                `
                             },
-                            handleSendSmsFailure: (error) => {
-                                console.error('Failed to send SMS:', error);
+                            callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}payment/chapa/callback`,
+                            returnUrl: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
+                            showFlag: true,
+                            showPaymentMethodsNames: true,
+                            onSuccessfulPayment: async (response) => {
+                                // Update car status after successful payment
+                                await updateParkedCar({
+                                    id: selectedCar._id,
+                                    body: {
+                                        status: 'checked_out',
+                                        checkedOutAt: new Date().toISOString(),
+                                        paymentMethod: 'online',
+                                        totalPaidAmount: feeDetails.totalWithVat,
+                                    },
+                                    token: user?.token,
+                                    handleUpdateParkedCarSuccess: async () => {
+                                        // Send SMS to customer
+                                        const totalMinutes = Math.round(feeDetails.hoursParked * 60);
+                                        const durationDisplay = totalMinutes >= 60 
+                                            ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
+                                            : `${totalMinutes} min`;
+                                        const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Online Payment.`;
+                                        
+                                        await sendSmsNotification({
+                                            phoneNumber: selectedCar.phoneNumber,
+                                            message: smsMessage,
+                                            token: user?.token,
+                                            handleSendSmsSuccess: () => {
+                                                console.log('SMS sent successfully');
+                                            },
+                                            handleSendSmsFailure: (error) => {
+                                                console.error('Failed to send SMS:', error);
+                                            }
+                                        });
+
+                                        // Refresh cars list and stats
+                                        loadCars();
+                                        fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
+
+                                        setShowPaymentFormModal(false);
+                                        setSelectedCar(null);
+                                        setFeeDetails(null);
+                                        setLoading(false);
+                                    },
+                                    handleUpdateParkedCarFailure: (error) => {
+                                        console.error('Failed to update car:', error);
+                                        alert('Payment successful but failed to update car status. Please contact support.');
+                                        setLoading(false);
+                                    }
+                                });
+                            },
+                            onPaymentFailure: (error) => {
+                                console.error('Payment failed:', error);
+                                alert(`Payment failed: ${error?.message || 'Please try again'}`);
+                                setLoading(false);
+                            },
+                            onClose: () => {
+                                setShowPaymentFormModal(false);
+                                setLoading(false);
                             }
                         });
 
-                        // Refresh cars list and stats
-                        loadCars();
-                        fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
-
-                        setShowPaymentModal(false);
-                        setSelectedCar(null);
-                        setFeeDetails(null);
-                        setLoading(false);
-                    },
-                    handleUpdateParkedCarFailure: (error) => {
-                        console.error('Failed to update car:', error);
-                        alert('Failed to update car status. Please try again.');
+                        chapaInstanceRef.current = chapa;
+                        
+                        // Open payment form modal
+                        setShowPaymentFormModal(true);
+                        
+                        // Wait for DOM to update, then initialize Chapa
+                        setTimeout(() => {
+                            const container = document.getElementById('chapa-inline-form');
+                            if (container) {
+                                chapa.initialize('chapa-inline-form');
+                                setLoading(false);
+                            } else {
+                                console.error('Chapa container not found after rendering');
+                                alert('Failed to load payment form. Please try again.');
+                                setShowPaymentFormModal(false);
+                                setLoading(false);
+                            }
+                        }, 100);
+                    } catch (error) {
+                        console.error('Failed to initialize Chapa Inline:', error);
+                        alert('Failed to load payment form. Please try again.');
                         setLoading(false);
                     }
-                });
-            }
+                },
+                handleInitFailure: (error) => {
+                    console.error('Failed to initialize Chapa payment:', error);
+                    alert(`Failed to initialize payment: ${error}`);
+                    setLoading(false);
+                }
+            });
         } catch (error) {
             console.error('Error processing payment:', error);
             alert('An error occurred. Please try again.');
@@ -482,28 +389,6 @@ const ParkedCarsList = () => {
         }
     };
 
-    const handleDelete = (car) => {
-        setSelectedCar(car);
-        setShowDeleteModal(true);
-    };
-
-    const confirmDelete = () => {
-        if (selectedCar) {
-            deleteParkedCar({
-                id: selectedCar._id,
-                token: user.token,
-                handleDeleteParkedCarSuccess: () => {
-                    loadCars();
-                    fetchDailyStats({ token: user.token, setDailyStats });
-                    setShowDeleteModal(false);
-                    setSelectedCar(null);
-                },
-                handleDeleteParkedCarFailure: (error) => {
-                    alert(error || 'Failed to delete car');
-                }
-            });
-        }
-    };
 
     const formatDateTime = (dateString) => {
         const date = new Date(dateString);
@@ -524,17 +409,6 @@ const ParkedCarsList = () => {
         }
     };
 
-    // Check if car has been parked for less than 2 minutes
-    const isWithinTwoMinutes = (car) => {
-        if (car.status !== 'parked') {
-            return false; // Only allow for parked cars
-        }
-        const parkedAt = new Date(car.parkedAt);
-        const now = new Date();
-        const diffMs = now - parkedAt;
-        const diffMinutes = diffMs / (1000 * 60);
-        return diffMinutes <= 2;
-    };
 
     return (
         <div className="parked-cars-list">
@@ -638,15 +512,7 @@ const ParkedCarsList = () => {
                                     </td>
                                     <td>
                                         <div className="actions">
-                                            {car.status === 'parked' && isWithinTwoMinutes(car) && (
-                                                <button
-                                                    className="btn-action btn-delete"
-                                                    onClick={() => handleDelete(car)}
-                                                >
-                                                    Delete
-                                                </button>
-                                            )}
-                                            {car.status === 'parked' && !isWithinTwoMinutes(car) && (
+                                            {car.status === 'parked' && (
                                                 <button
                                                     className="btn-action btn-checkout"
                                                     onClick={() => handleStatusChange(car, 'checked_out')}
@@ -755,25 +621,6 @@ const ParkedCarsList = () => {
                                 </div>
                             </div>
 
-                            <div className="payment-methods-section">
-                                <h3>Select Payment Method</h3>
-                                <div className="payment-buttons">
-                                    <button 
-                                        className="payment-btn manual"
-                                        onClick={() => handlePaymentMethod('manual')}
-                                        disabled={loading}
-                                    >
-                                        pay with cash
-                                    </button>
-                                    <button 
-                                        className="payment-btn online"
-                                        onClick={() => handlePaymentMethod('online')}
-                                        disabled={loading}
-                                    >
-                                        pay with online
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -808,7 +655,7 @@ const ParkedCarsList = () => {
                             </div>
 
                             <div className="chapa-payment-form-section">
-                                <h3>Select Payment Method</h3>
+                                <h3>Complete Payment Online</h3>
                                 <div id="chapa-inline-form"></div>
                             </div>
                         </div>
@@ -816,12 +663,6 @@ const ParkedCarsList = () => {
                 </div>
             )}
 
-            <DeleteModal 
-                value={selectedCar?.licensePlate} 
-                showModal={showDeleteModal} 
-                setShowModal={setShowDeleteModal} 
-                onDeleteConfirm={confirmDelete} 
-            />
         </div>
     );
 };

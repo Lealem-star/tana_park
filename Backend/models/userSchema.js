@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    priceLevel: {
+        type: String,
+        default: null
+    },
     password: {
         type: String,
         required: true
