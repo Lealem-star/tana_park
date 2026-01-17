@@ -104,7 +104,7 @@ reportsRouter.get("/financial/period", isLoggedIn, async (req, res) => {
         const cars = await ParkedCar.find({
             checkedOutAt: { $gte: start, $lte: end },
             status: 'checked_out'
-        }).populate('valet_id', 'name');
+        }).populate('valet_id', 'name parkZoneCode');
 
         const totalRevenue = cars.reduce((sum, car) => sum + (car.totalPaidAmount || 0), 0);
         const manualRevenue = cars
@@ -114,16 +114,34 @@ reportsRouter.get("/financial/period", isLoggedIn, async (req, res) => {
             .filter(car => car.paymentMethod === 'online')
             .reduce((sum, car) => sum + (car.totalPaidAmount || 0), 0);
 
-        // Daily breakdown
-        const dailyBreakdown = {};
+        // Group by valet and date for daily breakdown
+        const valetDailyBreakdown = {};
         cars.forEach(car => {
+            const valetId = car.valet_id?._id?.toString() || 'unknown';
+            const valetName = car.valet_id?.name || 'Unknown';
+            const parkZoneCode = car.valet_id?.parkZoneCode || 'N/A';
             const date = car.checkedOutAt.toISOString().split('T')[0];
-            if (!dailyBreakdown[date]) {
-                dailyBreakdown[date] = { revenue: 0, count: 0 };
+            
+            const key = `${valetId}_${date}`;
+            if (!valetDailyBreakdown[key]) {
+                valetDailyBreakdown[key] = {
+                    parkZoneCode,
+                    valetName,
+                    date,
+                    dailyParkedCar: 0,
+                    dailyRevenue: 0
+                };
             }
-            dailyBreakdown[date].revenue += car.totalPaidAmount || 0;
-            dailyBreakdown[date].count++;
+            valetDailyBreakdown[key].dailyParkedCar++;
+            valetDailyBreakdown[key].dailyRevenue += car.totalPaidAmount || 0;
         });
+
+        // Convert to array and sort
+        const dailyBreakdown = Object.values(valetDailyBreakdown)
+            .sort((a, b) => {
+                if (a.date !== b.date) return a.date.localeCompare(b.date);
+                return a.valetName.localeCompare(b.valetName);
+            });
 
         res.json({
             startDate: start.toISOString().split('T')[0],
@@ -133,9 +151,7 @@ reportsRouter.get("/financial/period", isLoggedIn, async (req, res) => {
             onlineRevenue,
             totalTransactions: cars.length,
             averageTransaction: cars.length > 0 ? totalRevenue / cars.length : 0,
-            dailyBreakdown: Object.entries(dailyBreakdown)
-                .map(([date, data]) => ({ date, revenue: data.revenue, count: data.count }))
-                .sort((a, b) => a.date.localeCompare(b.date))
+            dailyBreakdown
         });
     } catch (error) {
         console.error("Period revenue report error:", error);

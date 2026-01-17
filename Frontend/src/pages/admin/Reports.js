@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { FileText, DollarSign, Activity, Users, Shield } from 'lucide-react';
+import { FileText, DollarSign, Users } from 'lucide-react';
 import FinancialReports from './reports/FinancialReports';
-import OperationalReports from './reports/OperationalReports';
 import CustomerReports from './reports/CustomerReports';
 import AdministrativeReports from './reports/AdministrativeReports';
-import ComplianceReports from './reports/ComplianceReports';
 import '../../css/reports.scss';
 
 const Reports = () => {
@@ -14,10 +12,8 @@ const Reports = () => {
 
     const tabs = [
         { id: 'financial', label: 'Financial Reports', icon: DollarSign, component: FinancialReports },
-        { id: 'operational', label: 'Operational Reports', icon: Activity, component: OperationalReports },
         { id: 'customer', label: 'Customer Reports', icon: Users, component: CustomerReports },
         { id: 'administrative', label: 'Administrative Reports', icon: FileText, component: AdministrativeReports },
-        { id: 'compliance', label: 'Compliance & Audit', icon: Shield, component: ComplianceReports },
     ];
 
     const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || FinancialReports;

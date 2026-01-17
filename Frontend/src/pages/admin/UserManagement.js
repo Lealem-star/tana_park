@@ -40,8 +40,8 @@ const UserManagement = () => {
             return;
         }
 
-        if ((formData.type === 'manager' || formData.type === 'admin' || formData.type === 'valet') && !formData.parkZoneCode) {
-            setError('Park Zone Code is required for this user type');
+        if (formData.type === 'valet' && !formData.parkZoneCode) {
+            setError('Park Zone Code is required for valet users');
             return;
         }
 
@@ -208,14 +208,15 @@ const UserManagement = () => {
                                     <option value="valet">Valet</option>
                                 </select>
                             </div>
-                            {(formData.type === 'manager' || formData.type === 'admin' || formData.type === 'valet') && (
+                            {formData.type === 'valet' && (
                                 <div className="form-group">
-                                    <label>Park Zone Code</label>
+                                    <label>Park Zone Code *</label>
                                     <input
                                         type="text"
                                         value={formData.parkZoneCode}
                                         onChange={(e) => handleFormChange('parkZoneCode', e.target.value)}
                                         placeholder="Enter park zone code"
+                                        required
                                     />
                                 </div>
                             )}

@@ -104,9 +104,9 @@ userRouter.post("/create", isLoggedIn, async (req, res) => {
             parkZoneCode: Joi.string()
                 .trim()
                 .when('type', {
-                    is: Joi.string().valid('manager', 'admin', 'valet'),
+                    is: Joi.string().valid('valet'),
                     then: Joi.string().required().min(1).messages({
-                        "any.required": `"parkZoneCode" is required for ${Joi.ref('type')} users`,
+                        "any.required": `"parkZoneCode" is required for valet users`,
                         "string.empty": `"parkZoneCode" cannot be empty`
                     }),
                     otherwise: Joi.string().optional().allow('', null)

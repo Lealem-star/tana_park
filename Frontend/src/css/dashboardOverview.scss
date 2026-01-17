@@ -179,6 +179,14 @@
                             padding: 6px 8px;
                         }
                     }
+                    
+                    // Ethiopian date picker mobile styles
+                    .ethiopian-date-picker-wrapper {
+                        @media (max-width: 768px) {
+                            max-width: 140px;
+                            min-width: 120px;
+                        }
+                    }
                 }
 
                 .legend {

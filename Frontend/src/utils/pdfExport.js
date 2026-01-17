@@ -335,29 +335,153 @@ export const exportFinancialReportToPDF = async ({
             summary
         });
     } else if (type === 'period') {
+        // Group data by date
+        const groupedByDate = {};
+        (data.dailyBreakdown || []).forEach(item => {
+            if (!groupedByDate[item.date]) {
+                groupedByDate[item.date] = [];
+            }
+            groupedByDate[item.date].push(item);
+        });
+
+        // Sort dates in descending order (newest first)
+        const sortedDates = Object.keys(groupedByDate).sort((a, b) => 
+            b.localeCompare(a)
+        );
+
+        // Create PDF with separate sections for each date
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        let yPos = await createPDFHeader(doc, title, subtitle);
+
+        // Add summary
         const summary = [
             { label: 'Period', value: `${formatDate(data.startDate)} to ${formatDate(data.endDate)}` },
-            { label: 'Total Revenue', value: formatCurrency(data.totalRevenue) },
-            { label: 'Manual Payments', value: formatCurrency(data.manualRevenue) },
-            { label: 'Online Payments', value: formatCurrency(data.onlineRevenue) },
-            { label: 'Total Transactions', value: data.totalTransactions },
-            { label: 'Average Transaction', value: formatCurrency(data.averageTransaction) }
+            { label: 'Total Revenue', value: formatCurrency(data.totalRevenue || 0) },
+            { label: 'Total Cars Parked', value: (data.dailyBreakdown || []).reduce((sum, item) => sum + (item.dailyParkedCar || 0), 0) }
         ];
 
-        const columns = [
-            { key: 'date', label: 'Date', width: 50 },
-            { key: 'revenue', label: 'Revenue', width: 50, format: 'currency', align: 'right' },
-            { key: 'count', label: 'Transactions', width: 40, align: 'center' }
-        ];
+        yPos += 5;
+        doc.setFontSize(12);
+        doc.setTextColor(60, 60, 60);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Summary', margin, yPos);
+        yPos += 5;
 
-        await exportTableToPDF({
-            title,
-            subtitle,
-            columns,
-            data: data.dailyBreakdown || [],
-            filename,
-            summary
-        });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+
+        for (const item of summary) {
+            if (yPos > pageHeight - 40) {
+                doc.addPage();
+                yPos = margin + 35;
+                yPos += 5;
+            }
+            doc.text(`${item.label}: ${item.value}`, margin, yPos);
+            yPos += 6;
+        }
+        yPos += 10;
+
+        // Format date as Gregorian for PDF (UI uses Ethiopian, PDF uses Gregorian)
+        const formatEthiopianDate = (dateString) => {
+            const gregorianDate = new Date(dateString);
+            // Format as Gregorian date for PDF compatibility
+            return gregorianDate.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        };
+
+        // Create separate table for each date
+        for (let i = 0; i < sortedDates.length; i++) {
+            const date = sortedDates[i];
+            const dateItems = groupedByDate[date];
+
+            if (yPos > pageHeight - 60) {
+                doc.addPage();
+                yPos = margin + 35;
+            }
+
+            // Date header
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(60, 60, 60);
+            doc.text(formatEthiopianDate(date), margin, yPos);
+            yPos += 8;
+
+            // Table data for this date
+            const tableData = dateItems.map(item => [
+                item.parkZoneCode || 'N/A',
+                item.valetName || 'Unknown',
+                item.dailyParkedCar || 0,
+                formatCurrency(item.dailyRevenue || 0)
+            ]);
+
+            autoTable(doc, {
+                startY: yPos,
+                head: [['Park Zone Code', 'Valet Officer Name', 'Daily Parked Car', 'Daily Revenue']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: {
+                    fillColor: [102, 126, 234],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 10
+                },
+                bodyStyles: {
+                    fontSize: 9,
+                    textColor: [60, 60, 60]
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 249, 250]
+                },
+                margin: { left: margin, right: margin },
+                styles: {
+                    cellPadding: 3,
+                    overflow: 'linebreak',
+                    cellWidth: 'wrap'
+                },
+                columnStyles: {
+                    0: { cellWidth: 40 },
+                    1: { cellWidth: 60 },
+                    2: { cellWidth: 40, halign: 'center' },
+                    3: { cellWidth: 50, halign: 'right' }
+                },
+                didDrawPage: (data) => {
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    const pageCount = doc.internal.getNumberOfPages();
+                    doc.text(
+                        `Page ${data.pageNumber} of ${pageCount}`,
+                        pageWidth / 2,
+                        pageHeight - 10,
+                        { align: 'center' }
+                    );
+                }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 15;
+        }
+
+        // Add footer
+        const finalY = doc.lastAutoTable.finalY || yPos;
+        if (finalY < pageHeight - 20) {
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(
+                'TanaPark - Professional Parking Management System',
+                pageWidth / 2,
+                pageHeight - 10,
+                { align: 'center' }
+            );
+        }
+
+        // Save PDF
+        doc.save(filename);
     } else if (type === 'plate-code') {
         const summary = [
             { label: 'Period', value: `${formatDate(data.startDate)} to ${formatDate(data.endDate)}` }
@@ -636,41 +760,193 @@ export const exportAdministrativeReportToPDF = async ({
     type = 'users'
 }) => {
     if (type === 'users') {
-        const summary = [
-            { label: 'Total Users', value: data.totalUsers }
-        ];
+        // Group users into valet and administrative (matching UI structure)
+        const valetUsers = [];
+        const administrativeUsers = [];
 
-        // Export each user type separately or combine
-        const allUsers = (data.usersByType || []).flatMap(typeGroup => 
-            typeGroup.users.map(user => ({
+        (data.usersByType || []).forEach(typeGroup => {
+            if (typeGroup.type === 'valet') {
+                valetUsers.push(...typeGroup.users.map(user => ({
                 name: user.name,
                 phoneNumber: user.phoneNumber,
-                type: typeGroup.type,
-                parkZoneCode: user.parkZoneCode || 'N/A',
-                carsParked: user.activity?.carsParked || 0,
-                carsCheckedOut: user.activity?.carsCheckedOut || 0,
-                hasProfilePhoto: user.hasProfilePhoto ? 'Yes' : 'No'
-            }))
-        );
+                    parkZoneCode: user.parkZoneCode || 'N/A'
+                })));
+            } else if (typeGroup.type === 'system_admin' || typeGroup.type === 'manager') {
+                administrativeUsers.push(...typeGroup.users.map(user => ({
+                    name: user.name,
+                    phoneNumber: user.phoneNumber,
+                    role: typeGroup.type === 'system_admin' ? 'System Admin' : 
+                          typeGroup.type === 'manager' ? 'Manager' : typeGroup.type
+                })));
+            }
+        });
 
-        const columns = [
-            { key: 'name', label: 'Name', width: 50 },
-            { key: 'phoneNumber', label: 'Phone', width: 45 },
-            { key: 'type', label: 'Type', width: 40 },
-            { key: 'parkZoneCode', label: 'Zone Code', width: 35 },
-            { key: 'carsParked', label: 'Cars Parked', width: 30, align: 'center' },
-            { key: 'carsCheckedOut', label: 'Cars Checked Out', width: 40, align: 'center' },
-            { key: 'hasProfilePhoto', label: 'Has Photo', width: 30, align: 'center' }
+        // Create PDF with separate sections
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        let yPos = await createPDFHeader(doc, title, subtitle);
+
+        // Add summary
+        const summary = [
+            { label: 'Total officers', value: data.totalUsers },
+            { label: 'Valet', value: valetUsers.length },
+            { label: 'Administrative', value: administrativeUsers.length }
         ];
 
-        await exportTableToPDF({
-            title,
-            subtitle,
-            columns,
-            data: allUsers,
-            filename,
-            summary
-        });
+        yPos += 5;
+        doc.setFontSize(12);
+        doc.setTextColor(60, 60, 60);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Summary', margin, yPos);
+        yPos += 5;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+
+        for (const item of summary) {
+            if (yPos > pageHeight - 40) {
+                doc.addPage();
+                yPos = margin + 35;
+                yPos += 5;
+            }
+            doc.text(`${item.label}: ${item.value}`, margin, yPos);
+            yPos += 6;
+        }
+        yPos += 10;
+
+        // Valet Section
+        if (valetUsers.length > 0) {
+            if (yPos > pageHeight - 60) {
+                doc.addPage();
+                yPos = margin + 35;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(60, 60, 60);
+            doc.text(`Valet (${valetUsers.length})`, margin, yPos);
+            yPos += 8;
+
+            const valetTableData = valetUsers.map(user => [
+                user.name,
+                user.phoneNumber,
+                user.parkZoneCode
+            ]);
+
+            autoTable(doc, {
+                startY: yPos,
+                head: [['Name', 'Phone Number', 'Park Zone Code']],
+                body: valetTableData,
+                theme: 'striped',
+                headStyles: {
+                    fillColor: [102, 126, 234],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 10
+                },
+                bodyStyles: {
+                    fontSize: 9,
+                    textColor: [60, 60, 60]
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 249, 250]
+                },
+                margin: { left: margin, right: margin },
+                styles: {
+                    cellPadding: 3,
+                    overflow: 'linebreak',
+                    cellWidth: 'wrap'
+                },
+                columnStyles: {
+                    0: { cellWidth: 60 },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 40 }
+                }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 15;
+        }
+
+        // Administrative Section
+        if (administrativeUsers.length > 0) {
+            if (yPos > pageHeight - 60) {
+                doc.addPage();
+                yPos = margin + 35;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(60, 60, 60);
+            doc.text(`Administrative (${administrativeUsers.length})`, margin, yPos);
+            yPos += 8;
+
+            const adminTableData = administrativeUsers.map(user => [
+                user.name,
+                user.phoneNumber,
+                user.role
+            ]);
+
+            autoTable(doc, {
+                startY: yPos,
+                head: [['Name', 'Phone Number', 'Role']],
+                body: adminTableData,
+                theme: 'striped',
+                headStyles: {
+                    fillColor: [102, 126, 234],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 10
+                },
+                bodyStyles: {
+                    fontSize: 9,
+                    textColor: [60, 60, 60]
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 249, 250]
+                },
+                margin: { left: margin, right: margin },
+                styles: {
+                    cellPadding: 3,
+                    overflow: 'linebreak',
+                    cellWidth: 'wrap'
+                },
+                columnStyles: {
+                    0: { cellWidth: 60 },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 40 }
+                },
+                didDrawPage: (data) => {
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    const pageCount = doc.internal.getNumberOfPages();
+                    doc.text(
+                        `Page ${data.pageNumber} of ${pageCount}`,
+                        pageWidth / 2,
+                        pageHeight - 10,
+                        { align: 'center' }
+                    );
+                }
+            });
+        }
+
+        // Add footer
+        const finalY = doc.lastAutoTable.finalY || yPos;
+        if (finalY < pageHeight - 20) {
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(
+                'TanaPark - Professional Parking Management System',
+                pageWidth / 2,
+                pageHeight - 10,
+                { align: 'center' }
+            );
+        }
+
+        // Save PDF
+        doc.save(filename);
     } else if (type === 'valet-performance') {
         const summary = [
             { label: 'Period', value: `${formatDate(data.startDate)} to ${formatDate(data.endDate)}` }

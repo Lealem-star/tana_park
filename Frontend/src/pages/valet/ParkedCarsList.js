@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { fetchParkedCars, updateParkedCar, deleteParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchPricingSettings } from '../../api/api';
-import { DeleteModal } from '../../components';
+import { DeleteModal, EthiopianDatePicker } from '../../components';
 import { CheckCircle, Clock, X, Car } from 'lucide-react';
 import '../../css/parkedCarsList.scss';
 import '../../css/valetOverview.scss';
@@ -571,10 +571,10 @@ const ParkedCarsList = () => {
                 </div>
                 <div className="date-selector">
                     {/* <label>Select Date:</label> */}
-                    <input
-                        type="date"
+                    <EthiopianDatePicker
                         value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
+                        onChange={(date) => setSelectedDate(date)}
+                        label="Select Date"
                     />
                 </div>
             </div>

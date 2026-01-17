@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { 
-    fetchVehicleHistoryReport, 
-    fetchCustomerActivityReport 
+    fetchVehicleHistoryReport
 } from '../../../api/api';
-import { Car, Users, Search, Download } from 'lucide-react';
+import { Car, Search, Download } from 'lucide-react';
 import { exportCustomerReportToPDF } from '../../../utils/pdfExport';
 import '../../../css/reports.scss';
 
@@ -18,16 +17,6 @@ const CustomerReports = () => {
     const [licensePlate, setLicensePlate] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [vehicleHistoryData, setVehicleHistoryData] = useState(null);
-
-    // Customer Activity State
-    const [startDate, setStartDate] = useState(() => {
-        const date = new Date();
-        date.setDate(date.getDate() - 30);
-        return date.toISOString().split('T')[0];
-    });
-    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-    const [minVisits, setMinVisits] = useState('');
-    const [customerActivityData, setCustomerActivityData] = useState(null);
 
     const loadVehicleHistory = () => {
         if (!licensePlate && !phoneNumber) {
@@ -43,25 +32,6 @@ const CustomerReports = () => {
             phoneNumber: phoneNumber || undefined,
             setData: (data) => {
                 setVehicleHistoryData(data);
-                setLoading(false);
-            },
-            handleError: (err) => {
-                setError(err);
-                setLoading(false);
-            }
-        });
-    };
-
-    const loadCustomerActivity = () => {
-        setLoading(true);
-        setError('');
-        fetchCustomerActivityReport({
-            token: user?.token,
-            startDate,
-            endDate,
-            minVisits: minVisits || undefined,
-            setData: (data) => {
-                setCustomerActivityData(data);
                 setLoading(false);
             },
             handleError: (err) => {
@@ -94,12 +64,6 @@ const CustomerReports = () => {
                     : (phoneNumber ? `Phone: ${phoneNumber}` : '');
                 filename = `vehicle-history-${licensePlate || phoneNumber || 'search'}.pdf`;
                 await exportCustomerReportToPDF({ title, subtitle, data, filename, type: 'vehicle-history' });
-            } else if (type === 'customer-activity' && customerActivityData) {
-                data = customerActivityData;
-                title = 'Customer Activity Report';
-                subtitle = `From ${startDate} to ${endDate}`;
-                filename = `customer-activity-${startDate}-${endDate}.pdf`;
-                await exportCustomerReportToPDF({ title, subtitle, data, filename, type: 'customer-activity' });
             }
         } catch (err) {
             console.error('Error exporting PDF:', err);
@@ -116,13 +80,6 @@ const CustomerReports = () => {
                 >
                     <Car size={18} />
                     Vehicle History
-                </button>
-                <button 
-                    className={activeReport === 'customer-activity' ? 'active' : ''}
-                    onClick={() => setActiveReport('customer-activity')}
-                >
-                    <Users size={18} />
-                    Customer Activity
                 </button>
             </div>
 
@@ -232,99 +189,6 @@ const CustomerReports = () => {
                         </div>
                     ) : (
                         <div className="no-data">Enter license plate or phone number and click Search.</div>
-                    )}
-                </div>
-            )}
-
-            {activeReport === 'customer-activity' && (
-                <div className="report-section">
-                    <div className="report-header">
-                        <h2>Customer Activity Report</h2>
-                        <div className="report-controls">
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="date-input"
-                            />
-                            <span>to</span>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="date-input"
-                            />
-                            <input
-                                type="number"
-                                placeholder="Min visits"
-                                value={minVisits}
-                                onChange={(e) => setMinVisits(e.target.value)}
-                                className="number-input"
-                                min="1"
-                            />
-                            <button onClick={loadCustomerActivity} className="btn-refresh" disabled={loading}>
-                                {loading ? 'Loading...' : 'Refresh'}
-                            </button>
-                            {customerActivityData && (
-                                <button 
-                                    onClick={() => handleExportPDF('customer-activity')} 
-                                    className="btn-export"
-                                >
-                                    <Download size={16} />
-                                    Export PDF
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {loading ? (
-                        <div className="loading">Loading customer activity...</div>
-                    ) : customerActivityData ? (
-                        <div className="report-content">
-                            <div className="summary-section">
-                                <div className="summary-card">
-                                    <h3>{customerActivityData.totalCustomers}</h3>
-                                    <p>Total Customers</p>
-                                </div>
-                            </div>
-
-                            {customerActivityData.customers && customerActivityData.customers.length > 0 ? (
-                                <div className="report-table-section">
-                                    <table className="report-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Phone Number</th>
-                                                <th>Visit Count</th>
-                                                <th>Total Paid</th>
-                                                <th>Average Payment</th>
-                                                <th>Preferred Payment</th>
-                                                <th>Last Visit</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {customerActivityData.customers.map((customer, idx) => (
-                                                <tr key={idx}>
-                                                    <td>{customer.phoneNumber}</td>
-                                                    <td>{customer.visitCount}</td>
-                                                    <td>{formatCurrency(customer.totalPaid)}</td>
-                                                    <td>{formatCurrency(customer.averagePayment)}</td>
-                                                    <td>
-                                                        <span className={`payment-badge ${customer.preferredPaymentMethod}`}>
-                                                            {customer.preferredPaymentMethod}
-                                                        </span>
-                                                    </td>
-                                                    <td>{new Date(customer.lastVisit).toLocaleDateString()}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="no-data">No customer data available for the selected period.</div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="no-data">Select date range and click Refresh.</div>
                     )}
                 </div>
             )}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { fetchUsers, fetchParkedCars } from '../../api/api';
+import { EthiopianDatePicker } from '../../components';
 import '../../css/dashboardOverview.scss';
 
 const DashboardOverview = () => {
@@ -98,10 +99,10 @@ const DashboardOverview = () => {
                     <div className="card-header">
                         <h2>Daily Revenue by Valet</h2>
                         <div className="date-selector">
-                            <input
-                                type="date"
+                            <EthiopianDatePicker
                                 value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
+                                onChange={(date) => setSelectedDate(date)}
+                                label="Select Date"
                             />
                         </div>
                     </div>
