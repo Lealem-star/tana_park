@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { createParkedCar, sendSmsNotification, fetchPricingSettings, initializeChapaPayment } from '../../api/api';
+import { createParkedCar, sendSmsNotification, fetchPricingSettings, initializeChapaPayment, initializePackagePayment, verifyChapaPackagePayment } from '../../api/api';
 import '../../css/registerCar.scss';
 
 // Default plate codes fallback (used if database is empty)
@@ -37,6 +37,10 @@ const RegisterCar = () => {
     const [showPackageModal, setShowPackageModal] = useState(false);
     const [serviceType, setServiceType] = useState(''); // 'hourly' or 'package'
     const [packageDuration, setPackageDuration] = useState(''); // 'weekly', 'monthly', 'yearly'
+    const [showPaymentFormModal, setShowPaymentFormModal] = useState(false);
+    const [packagePaymentAmount, setPackagePaymentAmount] = useState(0);
+    const [packageTxRef, setPackageTxRef] = useState('');
+    const chapaInstanceRef = useRef(null);
 
     // Fetch plate codes and pricing settings from database on component mount
     useEffect(() => {
@@ -76,26 +80,33 @@ const RegisterCar = () => {
 
     // Calculate package fee based on valet's price level, car type and package duration
     const calculatePackageFee = (carType, duration) => {
-        // Get valet's price level from user object
+        // Determine price level to use: valet's priceLevel or first available
         const valetPriceLevel = user?.priceLevel || null;
-        
-        // Get pricing from price level structure: pricingSettings.priceLevels[priceLevel][carType]
-        let carPricing = {};
-        if (valetPriceLevel && pricingSettings?.priceLevels && pricingSettings.priceLevels[valetPriceLevel]) {
-            carPricing = pricingSettings.priceLevels[valetPriceLevel][carType] || {};
-        } else {
-            // Fallback: try first available price level
-            const priceLevelNames = pricingSettings?.priceLevels ? Object.keys(pricingSettings.priceLevels) : [];
-            if (priceLevelNames.length > 0) {
-                carPricing = pricingSettings.priceLevels[priceLevelNames[0]][carType] || {};
-            }
+        const priceLevels = pricingSettings?.priceLevels || {};
+        const priceLevelNames = Object.keys(priceLevels);
+
+        const priceLevelToUse = valetPriceLevel && priceLevels[valetPriceLevel]
+            ? valetPriceLevel
+            : (priceLevelNames.length > 0 ? priceLevelNames[0] : null);
+
+        if (!priceLevelToUse) return null;
+
+        const carPricing = priceLevels[priceLevelToUse]?.[carType] || {};
+        const packagePrice = carPricing[duration];
+
+        if (packagePrice === undefined || packagePrice === null || isNaN(Number(packagePrice))) {
+            return null;
         }
-        
-        const packagePrice = carPricing[duration] || 0;
+
+        const priceNumber = Number(packagePrice);
         const vatRate = 0.15;
-        const vatAmount = Math.round(packagePrice * vatRate * 100) / 100;
-        const totalWithVat = Math.round((packagePrice + vatAmount) * 100) / 100;
-        return totalWithVat;
+        const vatAmount = Math.round(priceNumber * vatRate * 100) / 100;
+        const totalWithVat = Math.round((priceNumber + vatAmount) * 100) / 100;
+
+        return {
+            totalWithVat,
+            priceLevelUsed: priceLevelToUse
+        };
     };
 
     const handleChange = (field, value) => {
@@ -125,7 +136,8 @@ const RegisterCar = () => {
             setShowServiceModal(false);
             setShowPackageModal(true);
         } else {
-            // Hourly service - proceed to create car and payment
+            // Hourly service - clear package duration and proceed to create car and payment
+            setPackageDuration('');
             setShowServiceModal(false);
             createCarAndProceedToPayment();
         }
@@ -134,12 +146,23 @@ const RegisterCar = () => {
     const handlePackageDurationSelect = (duration) => {
         setPackageDuration(duration);
         setShowPackageModal(false);
-        // Proceed to create car and payment
-        createCarAndProceedToPayment();
+        // Package is payment-first + inline modal (no car created yet)
+        startPackageInlinePayment(duration);
     };
 
-    const createCarAndProceedToPayment = () => {
+    const createCarAndProceedToPayment = (selectedPackageDuration = null) => {
         setLoading(true);
+        const finalServiceType = serviceType || 'hourly';
+        const finalPackageDuration = finalServiceType === 'package' 
+            ? (selectedPackageDuration || packageDuration || null)
+            : null;
+
+        // Ensure packageDuration is a valid value or null
+        const validatedPackageDuration = finalPackageDuration && ['weekly', 'monthly', 'yearly'].includes(finalPackageDuration)
+            ? finalPackageDuration
+            : null;
+
+        // Hourly flow: create the car immediately
         createParkedCar({
             body: {
                 plateCode: formData.plateCode,
@@ -150,8 +173,8 @@ const RegisterCar = () => {
                 color: formData.color,
                 phoneNumber: formData.phoneNumber,
                 notes: formData.notes,
-                serviceType: serviceType || 'hourly',
-                packageDuration: packageDuration || null
+                serviceType: finalServiceType,
+                packageDuration: validatedPackageDuration
             },
             token: user?.token,
             handleCreateParkedCarSuccess,
@@ -162,19 +185,8 @@ const RegisterCar = () => {
     const handleCreateParkedCarSuccess = async (carData) => {
         const createdCar = carData?.car || carData;
 
-        // If package service, proceed to payment immediately
-        if (serviceType === 'package' && packageDuration && createdCar?._id) {
-            const packageFee = calculatePackageFee(formData.carType, packageDuration);
-            if (packageFee > 0) {
-                // Proceed to payment
-                await proceedToPackagePayment(createdCar, packageFee);
-                return;
-            } else {
-                setError('Package pricing not configured. Please contact administrator.');
-                setLoading(false);
-                return;
-            }
-        }
+        // Package is handled payment-first, so we should never create a car here for package registrations.
+        // (If it happens, treat it as hourly success.)
 
         // For hourly service, just show success message and redirect
         setSuccess('Car registered successfully!');
@@ -207,7 +219,7 @@ const RegisterCar = () => {
         }, 1500);
     };
 
-    const proceedToPackagePayment = async (car, amount) => {
+    const proceedToPackagePayment = async (car, amount, priceLevelUsed) => {
         const customerName = 'Customer';
         const customerEmail = `${formData.phoneNumber}@tana-parking.com`;
         const customerPhone = formData.phoneNumber;
@@ -228,7 +240,8 @@ const RegisterCar = () => {
                         serviceType: 'package',
                         packageDuration: packageDuration,
                         totalPaidAmount: amount,
-                        customerPhone: customerPhone
+                        customerPhone: customerPhone,
+                        priceLevel: priceLevelUsed || null
                     }));
                     
                     // Redirect to Chapa payment page
@@ -243,6 +256,203 @@ const RegisterCar = () => {
         } catch (error) {
             console.error('Error processing payment:', error);
             setError('An error occurred. Please try again.');
+            setLoading(false);
+        }
+    };
+
+    const closePackagePaymentModal = () => {
+        if (loading) return;
+        if (chapaInstanceRef.current) {
+            const container = document.getElementById('chapa-inline-form');
+            if (container) container.innerHTML = '';
+            chapaInstanceRef.current = null;
+        }
+        setShowPaymentFormModal(false);
+        setPackageTxRef('');
+        setPackagePaymentAmount(0);
+    };
+
+    const verifyPackageWithRetry = async (txRef, maxAttempts = 10, delayMs = 1200) => {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // eslint-disable-next-line no-await-in-loop
+            const result = await new Promise((resolve, reject) => {
+                verifyChapaPackagePayment({
+                    txRef,
+                    token: user?.token,
+                    handleVerifySuccess: resolve,
+                    handleVerifyFailure: reject
+                });
+            });
+
+            if (result?.transaction?.status === 'successful') return result;
+
+            // pending -> wait and retry
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((r) => setTimeout(r, delayMs));
+        }
+        throw new Error('Payment is still pending. Please wait a moment and try again.');
+    };
+
+    const startPackageInlinePayment = async (duration) => {
+        try {
+            setError('');
+            setSuccess('');
+            setLoading(true);
+
+            const validatedDuration = ['weekly', 'monthly', 'yearly'].includes(duration) ? duration : null;
+            if (!validatedDuration) {
+                setError('Invalid package duration selected.');
+                setLoading(false);
+                return;
+            }
+
+            const feeInfo = calculatePackageFee(formData.carType, validatedDuration);
+            if (!feeInfo?.totalWithVat || feeInfo.totalWithVat <= 0) {
+                setError('Package pricing not configured or invalid. Please contact administrator.');
+                setLoading(false);
+                return;
+            }
+
+            if (!user?.priceLevel) {
+                setError('Your account has no price level assigned. Please contact admin.');
+                setLoading(false);
+                return;
+            }
+
+            const carDataPayload = {
+                plateCode: formData.plateCode,
+                region: formData.region,
+                licensePlateNumber: formData.licensePlateNumber,
+                carType: formData.carType,
+                model: formData.model,
+                color: formData.color,
+                phoneNumber: formData.phoneNumber,
+                notes: formData.notes,
+                priceLevel: user.priceLevel
+            };
+
+            await initializePackagePayment({
+                amount: feeInfo.totalWithVat,
+                packageDuration: validatedDuration,
+                customerPhone: formData.phoneNumber,
+                carData: carDataPayload,
+                token: user?.token,
+                handleInitSuccess: async (data) => {
+                    const txRef = data?.txRef;
+                    const chapaPublicKey = data?.publicKey || process.env.REACT_APP_CHAPA_PUBLIC_KEY;
+
+                    if (!txRef) {
+                        setError('Failed to initialize package payment (missing txRef).');
+                        setLoading(false);
+                        return;
+                    }
+
+                    if (!chapaPublicKey) {
+                        setError('Chapa public key is not configured. Please contact administrator.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    localStorage.setItem(`chapa_payment_pkg_${txRef}`, JSON.stringify({
+                        txRef,
+                        packageDuration: validatedDuration,
+                        amount: feeInfo.totalWithVat,
+                        carData: carDataPayload
+                    }));
+
+                    setPackageTxRef(txRef);
+                    setPackagePaymentAmount(feeInfo.totalWithVat);
+                    setShowPaymentFormModal(true);
+
+                    // Wait for modal DOM render
+                    setTimeout(async () => {
+                        try {
+                            // Clean up container
+                            const container = document.getElementById('chapa-inline-form');
+                            if (container) container.innerHTML = '';
+
+                            let ChapaCheckout = window.ChapaCheckout;
+                            if (!ChapaCheckout) {
+                                let attempts = 0;
+                                await new Promise((resolve, reject) => {
+                                    const checkInterval = setInterval(() => {
+                                        attempts++;
+                                        if (window.ChapaCheckout) {
+                                            clearInterval(checkInterval);
+                                            ChapaCheckout = window.ChapaCheckout;
+                                            resolve();
+                                        } else if (attempts > 30) {
+                                            clearInterval(checkInterval);
+                                            reject(new Error('Chapa library failed to load'));
+                                        }
+                                    }, 100);
+                                });
+                            }
+
+                            if (!ChapaCheckout) {
+                                setError('Chapa payment library is not loaded. Please refresh the page.');
+                                setShowPaymentFormModal(false);
+                                setLoading(false);
+                                return;
+                            }
+
+                            const chapa = new ChapaCheckout({
+                                publicKey: chapaPublicKey,
+                                amount: feeInfo.totalWithVat.toString(),
+                                currency: 'ETB',
+                                txRef,
+                                phoneNumber: formData.phoneNumber,
+                                availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
+                                customizations: {
+                                    buttonText: 'Pay Now',
+                                },
+                                callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}payment/chapa/callback`,
+                                returnUrl: `${window.location.origin}/payment/success?txRef=${txRef}`,
+                                showFlag: true,
+                                showPaymentMethodsNames: true,
+                                onSuccessfulPayment: async () => {
+                                    try {
+                                        await verifyPackageWithRetry(txRef);
+                                        localStorage.removeItem(`chapa_payment_pkg_${txRef}`);
+                                        setSuccess('Package payment successful! Car registered.');
+                                        closePackagePaymentModal();
+                                        resetForm();
+                                        setLoading(false);
+                                        setTimeout(() => navigate('/valet/cars'), 800);
+                                    } catch (verifyErr) {
+                                        setError(verifyErr?.message || 'Payment succeeded but verification is still pending. Please wait and refresh.');
+                                        setLoading(false);
+                                    }
+                                },
+                                onPaymentFailure: (err) => {
+                                    setError(err?.message || 'Payment failed. Please try again.');
+                                    setLoading(false);
+                                },
+                                onClose: () => {
+                                    closePackagePaymentModal();
+                                    setLoading(false);
+                                }
+                            });
+
+                            chapaInstanceRef.current = chapa;
+                            chapa.initialize('chapa-inline-form');
+                            setLoading(false);
+                        } catch (inlineErr) {
+                            console.error('Package inline payment init error:', inlineErr);
+                            setError('Failed to load payment form. Please try again.');
+                            setShowPaymentFormModal(false);
+                            setLoading(false);
+                        }
+                    }, 100);
+                },
+                handleInitFailure: (errorMessage) => {
+                    setError(errorMessage || 'Failed to initialize package payment');
+                    setLoading(false);
+                }
+            });
+        } catch (err) {
+            console.error('startPackageInlinePayment error:', err);
+            setError(err?.message || 'Failed to start package payment');
             setLoading(false);
         }
     };
@@ -697,6 +907,41 @@ const RegisterCar = () => {
                             >
                                 Back
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Package Payment Form Modal (Chapa inline) */}
+            {showPaymentFormModal && (
+                <div className="payment-modal-overlay" onClick={closePackagePaymentModal}>
+                    <div className="payment-form-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Complete Package Payment</h2>
+                            <button className="close-btn" onClick={closePackagePaymentModal} disabled={loading}>
+                                ×
+                            </button>
+                        </div>
+                        <div className="modal-content">
+                            <div className="payment-summary-section">
+                                <h3>Payment Summary</h3>
+                                <div className="summary-row">
+                                    <span className="label">Total Amount:</span>
+                                    <span className="value">{Number(packagePaymentAmount || 0).toFixed(2)} ETB</span>
+                                </div>
+                                <div className="summary-row">
+                                    <span className="label">Phone Number:</span>
+                                    <span className="value">{formData.phoneNumber || 'N/A'}</span>
+                                </div>
+                                <div className="summary-row">
+                                    <span className="label">Reference:</span>
+                                    <span className="value">{packageTxRef || 'N/A'}</span>
+                                </div>
+                            </div>
+                            <div className="chapa-payment-form-section">
+                                <h3>Pay Online</h3>
+                                <div id="chapa-inline-form"></div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -267,6 +267,40 @@ export const initializeChapaPayment = async ({ carId, amount, customerName, cust
     }
 };
 
+// Initialize package payment (no carId) - payment-first flow
+export const initializePackagePayment = async ({ amount, packageDuration, customerPhone, carData, token, handleInitSuccess, handleInitFailure }) => {
+    try {
+        const result = await axios.post(`${BASE_URL}payment/chapa/initialize-package`, {
+            amount,
+            packageDuration,
+            customerPhone,
+            serviceType: 'package',
+            carData
+        }, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (result?.data?.success) {
+            handleInitSuccess(result.data);
+        } else {
+            handleInitFailure(result?.data?.error || 'Failed to initialize package payment');
+        }
+    } catch (error) {
+        console.error('initializePackagePayment error:', error);
+        let errorMessage = 'Failed to initialize package payment';
+        if (error?.response?.data?.error) {
+            errorMessage = typeof error.response.data.error === 'string' 
+                ? error.response.data.error 
+                : JSON.stringify(error.response.data.error);
+        } else if (error?.message) {
+            errorMessage = error.message;
+        }
+        handleInitFailure(errorMessage);
+    }
+};
+
 export const verifyChapaPayment = async ({ txRef, token, handleVerifySuccess, handleVerifyFailure }) => {
     try {
         const result = await axios.get(`${BASE_URL}payment/chapa/verify/${txRef}`, {
@@ -282,6 +316,25 @@ export const verifyChapaPayment = async ({ txRef, token, handleVerifySuccess, ha
     } catch (error) {
         console.error('verifyChapaPayment error:', error);
         handleVerifyFailure(error?.response?.data?.error || 'Failed to verify payment');
+    }
+};
+
+// Verify package payment (creates car after payment)
+export const verifyChapaPackagePayment = async ({ txRef, token, handleVerifySuccess, handleVerifyFailure }) => {
+    try {
+        const result = await axios.get(`${BASE_URL}payment/chapa/verify-package/${txRef}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (result?.data?.success) {
+            handleVerifySuccess(result.data);
+        } else {
+            handleVerifyFailure(result?.data?.error || 'Failed to verify package payment');
+        }
+    } catch (error) {
+        console.error('verifyChapaPackagePayment error:', error);
+        handleVerifyFailure(error?.response?.data?.error || 'Failed to verify package payment');
     }
 };
 

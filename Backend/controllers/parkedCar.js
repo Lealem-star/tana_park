@@ -194,15 +194,70 @@ parkedCarRouter.put("/:id", isLoggedIn, async (req, res) => {
 
         // Update status
         if (status) {
-            car.status = status;
-            if (status === 'checked_out') {
-                car.checkedOutAt = new Date();
-                car.checkedOutBy = currentUser._id;
-                if (totalPaidAmount !== undefined) {
-                    car.totalPaidAmount = totalPaidAmount;
+            // For hourly or non-package cars, keep existing behavior
+            if (car.serviceType !== 'package' || !car.packageDuration || !car.packageEndDate) {
+                car.status = status;
+                if (status === 'checked_out') {
+                    car.checkedOutAt = new Date();
+                    car.checkedOutBy = currentUser._id;
+                    if (totalPaidAmount !== undefined) {
+                        car.totalPaidAmount = totalPaidAmount;
+                    }
+                    if (paymentMethod !== undefined) {
+                        car.paymentMethod = paymentMethod;
+                    }
                 }
-                if (paymentMethod !== undefined) {
-                    car.paymentMethod = paymentMethod;
+            } else {
+                // Package service: create separate records per visit, but keep subscription info
+                const now = new Date();
+
+                // If package already expired, prevent further parking/checkout changes
+                if (car.packageEndDate && now > car.packageEndDate) {
+                    return res.status(400).json({ error: "Package has expired" });
+                }
+
+                // For checked_out, mark this record as checked_out with payment info
+                if (status === 'checked_out') {
+                    car.status = 'checked_out';
+                    car.checkedOutAt = now;
+                    car.checkedOutBy = currentUser._id;
+                    if (totalPaidAmount !== undefined) {
+                        car.totalPaidAmount = totalPaidAmount;
+                    }
+                    if (paymentMethod !== undefined) {
+                        car.paymentMethod = paymentMethod;
+                    }
+                } else if (status === 'parked') {
+                    // Create a new parked record for a new visit within the same package
+                    const newVisit = await ParkedCar.create({
+                        licensePlate: car.licensePlate,
+                        plateCode: car.plateCode,
+                        region: car.region,
+                        licensePlateNumber: car.licensePlateNumber,
+                        carType: car.carType,
+                        model: car.model,
+                        color: car.color,
+                        phoneNumber: car.phoneNumber,
+                        location: car.location,
+                        notes: notes !== undefined ? notes : car.notes,
+                        serviceType: 'package',
+                        packageDuration: car.packageDuration,
+                        packageSubscriptionId: car.packageSubscriptionId || car._id,
+                        packageStartDate: car.packageStartDate || car.parkedAt,
+                        packageEndDate: car.packageEndDate,
+                        valet_id: car.valet_id,
+                        status: 'parked',
+                        paymentMethod: car.paymentMethod,
+                        paymentReference: car.paymentReference,
+                        totalPaidAmount: car.totalPaidAmount || 0
+                    });
+
+                    // Return early with the newly created visit record
+                    const populatedNewVisit = await ParkedCar.findById(newVisit._id)
+                        .populate('valet_id', 'name phoneNumber priceLevel')
+                        .populate('checkedOutBy', 'name phoneNumber');
+
+                    return res.json({ message: "New package visit parked successfully", car: populatedNewVisit });
                 }
             }
         }

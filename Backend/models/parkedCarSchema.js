@@ -89,10 +89,28 @@ const parkedCarSchema = new mongoose.Schema({
         enum: ['hourly', 'package'],
         default: 'hourly'
     },
+    // Package subscription linkage (for package services only)
+    packageSubscriptionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        default: null,
+        index: true
+    },
+    packageStartDate: {
+        type: Date,
+        default: null
+    },
+    packageEndDate: {
+        type: Date,
+        default: null
+    },
     packageDuration: {
         type: String,
         enum: ['weekly', 'monthly', 'yearly'],
-        default: null
+        default: undefined,
+        set: function(value) {
+            // Convert null to undefined so Mongoose skips enum validation for hourly
+            return value === null ? undefined : value;
+        }
     },
     totalPaidAmount: {
         type: Number,

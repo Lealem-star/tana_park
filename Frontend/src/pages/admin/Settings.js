@@ -209,7 +209,7 @@ const Settings = () => {
                         return (
                             <div key={priceLevelName} style={{ marginBottom: '2rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                    <h3 style={{ margin: 0 }}>{priceLevelName}</h3>
+                                    <h3 style={{ margin: 0, color: '#000' }}>{priceLevelName}</h3>
                                     <button
                                         className="btn-icon btn-delete"
                                         onClick={() => handleDelete(priceLevelName)}

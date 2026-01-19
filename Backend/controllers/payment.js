@@ -2,6 +2,7 @@ const { Router } = require("express");
 const axios = require("axios");
 const { isLoggedIn } = require("./middleware");
 const ParkedCar = require("../models/parkedCarSchema");
+const User = require("../models/userSchema");
 const Joi = require('joi');
 const { Types } = require("mongoose");
 
@@ -11,6 +12,9 @@ const paymentRouter = Router();
 const CHAPA_SECRET_KEY = process.env.CHAPA_SECRET_KEY || "CHASECK_TEST-xxxxxxxxxxxxx"; // Replace with your Chapa secret key
 const CHAPA_PUBLIC_KEY = process.env.CHAPA_PUBLIC_KEY || ""; // Chapa public key for frontend
 const CHAPA_BASE_URL = "https://api.chapa.co/v1/transaction";
+
+// In-memory store for pending package payments (txRef -> payload)
+const pendingPackagePayments = {};
 
 // Initialize Chapa payment
 paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
@@ -135,6 +139,113 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
     }
 });
 
+// Initialize Chapa payment for package (payment-first, no carId)
+paymentRouter.post("/chapa/initialize-package", isLoggedIn, async (req, res) => {
+    try {
+        const {
+            amount,
+            packageDuration,
+            customerPhone,
+            serviceType,
+            carData // plateCode, region, licensePlateNumber, carType, model, color, phoneNumber, notes
+        } = req.body;
+
+        // Validate input
+        const schema = Joi.object({
+            amount: Joi.number().positive().required(),
+            packageDuration: Joi.string().valid('weekly', 'monthly', 'yearly').required(),
+            customerPhone: Joi.string().required(),
+            serviceType: Joi.string().valid('package').required(),
+            carData: Joi.object({
+                plateCode: Joi.string().required().trim(),
+                region: Joi.string().required().trim(),
+                licensePlateNumber: Joi.string().required().trim(),
+                carType: Joi.string().valid('tripod', 'automobile', 'truck', 'trailer').required(),
+                model: Joi.string().allow('').optional(),
+                color: Joi.string().allow('').optional(),
+                phoneNumber: Joi.string().required().trim(),
+                notes: Joi.string().allow('').optional(),
+                // Allow priceLevel from frontend; ignore if not used
+                priceLevel: Joi.string().optional().allow('', null),
+            }).required()
+        });
+
+        const { error } = schema.validate({ amount, packageDuration, customerPhone, serviceType, carData });
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
+        // Identify current user/valet
+        const currentUser = await User.findOne({ phoneNumber: req.user?.phoneNumber });
+        if (!currentUser || currentUser.type !== 'valet') {
+            return res.status(403).json({ error: "Only valets can initialize package payments" });
+        }
+
+        // Build txRef without carId
+        const txRef = `tana-pkg-${Date.now().toString().slice(-8)}`;
+
+        // Store pending payload in memory
+        pendingPackagePayments[txRef] = {
+            carData,
+            packageDuration,
+            amount,
+            valetId: currentUser._id,
+            parkZoneCode: currentUser.parkZoneCode || 'Unknown Zone',
+            createdAt: Date.now()
+        };
+
+        // Prepare Chapa payment request
+        const chapaRequest = {
+            amount: amount.toString(),
+            currency: "ETB",
+            first_name: "Customer",
+            last_name: "Package",
+            phone_number: customerPhone,
+            tx_ref: txRef,
+            callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback`,
+            return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?txRef=${txRef}`,
+            meta: {
+                txRef,
+                serviceType: 'package',
+                packageDuration
+            }
+        };
+
+        const chapaResponse = await axios.post(
+            `${CHAPA_BASE_URL}/initialize`,
+            chapaRequest,
+            {
+                headers: {
+                    'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
+            res.json({
+                success: true,
+                paymentUrl: chapaResponse.data.data.checkout_url,
+                txRef: chapaRequest.tx_ref,
+                publicKey: CHAPA_PUBLIC_KEY,
+                message: "Package payment initialized successfully"
+            });
+        } else {
+            const errorMessage = chapaResponse.data?.message;
+            const errorText = typeof errorMessage === 'string'
+                ? errorMessage
+                : (typeof errorMessage === 'object' && errorMessage?.message)
+                    ? errorMessage.message
+                    : JSON.stringify(errorMessage) || "Failed to initialize payment with Chapa";
+            res.status(400).json({ error: errorText });
+        }
+    } catch (error) {
+        console.error("Chapa package payment initialization error:", error);
+        const errorMessage = error?.response?.data?.message || error?.message || "Failed to initialize package payment";
+        res.status(error?.response?.status || 500).json({ error: errorMessage });
+    }
+});
+
 // Verify Chapa payment
 paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
     try {
@@ -224,6 +335,133 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
     }
 });
 
+// Verify Chapa payment for package (creates car after successful payment)
+paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) => {
+    try {
+        const { txRef } = req.params;
+
+        if (!txRef) {
+            return res.status(400).json({ error: "Transaction reference is required" });
+        }
+
+        const pending = pendingPackagePayments[txRef];
+        if (!pending) {
+            return res.status(404).json({ error: "Pending package payment not found or already processed" });
+        }
+
+        // Verify payment with Chapa
+        const chapaResponse = await axios.get(
+            `${CHAPA_BASE_URL}/verify/${txRef}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
+                }
+            }
+        );
+
+        if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
+            const transaction = chapaResponse.data.data;
+
+            if (transaction.status === 'successful') {
+                // Create the initial package subscription + first parked record
+                const payload = pendingPackagePayments[txRef];
+                const {
+                    carData,
+                    packageDuration,
+                    amount,
+                    valetId,
+                    parkZoneCode
+                } = payload;
+
+                // Construct licensePlate
+                const licensePlate = `${carData.plateCode}-${carData.region}-${carData.licensePlateNumber}`.toUpperCase();
+
+                // Compute package start/end dates
+                const packageStartDate = new Date();
+                const packageEndDate = new Date(packageStartDate);
+                switch (packageDuration) {
+                    case 'weekly':
+                        packageEndDate.setDate(packageStartDate.getDate() + 7);
+                        break;
+                    case 'monthly':
+                        packageEndDate.setMonth(packageStartDate.getMonth() + 1);
+                        break;
+                    case 'yearly':
+                        packageEndDate.setFullYear(packageStartDate.getFullYear() + 1);
+                        break;
+                    default:
+                        break;
+                }
+
+                // Create a subscription id to link all future records
+                const packageSubscriptionId = new Types.ObjectId();
+
+                const parkedCar = await ParkedCar.create({
+                    licensePlate: licensePlate,
+                    plateCode: carData.plateCode,
+                    region: carData.region,
+                    licensePlateNumber: carData.licensePlateNumber.toUpperCase(),
+                    carType: carData.carType,
+                    model: carData.model || '',
+                    color: carData.color || '',
+                    phoneNumber: carData.phoneNumber,
+                    location: parkZoneCode || 'Unknown Zone',
+                    notes: carData.notes || '',
+                    serviceType: 'package',
+                    packageDuration: packageDuration,
+                    packageSubscriptionId,
+                    packageStartDate,
+                    packageEndDate,
+                    valet_id: valetId,
+                    status: 'parked',
+                    paymentMethod: 'online',
+                    paymentReference: txRef,
+                    totalPaidAmount: transaction.amount || amount || 0
+                });
+
+                // Clean up pending
+                delete pendingPackagePayments[txRef];
+
+                res.json({
+                    success: true,
+                    transaction: {
+                        status: transaction.status,
+                        amount: transaction.amount,
+                        currency: transaction.currency,
+                        txRef: transaction.tx_ref,
+                    },
+                    car: {
+                        id: parkedCar._id,
+                        licensePlate: parkedCar.licensePlate,
+                        status: parkedCar.status
+                    },
+                    message: "Payment verified and car created successfully"
+                });
+            } else {
+                // Chapa can take a moment to finalize; treat non-success as "pending" rather than a hard error.
+                // Frontend should retry verification for a short period.
+                return res.status(202).json({
+                    success: true,
+                    transaction: {
+                        status: transaction.status,
+                        amount: transaction.amount,
+                        currency: transaction.currency,
+                        txRef: transaction.tx_ref,
+                    },
+                    message: "Payment not successful yet"
+                });
+            }
+        } else {
+            res.status(400).json({ error: "Payment verification failed" });
+        }
+    } catch (error) {
+        console.error("Chapa package payment verification error:", error);
+        res.status(500).json({
+            error: error?.response?.data?.message || "Failed to verify package payment"
+        });
+    }
+});
+
 // Callback endpoint for Chapa payment results (used by Inline.js)
 // This endpoint handles both POST (webhook) and GET (redirect) requests
 paymentRouter.post("/chapa/callback", async (req, res) => {
@@ -235,6 +473,7 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
         if (status === 'successful' && tx_ref) {
             // Extract carId from meta (preferred) or verify payment to get meta
             let carId = null;
+                let txRef = tx_ref;
             
             if (meta && meta.carId) {
                 carId = meta.carId;
@@ -256,6 +495,9 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
                         if (transaction.meta && transaction.meta.carId) {
                             carId = transaction.meta.carId;
                         }
+                        if (transaction.tx_ref) {
+                            txRef = transaction.tx_ref;
+                        }
                     }
                 } catch (verifyError) {
                     console.error("Error verifying payment in callback:", verifyError);
@@ -269,12 +511,73 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
                     car.status = 'checked_out';
                     car.checkedOutAt = new Date();
                     car.paymentMethod = 'online';
-                    car.paymentReference = tx_ref;
+                    car.paymentReference = txRef || tx_ref;
                     if (amount) {
                         car.totalPaidAmount = parseFloat(amount);
                     }
                     await car.save();
                     console.log(`Car ${carId} checked out successfully via Chapa callback`);
+                }
+            } else if (txRef && pendingPackagePayments[txRef]) {
+                // Package payment path (payment-first, no carId)
+                try {
+                    const payload = pendingPackagePayments[txRef];
+                    const {
+                        carData,
+                        packageDuration,
+                        amount: storedAmount,
+                        valetId,
+                        parkZoneCode
+                    } = payload;
+
+                    const licensePlate = `${carData.plateCode}-${carData.region}-${carData.licensePlateNumber}`.toUpperCase();
+
+                    // Compute package start/end dates
+                    const packageStartDate = new Date();
+                    const packageEndDate = new Date(packageStartDate);
+                    switch (packageDuration) {
+                        case 'weekly':
+                            packageEndDate.setDate(packageStartDate.getDate() + 7);
+                            break;
+                        case 'monthly':
+                            packageEndDate.setMonth(packageStartDate.getMonth() + 1);
+                            break;
+                        case 'yearly':
+                            packageEndDate.setFullYear(packageStartDate.getFullYear() + 1);
+                            break;
+                        default:
+                            break;
+                    }
+
+                    const packageSubscriptionId = new Types.ObjectId();
+
+                    const parkedCar = await ParkedCar.create({
+                        licensePlate: licensePlate,
+                        plateCode: carData.plateCode,
+                        region: carData.region,
+                        licensePlateNumber: carData.licensePlateNumber.toUpperCase(),
+                        carType: carData.carType,
+                        model: carData.model || '',
+                        color: carData.color || '',
+                        phoneNumber: carData.phoneNumber,
+                        location: parkZoneCode || 'Unknown Zone',
+                        notes: carData.notes || '',
+                        serviceType: 'package',
+                        packageDuration: packageDuration,
+                        packageSubscriptionId,
+                        packageStartDate,
+                        packageEndDate,
+                        valet_id: valetId,
+                        status: 'parked',
+                        paymentMethod: 'online',
+                        paymentReference: txRef,
+                        totalPaidAmount: amount ? parseFloat(amount) : (storedAmount || 0)
+                    });
+
+                    delete pendingPackagePayments[txRef];
+                    console.log(`Package payment successful, car created with id ${parkedCar._id}`);
+                } catch (err) {
+                    console.error("Failed to create car from package payment callback:", err);
                 }
             }
         }
@@ -321,6 +624,67 @@ paymentRouter.get("/chapa/callback", async (req, res) => {
                             }
                             await car.save();
                             console.log(`Car ${carId} checked out successfully via Chapa callback (GET)`);
+                        }
+                    } else if (transaction.tx_ref && pendingPackagePayments[transaction.tx_ref]) {
+                        // Package payment path (payment-first)
+                        try {
+                            const payload = pendingPackagePayments[transaction.tx_ref];
+                            const {
+                                carData,
+                                packageDuration,
+                                amount: storedAmount,
+                                valetId,
+                                parkZoneCode
+                            } = payload;
+
+                            const licensePlate = `${carData.plateCode}-${carData.region}-${carData.licensePlateNumber}`.toUpperCase();
+
+                            // Compute package start/end dates
+                            const packageStartDate = new Date();
+                            const packageEndDate = new Date(packageStartDate);
+                            switch (packageDuration) {
+                                case 'weekly':
+                                    packageEndDate.setDate(packageStartDate.getDate() + 7);
+                                    break;
+                                case 'monthly':
+                                    packageEndDate.setMonth(packageStartDate.getMonth() + 1);
+                                    break;
+                                case 'yearly':
+                                    packageEndDate.setFullYear(packageStartDate.getFullYear() + 1);
+                                    break;
+                                default:
+                                    break;
+                            }
+
+                            const packageSubscriptionId = new Types.ObjectId();
+
+                            const parkedCar = await ParkedCar.create({
+                                licensePlate: licensePlate,
+                                plateCode: carData.plateCode,
+                                region: carData.region,
+                                licensePlateNumber: carData.licensePlateNumber.toUpperCase(),
+                                carType: carData.carType,
+                                model: carData.model || '',
+                                color: carData.color || '',
+                                phoneNumber: carData.phoneNumber,
+                                location: parkZoneCode || 'Unknown Zone',
+                                notes: carData.notes || '',
+                                serviceType: 'package',
+                                packageDuration: packageDuration,
+                                packageSubscriptionId,
+                                packageStartDate,
+                                packageEndDate,
+                                valet_id: valetId,
+                                status: 'parked',
+                                paymentMethod: 'online',
+                                paymentReference: transaction.tx_ref,
+                                totalPaidAmount: transaction.amount || storedAmount || 0
+                            });
+
+                            delete pendingPackagePayments[transaction.tx_ref];
+                            console.log(`Package payment successful, car created with id ${parkedCar._id} (GET callback)`);
+                        } catch (err) {
+                            console.error("Failed to create car from package payment callback (GET):", err);
                         }
                     }
                 }

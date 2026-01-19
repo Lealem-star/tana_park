@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { verifyChapaPayment, sendSmsNotification } from '../../api/api';
+import { verifyChapaPayment, verifyChapaPackagePayment, sendSmsNotification } from '../../api/api';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
 import '../../css/paymentCallback.scss';
 
@@ -13,8 +13,31 @@ const PaymentCallback = () => {
     const [message, setMessage] = useState('Verifying payment...');
 
     useEffect(() => {
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+        const verifyWithRetry = async ({ verifyFn, txRef, token, maxAttempts = 10, delayMs = 1200 }) => {
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                // eslint-disable-next-line no-await-in-loop
+                const result = await new Promise((resolve, reject) => {
+                    verifyFn({
+                        txRef,
+                        token,
+                        handleVerifySuccess: resolve,
+                        handleVerifyFailure: reject
+                    });
+                });
+
+                if (result?.transaction?.status === 'successful') return result;
+
+                setMessage(`Payment is processing... (attempt ${attempt}/${maxAttempts})`);
+                // eslint-disable-next-line no-await-in-loop
+                await sleep(delayMs);
+            }
+            throw new Error('Payment is still processing. Please wait and refresh this page.');
+        };
+
         const verifyPayment = async () => {
-            // Get carId from URL params
+            // Get identifiers
             const urlCarId = searchParams.get('carId');
             const txRef = searchParams.get('tx_ref') || searchParams.get('txRef');
 
@@ -31,6 +54,11 @@ const PaymentCallback = () => {
                 if (stored) {
                     paymentInfo = JSON.parse(stored);
                 }
+            } else if (txRef) {
+                const storedPkg = localStorage.getItem(`chapa_payment_pkg_${txRef}`);
+                if (storedPkg) {
+                    paymentInfo = JSON.parse(storedPkg);
+                }
             }
 
             const refToVerify = txRef || paymentInfo?.txRef;
@@ -42,60 +70,55 @@ const PaymentCallback = () => {
             }
 
             try {
-                // Verify payment with backend
-                await verifyChapaPayment({
-                    txRef: refToVerify,
-                    token: user.token,
-                    handleVerifySuccess: async (data) => {
-                        if (data.transaction?.status === 'successful') {
-                            setPaymentStatus('success');
-                            setMessage('Payment successful! Your car has been checked out.');
+                // Choose verification path: package vs hourly
+                const verifyFn = urlCarId ? verifyChapaPayment : verifyChapaPackagePayment;
 
-                            // Send SMS notification
-                            if (data.car) {
-                                // Fetch the car to get phone number
-                                const carPhoneNumber = data.car.phoneNumber || '';
-                                if (carPhoneNumber && paymentInfo) {
-                                const smsMessage = `Dear customer,\nThank you for using Tana Parking services! Your car (${data.car.licensePlate || 'N/A'}) has been received.\nParking fee: ${paymentInfo.feeDetails.parkingFee} ETB\nVAT (15%): ${paymentInfo.feeDetails.vatAmount} ETB\nTotal: ${paymentInfo.feeDetails.totalWithVat} ETB (${paymentInfo.feeDetails.hoursParked} hour${paymentInfo.feeDetails.hoursParked > 1 ? 's' : ''} × ${paymentInfo.feeDetails.pricePerHour} ETB/hour).\nPayment method: Online (Chapa).\nPayment Reference: ${refToVerify}.`;
-                                    
-                                    await sendSmsNotification({
-                                        phoneNumber: carPhoneNumber,
-                                        message: smsMessage,
-                                        token: user.token,
-                                        handleSendSmsSuccess: () => {
-                                            console.log('SMS sent successfully');
-                                        },
-                                        handleSendSmsFailure: (error) => {
-                                            console.error('Failed to send SMS:', error);
-                                        }
-                                    });
+                const data = await verifyWithRetry({ verifyFn, txRef: refToVerify, token: user.token });
+
+                if (data.transaction?.status === 'successful') {
+                    setPaymentStatus('success');
+                    setMessage(urlCarId ? 'Payment successful! Your car has been checked out.' : 'Payment successful! Your package car has been registered.');
+
+                    // Send SMS notification (if car info and payment info available)
+                    if (data.car && paymentInfo && paymentInfo.amount && paymentInfo.packageDuration) {
+                        const carPhoneNumber = data.car.phoneNumber || '';
+                        if (carPhoneNumber) {
+                            const smsMessage = `Dear customer,\nThank you for using Tana Parking services! Your car (${data.car.licensePlate || 'N/A'}) has been registered.\nPackage: ${paymentInfo.packageDuration}\nTotal Paid: ${paymentInfo.amount} ETB.\nPayment Reference: ${refToVerify}.`;
+
+                            await sendSmsNotification({
+                                phoneNumber: carPhoneNumber,
+                                message: smsMessage,
+                                token: user.token,
+                                handleSendSmsSuccess: () => {
+                                    console.log('SMS sent successfully');
+                                },
+                                handleSendSmsFailure: (error) => {
+                                    console.error('Failed to send SMS:', error);
                                 }
-                            }
-
-                            // Clean up localStorage
-                            if (urlCarId) {
-                                localStorage.removeItem(`chapa_payment_${urlCarId}`);
-                            }
-
-                            // Redirect to dashboard after 3 seconds
-                            setTimeout(() => {
-                                navigate('/valet/dashboard');
-                            }, 3000);
-                        } else {
-                            setPaymentStatus('failed');
-                            setMessage('Payment verification failed. Please contact support.');
+                            });
                         }
-                    },
-                    handleVerifyFailure: (error) => {
-                        console.error('Payment verification failed:', error);
-                        setPaymentStatus('failed');
-                        setMessage(`Payment verification failed: ${error}`);
                     }
-                });
+
+                    // Clean up localStorage
+                    if (urlCarId) {
+                        localStorage.removeItem(`chapa_payment_${urlCarId}`);
+                    }
+                    if (refToVerify) {
+                        localStorage.removeItem(`chapa_payment_pkg_${refToVerify}`);
+                    }
+
+                    // Redirect to dashboard after 3 seconds
+                    setTimeout(() => {
+                        navigate('/valet/dashboard');
+                    }, 3000);
+                } else {
+                    setPaymentStatus('failed');
+                    setMessage('Payment verification failed. Please contact support.');
+                }
             } catch (error) {
                 console.error('Error verifying payment:', error);
                 setPaymentStatus('failed');
-                setMessage('An error occurred while verifying payment. Please contact support.');
+                setMessage(error?.message || 'An error occurred while verifying payment. Please contact support.');
             }
         };
 

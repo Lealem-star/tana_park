@@ -107,7 +107,7 @@ const ParkedCarsList = () => {
         } else {
             // Hourly service - calculate based on time parked
             pricePerHour = carPricing.hourly || 50; // Default fallback
-            const hoursParked = totalMinutes / 60;
+        const hoursParked = totalMinutes / 60;
             parkingFee = Math.round((hoursParked * pricePerHour) * 100) / 100;
         }
 
@@ -170,196 +170,196 @@ const ParkedCarsList = () => {
         
         try {
             // Initialize Chapa payment for online payment
-            const customerName = selectedCar.customerName || 'Customer';
-            const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
-            const customerPhone = selectedCar.phoneNumber;
+                const customerName = selectedCar.customerName || 'Customer';
+                const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
+                const customerPhone = selectedCar.phoneNumber;
 
-            await initializeChapaPayment({
-                carId: selectedCar._id,
-                amount: feeDetails.totalWithVat,
-                customerName: customerName,
-                customerEmail: customerEmail,
-                customerPhone: customerPhone,
-                token: user?.token,
-                handleInitSuccess: async (data) => {
-                    // Store payment reference for later verification
-                    localStorage.setItem(`chapa_payment_${selectedCar._id}`, JSON.stringify({
-                        txRef: data.txRef,
-                        carId: selectedCar._id,
-                        feeDetails: feeDetails,
-                        customerPhone: selectedCar.phoneNumber || customerPhone
-                    }));
+                await initializeChapaPayment({
+                    carId: selectedCar._id,
+                    amount: feeDetails.totalWithVat,
+                    customerName: customerName,
+                    customerEmail: customerEmail,
+                    customerPhone: customerPhone,
+                    token: user?.token,
+                    handleInitSuccess: async (data) => {
+                        // Store payment reference for later verification
+                        localStorage.setItem(`chapa_payment_${selectedCar._id}`, JSON.stringify({
+                            txRef: data.txRef,
+                            carId: selectedCar._id,
+                            feeDetails: feeDetails,
+                            customerPhone: selectedCar.phoneNumber || customerPhone
+                        }));
 
-                    // Get Chapa public key from API response or environment variables
-                    // Backend should provide publicKey in the response, fallback to env variable
-                    const chapaPublicKey = data.publicKey || process.env.REACT_APP_CHAPA_PUBLIC_KEY;
-                    
-                    if (!chapaPublicKey) {
-                        console.error('Chapa public key is not configured. Please add CHAPA_PUBLIC_KEY to backend .env or REACT_APP_CHAPA_PUBLIC_KEY to frontend .env');
-                        alert('Payment system is not configured. Please contact administrator.');
-                        setLoading(false);
-                        return;
-                    }
-
-                    // Initialize Chapa Inline.js
-                    try {
-                        // Clean up any existing instance
-                        if (chapaInstanceRef.current) {
-                            const container = document.getElementById('chapa-inline-form');
-                            if (container) {
-                                container.innerHTML = '';
-                            }
-                        }
-
-                        // Get ChapaCheckout from window (loaded via CDN) or try to import
-                        let ChapaCheckout;
+                        // Get Chapa public key from API response or environment variables
+                        // Backend should provide publicKey in the response, fallback to env variable
+                        const chapaPublicKey = data.publicKey || process.env.REACT_APP_CHAPA_PUBLIC_KEY;
                         
-                        if (window.ChapaCheckout) {
-                            ChapaCheckout = window.ChapaCheckout;
-                        } else {
-                            // Wait for script to load (max 3 seconds)
-                            let attempts = 0;
-                            await new Promise((resolve, reject) => {
-                                const checkInterval = setInterval(() => {
-                                    attempts++;
-                                    if (window.ChapaCheckout) {
-                                        clearInterval(checkInterval);
-                                        ChapaCheckout = window.ChapaCheckout;
-                                        resolve();
-                                    } else if (attempts > 30) { // 3 seconds max
-                                        clearInterval(checkInterval);
-                                        reject(new Error('Chapa library failed to load'));
-                                    }
-                                }, 100);
-                            });
-                        }
-                        
-                        if (!ChapaCheckout) {
-                            alert('Chapa payment library is not loaded. Please refresh the page.');
+                        if (!chapaPublicKey) {
+                            console.error('Chapa public key is not configured. Please add CHAPA_PUBLIC_KEY to backend .env or REACT_APP_CHAPA_PUBLIC_KEY to frontend .env');
+                            alert('Payment system is not configured. Please contact administrator.');
                             setLoading(false);
                             return;
                         }
 
-                        const chapa = new ChapaCheckout({
-                            publicKey: chapaPublicKey,
-                            amount: feeDetails.totalWithVat.toString(),
-                            currency: 'ETB',
-                            txRef: data.txRef,
-                            phoneNumber: customerPhone, // Pre-fill phone number
-                            availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
-                            customizations: {
-                                buttonText: 'Pay Now',
-                                styles: `
-                                    .chapa-pay-button { 
-                                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                        color: white;
-                                        border: none;
-                                        padding: 16px 24px;
-                                        border-radius: 10px;
-                                        font-size: 16px;
-                                        font-weight: 700;
-                                        cursor: pointer;
-                                        width: 100%;
-                                        transition: all 0.3s ease;
-                                    }
-                                    .chapa-pay-button:hover {
-                                        transform: translateY(-2px);
-                                        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-                                    }
-                                `
-                            },
-                            callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}payment/chapa/callback`,
-                            returnUrl: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
-                            showFlag: true,
-                            showPaymentMethodsNames: true,
-                            onSuccessfulPayment: async (response) => {
-                                // Update car status after successful payment
-                                await updateParkedCar({
-                                    id: selectedCar._id,
-                                    body: {
-                                        status: 'checked_out',
-                                        checkedOutAt: new Date().toISOString(),
-                                        paymentMethod: 'online',
-                                        totalPaidAmount: feeDetails.totalWithVat,
-                                    },
-                                    token: user?.token,
-                                    handleUpdateParkedCarSuccess: async () => {
-                                        // Send SMS to customer
-                                        const totalMinutes = Math.round(feeDetails.hoursParked * 60);
-                                        const durationDisplay = totalMinutes >= 60 
-                                            ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
-                                            : `${totalMinutes} min`;
-                                        const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Online Payment.`;
-                                        
-                                        await sendSmsNotification({
-                                            phoneNumber: selectedCar.phoneNumber,
-                                            message: smsMessage,
-                                            token: user?.token,
-                                            handleSendSmsSuccess: () => {
-                                                console.log('SMS sent successfully');
-                                            },
-                                            handleSendSmsFailure: (error) => {
-                                                console.error('Failed to send SMS:', error);
-                                            }
-                                        });
-
-                                        // Refresh cars list and stats
-                                        loadCars();
-                                        fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
-
-                                        setShowPaymentFormModal(false);
-                                        setSelectedCar(null);
-                                        setFeeDetails(null);
-                                        setLoading(false);
-                                    },
-                                    handleUpdateParkedCarFailure: (error) => {
-                                        console.error('Failed to update car:', error);
-                                        alert('Payment successful but failed to update car status. Please contact support.');
-                                        setLoading(false);
-                                    }
-                                });
-                            },
-                            onPaymentFailure: (error) => {
-                                console.error('Payment failed:', error);
-                                alert(`Payment failed: ${error?.message || 'Please try again'}`);
-                                setLoading(false);
-                            },
-                            onClose: () => {
-                                setShowPaymentFormModal(false);
-                                setLoading(false);
+                        // Initialize Chapa Inline.js
+                        try {
+                            // Clean up any existing instance
+                            if (chapaInstanceRef.current) {
+                                const container = document.getElementById('chapa-inline-form');
+                                if (container) {
+                                    container.innerHTML = '';
+                                }
                             }
-                        });
 
-                        chapaInstanceRef.current = chapa;
-                        
-                        // Open payment form modal
-                        setShowPaymentFormModal(true);
-                        
-                        // Wait for DOM to update, then initialize Chapa
-                        setTimeout(() => {
-                            const container = document.getElementById('chapa-inline-form');
-                            if (container) {
-                                chapa.initialize('chapa-inline-form');
-                                setLoading(false);
+                            // Get ChapaCheckout from window (loaded via CDN) or try to import
+                            let ChapaCheckout;
+                            
+                            if (window.ChapaCheckout) {
+                                ChapaCheckout = window.ChapaCheckout;
                             } else {
-                                console.error('Chapa container not found after rendering');
-                                alert('Failed to load payment form. Please try again.');
-                                setShowPaymentFormModal(false);
-                                setLoading(false);
+                                // Wait for script to load (max 3 seconds)
+                                let attempts = 0;
+                                await new Promise((resolve, reject) => {
+                                    const checkInterval = setInterval(() => {
+                                        attempts++;
+                                        if (window.ChapaCheckout) {
+                                            clearInterval(checkInterval);
+                                            ChapaCheckout = window.ChapaCheckout;
+                                            resolve();
+                                        } else if (attempts > 30) { // 3 seconds max
+                                            clearInterval(checkInterval);
+                                            reject(new Error('Chapa library failed to load'));
+                                        }
+                                    }, 100);
+                                });
                             }
-                        }, 100);
-                    } catch (error) {
-                        console.error('Failed to initialize Chapa Inline:', error);
-                        alert('Failed to load payment form. Please try again.');
+                            
+                            if (!ChapaCheckout) {
+                                alert('Chapa payment library is not loaded. Please refresh the page.');
+                                setLoading(false);
+                                return;
+                            }
+
+                            const chapa = new ChapaCheckout({
+                                publicKey: chapaPublicKey,
+                                amount: feeDetails.totalWithVat.toString(),
+                                currency: 'ETB',
+                                txRef: data.txRef,
+                                phoneNumber: customerPhone, // Pre-fill phone number
+                                availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
+                                customizations: {
+                                    buttonText: 'Pay Now',
+                                    styles: `
+                                        .chapa-pay-button { 
+                                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                            color: white;
+                                            border: none;
+                                            padding: 16px 24px;
+                                            border-radius: 10px;
+                                            font-size: 16px;
+                                            font-weight: 700;
+                                            cursor: pointer;
+                                            width: 100%;
+                                            transition: all 0.3s ease;
+                                        }
+                                        .chapa-pay-button:hover {
+                                            transform: translateY(-2px);
+                                            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+                                        }
+                                    `
+                                },
+                                callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}payment/chapa/callback`,
+                                returnUrl: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
+                                showFlag: true,
+                                showPaymentMethodsNames: true,
+                                onSuccessfulPayment: async (response) => {
+                                    // Update car status after successful payment
+                                    await updateParkedCar({
+                                        id: selectedCar._id,
+                                        body: {
+                                            status: 'checked_out',
+                                            checkedOutAt: new Date().toISOString(),
+                                            paymentMethod: 'online',
+                                            totalPaidAmount: feeDetails.totalWithVat,
+                                        },
+                                        token: user?.token,
+                                        handleUpdateParkedCarSuccess: async () => {
+                                            // Send SMS to customer
+                                            const totalMinutes = Math.round(feeDetails.hoursParked * 60);
+                                            const durationDisplay = totalMinutes >= 60 
+                                                ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
+                                                : `${totalMinutes} min`;
+                                            const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Online Payment.`;
+                                            
+                                            await sendSmsNotification({
+                                                phoneNumber: selectedCar.phoneNumber,
+                                                message: smsMessage,
+                                                token: user?.token,
+                                                handleSendSmsSuccess: () => {
+                                                    console.log('SMS sent successfully');
+                                                },
+                                                handleSendSmsFailure: (error) => {
+                                                    console.error('Failed to send SMS:', error);
+                                                }
+                                            });
+
+                                            // Refresh cars list and stats
+                                            loadCars();
+                                            fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
+
+                                            setShowPaymentFormModal(false);
+                                            setSelectedCar(null);
+                                            setFeeDetails(null);
+                                            setLoading(false);
+                                        },
+                                        handleUpdateParkedCarFailure: (error) => {
+                                            console.error('Failed to update car:', error);
+                                            alert('Payment successful but failed to update car status. Please contact support.');
+                                            setLoading(false);
+                                        }
+                                    });
+                                },
+                                onPaymentFailure: (error) => {
+                                    console.error('Payment failed:', error);
+                                    alert(`Payment failed: ${error?.message || 'Please try again'}`);
+                                    setLoading(false);
+                                },
+                                onClose: () => {
+                                    setShowPaymentFormModal(false);
+                                    setLoading(false);
+                                }
+                            });
+
+                            chapaInstanceRef.current = chapa;
+                            
+                            // Open payment form modal
+                            setShowPaymentFormModal(true);
+                            
+                            // Wait for DOM to update, then initialize Chapa
+                            setTimeout(() => {
+                                const container = document.getElementById('chapa-inline-form');
+                                if (container) {
+                                    chapa.initialize('chapa-inline-form');
+                                    setLoading(false);
+                                } else {
+                                    console.error('Chapa container not found after rendering');
+                                    alert('Failed to load payment form. Please try again.');
+                                    setShowPaymentFormModal(false);
+                                    setLoading(false);
+                                }
+                            }, 100);
+                        } catch (error) {
+                            console.error('Failed to initialize Chapa Inline:', error);
+                            alert('Failed to load payment form. Please try again.');
+                            setLoading(false);
+                        }
+                    },
+                    handleInitFailure: (error) => {
+                        console.error('Failed to initialize Chapa payment:', error);
+                        alert(`Failed to initialize payment: ${error}`);
                         setLoading(false);
                     }
-                },
-                handleInitFailure: (error) => {
-                    console.error('Failed to initialize Chapa payment:', error);
-                    alert(`Failed to initialize payment: ${error}`);
-                    setLoading(false);
-                }
-            });
+                });
         } catch (error) {
             console.error('Error processing payment:', error);
             alert('An error occurred. Please try again.');
