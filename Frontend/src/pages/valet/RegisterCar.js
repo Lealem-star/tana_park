@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { createParkedCar, sendSmsNotification, fetchPricingSettings, initializeChapaPayment, initializePackagePayment, verifyChapaPackagePayment } from '../../api/api';
+import { createParkedCar, sendSmsNotification, fetchPricingSettings, initializePackagePayment, verifyChapaPackagePayment } from '../../api/api';
 import '../../css/registerCar.scss';
 
 // Default plate codes fallback (used if database is empty)
