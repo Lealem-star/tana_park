@@ -285,12 +285,31 @@ const ParkedCarsList = () => {
                                         token: user?.token,
                                         handleUpdateParkedCarSuccess: async () => {
                                             // Send SMS to customer
-                                            const totalMinutes = Math.round(feeDetails.hoursParked * 60);
-                                            const durationDisplay = totalMinutes >= 60 
-                                                ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
-                                                : `${totalMinutes} min`;
-                                            const smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Online Payment.`;
-                                            
+                                            let smsMessage = '';
+
+                                            if (selectedCar.serviceType === 'package' && selectedCar.packageDuration) {
+                                                // Package checkout SMS with remaining days
+                                                let remainingDaysText = '';
+                                                if (selectedCar.packageEndDate) {
+                                                    const now = new Date();
+                                                    const end = new Date(selectedCar.packageEndDate);
+                                                    const diffMs = end.getTime() - now.getTime();
+                                                    const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                                                    const endDisplay = end.toLocaleDateString();
+                                                    remainingDaysText = `Package expires on ${endDisplay} (${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining).`;
+                                                }
+
+                                                const licenseDisplay = selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`;
+                                                smsMessage = `Thank you for using Tana Parking services!\nYour package car (${licenseDisplay}) has checked out.\nPackage type: ${selectedCar.packageDuration}.\n${remainingDaysText}`;
+                                            } else {
+                                                // Hourly checkout SMS (existing behavior)
+                                                const totalMinutes = Math.round(feeDetails.hoursParked * 60);
+                                                const durationDisplay = totalMinutes >= 60 
+                                                    ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
+                                                    : `${totalMinutes} min`;
+                                                smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Online Payment.`;
+                                            }
+
                                             await sendSmsNotification({
                                                 phoneNumber: selectedCar.phoneNumber,
                                                 message: smsMessage,

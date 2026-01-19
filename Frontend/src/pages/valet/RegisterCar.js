@@ -369,7 +369,38 @@ const RegisterCar = () => {
                                 showPaymentMethodsNames: true,
                                 onSuccessfulPayment: async () => {
                                     try {
-                                        await verifyPackageWithRetry(txRef);
+                                        const verifyResult = await verifyPackageWithRetry(txRef);
+
+                                        // Send SMS notification for package activation
+                                        try {
+                                            const carInfo = verifyResult?.car;
+                                            const packageEndDateStr = carInfo?.packageEndDate;
+                                            const packageDurationLabel = carInfo?.packageDuration || validatedDuration;
+
+                                            let remainingDaysText = '';
+                                            if (packageEndDateStr) {
+                                                const now = new Date();
+                                                const end = new Date(packageEndDateStr);
+                                                const diffMs = end.getTime() - now.getTime();
+                                                const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                                                const endDisplay = end.toLocaleDateString();
+                                                remainingDaysText = `Package expires on ${endDisplay} (${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining).`;
+                                            }
+
+                                            const licenseDisplay = `${formData.plateCode}-${formData.region}-${formData.licensePlateNumber}`;
+                                            const smsMessage = `Dear customer,\nYour ${packageDurationLabel} parking package at Tana Parking is now active for car (Plate: ${licenseDisplay}, Model: ${formData.model}).\n${remainingDaysText}\nThank you!`;
+
+                                            await sendSmsNotification({
+                                                phoneNumber: formData.phoneNumber,
+                                                message: smsMessage,
+                                                token: user?.token,
+                                                handleSendSmsSuccess: () => console.log('Package SMS sent successfully'),
+                                                handleSendSmsFailure: (smsError) => console.error('Failed to send package SMS:', smsError)
+                                            });
+                                        } catch (smsErr) {
+                                            console.error('Error sending package activation SMS:', smsErr);
+                                        }
+
                                         localStorage.removeItem(`chapa_payment_pkg_${txRef}`);
                                         setSuccess('Package payment successful! Car registered.');
                                         closePackagePaymentModal();

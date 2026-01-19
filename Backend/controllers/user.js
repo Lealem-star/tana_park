@@ -32,6 +32,9 @@ const sendSms = async (to, message) => {
     }
 };
 
+// Export sendSms so other controllers (e.g., parkedCar) can use it
+module.exports.sendSms = sendSms;
+
 // Register new user endpoint - DISABLED (only system admin can create users)
 userRouter.post("/register", async (req, res) => {
     res.status(403).json({ error: "Public registration is disabled. Please contact system administrator." });

@@ -257,6 +257,29 @@ parkedCarRouter.put("/:id", isLoggedIn, async (req, res) => {
                         .populate('valet_id', 'name phoneNumber priceLevel')
                         .populate('checkedOutBy', 'name phoneNumber');
 
+                    // Send SMS for security: package car parked in again
+                    try {
+                        const userController = require('./user');
+                        if (userController && userController.sendSms && populatedNewVisit.phoneNumber) {
+                            const now = new Date();
+                            const end = populatedNewVisit.packageEndDate ? new Date(populatedNewVisit.packageEndDate) : null;
+                            let remainingText = '';
+                            if (end) {
+                                const diffMs = end.getTime() - now.getTime();
+                                const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                                const endDisplay = end.toLocaleDateString();
+                                remainingText = `Package expires on ${endDisplay} (${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining).`;
+                            }
+
+                            const licenseDisplay = populatedNewVisit.licensePlate || `${populatedNewVisit.plateCode || ''}-${populatedNewVisit.region || ''}-${populatedNewVisit.licensePlateNumber || ''}`;
+                            const smsMessage = `Security alert: Your package car (${licenseDisplay}) has been parked at Tana Parking.\nPackage type: ${populatedNewVisit.packageDuration || 'package'}.\n${remainingText}`;
+
+                            await userController.sendSms(populatedNewVisit.phoneNumber, smsMessage);
+                        }
+                    } catch (smsErr) {
+                        console.error('Failed to send package re-park SMS:', smsErr);
+                    }
+
                     return res.json({ message: "New package visit parked successfully", car: populatedNewVisit });
                 }
             }

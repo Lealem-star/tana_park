@@ -433,7 +433,12 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
                     car: {
                         id: parkedCar._id,
                         licensePlate: parkedCar.licensePlate,
-                        status: parkedCar.status
+                        status: parkedCar.status,
+                        serviceType: parkedCar.serviceType,
+                        packageDuration: parkedCar.packageDuration,
+                        packageStartDate: parkedCar.packageStartDate,
+                        packageEndDate: parkedCar.packageEndDate,
+                        phoneNumber: parkedCar.phoneNumber,
                     },
                     message: "Payment verified and car created successfully"
                 });
