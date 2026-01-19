@@ -303,13 +303,13 @@ const ParkedCarsList = () => {
                                                 smsMessage = `Thank you for using Tana Parking services!\nYour package car (${licenseDisplay}) has checked out.\nPackage type: ${selectedCar.packageDuration}.\n${remainingDaysText}`;
                                             } else {
                                                 // Hourly checkout SMS (existing behavior)
-                                                const totalMinutes = Math.round(feeDetails.hoursParked * 60);
-                                                const durationDisplay = totalMinutes >= 60 
-                                                    ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
-                                                    : `${totalMinutes} min`;
+                                            const totalMinutes = Math.round(feeDetails.hoursParked * 60);
+                                            const durationDisplay = totalMinutes >= 60 
+                                                ? `${Math.floor(totalMinutes / 60)} hour${Math.floor(totalMinutes / 60) > 1 ? 's' : ''} ${totalMinutes % 60 > 0 ? `${totalMinutes % 60} min` : ''}`.trim()
+                                                : `${totalMinutes} min`;
                                                 smsMessage = `Thank you for using Tana Parking services! Your car (${selectedCar.licensePlate || `${selectedCar.plateCode || ''}-${selectedCar.region || ''}-${selectedCar.licensePlateNumber || ''}`}) has been received.\nParking fee: ${feeDetails.parkingFee.toFixed(2)} ETB\nVAT (15%): ${feeDetails.vatAmount.toFixed(2)} ETB\nTotal: ${feeDetails.totalWithVat.toFixed(2)} ETB (${durationDisplay} × ${feeDetails.pricePerHour} ETB/hour).\nPayment method: Online Payment.`;
                                             }
-
+                                            
                                             await sendSmsNotification({
                                                 phoneNumber: selectedCar.phoneNumber,
                                                 message: smsMessage,

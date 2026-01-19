@@ -63,7 +63,7 @@ const ValetDashboard = () => {
     const menuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/valet/dashboard' },
         { icon: Car, label: 'Register Car', path: '/valet/register-car' },
-        { icon: List, label: 'Parked Cars', path: '/valet/cars' },
+        { icon: List, label: 'Package Service', path: '/valet/cars' },
     ];
 
     const isActive = (path) => {

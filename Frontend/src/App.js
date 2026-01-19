@@ -57,10 +57,10 @@ function App() {
           <Route path="chat" element={<GroupChat />} />
         </Route>
         <Route path="/valet" element={<ValetDashboard />}>
-          <Route index element={<ValetOverview />} />
-          <Route path="dashboard" element={<ValetOverview />} />
+          <Route index element={<ParkedCarsList />} />
+          <Route path="dashboard" element={<ParkedCarsList />} />
           <Route path="register-car" element={<RegisterCar />} />
-          <Route path="cars" element={<ParkedCarsList />} />
+          <Route path="cars" element={<ValetOverview />} />
           <Route path="profile" element={<Profile />} />
           <Route path="chat" element={<GroupChat />} />
         </Route>

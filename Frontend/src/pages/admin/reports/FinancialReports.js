@@ -42,7 +42,7 @@ const FinancialReports = () => {
     }, [user?.token, periodStartDate, periodEndDate]);
 
     useEffect(() => {
-        loadPeriodReport();
+            loadPeriodReport();
     }, [loadPeriodReport]);
 
     const formatCurrency = (amount) => {
@@ -86,42 +86,42 @@ const FinancialReports = () => {
         <div className="financial-reports">
             {error && <div className="alert alert-danger">{error}</div>}
 
-            <div className="report-section">
-                <div className="report-header">
-                    <h2>Period Revenue Report</h2>
+                <div className="report-section">
+                    <div className="report-header">
+                        <h2>Period Revenue Report</h2>
                     <EthiopianDatePicker
-                        value={periodStartDate}
+                                value={periodStartDate}
                         onChange={(date) => setPeriodStartDate(date)}
                         label="Start Date"
-                        className="date-input"
-                    />
-                    <span>to</span>
+                                className="date-input"
+                            />
+                            <span>to</span>
                     <EthiopianDatePicker
-                        value={periodEndDate}
+                                value={periodEndDate}
                         onChange={(date) => setPeriodEndDate(date)}
                         label="End Date"
-                        className="date-input"
-                    />
-                    <button onClick={loadPeriodReport} className="btn-refresh" disabled={loading}>
-                        {loading ? 'Loading...' : 'Refresh'}
-                    </button>
-                    {periodData && (
-                        <button 
+                                className="date-input"
+                            />
+                            <button onClick={loadPeriodReport} className="btn-refresh" disabled={loading}>
+                                {loading ? 'Loading...' : 'Refresh'}
+                            </button>
+                            {periodData && (
+                                <button 
                             onClick={handleExportPDF}
-                            className="btn-export"
-                        >
-                            <Download size={16} />
-                            Export PDF
-                        </button>
-                    )}
-                </div>
+                                    className="btn-export"
+                                >
+                                    <Download size={16} />
+                                    Export PDF
+                                </button>
+                            )}
+                    </div>
 
-                {loading ? (
-                    <div className="loading">Loading report data...</div>
-                ) : periodData ? (
-                    <div className="report-content">
-                        <div className="stats-grid">
-                            <div className="stat-card revenue">
+                    {loading ? (
+                        <div className="loading">Loading report data...</div>
+                    ) : periodData ? (
+                        <div className="report-content">
+                            <div className="stats-grid">
+                                <div className="stat-card revenue">
                                 <div className="stat-icon">
                                     <DollarSign size={24} />
                                 </div>
@@ -129,7 +129,7 @@ const FinancialReports = () => {
                                     <h3>{formatCurrency(periodData.totalRevenue || 0)}</h3>
                                     <p>Total Revenue</p>
                                 </div>
-                            </div>
+                                </div>
                             <div className="stat-card cars">
                                 <div className="stat-icon">
                                     <Car size={24} />
@@ -168,36 +168,36 @@ const FinancialReports = () => {
                                     {sortedDates.map((date, dateIdx) => (
                                         <div key={dateIdx} className="daily-breakdown-group">
                                             <h4 className="date-header">{formatDate(date)}</h4>
-                                            <table className="report-table">
-                                                <thead>
-                                                    <tr>
+                                    <table className="report-table">
+                                        <thead>
+                                            <tr>
                                                         <th>Park Zone Code</th>
                                                         <th>Valet Officer Name</th>
                                                         <th>Daily Parked Car</th>
                                                         <th>Daily Revenue</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
                                                     {groupedByDate[date].map((item, idx) => (
-                                                        <tr key={idx}>
+                                                <tr key={idx}>
                                                             <td>{item.parkZoneCode}</td>
                                                             <td>{item.valetName}</td>
                                                             <td>{item.dailyParkedCar}</td>
                                                             <td>{formatCurrency(item.dailyRevenue)}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                                     ))}
                                 </div>
                             );
                         })()}
-                    </div>
-                ) : (
-                    <div className="no-data">No data available. Select date range and click Refresh.</div>
-                )}
-            </div>
+                        </div>
+                    ) : (
+                        <div className="no-data">No data available. Select date range and click Refresh.</div>
+                    )}
+                </div>
         </div>
     );
 };
