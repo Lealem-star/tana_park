@@ -183,8 +183,6 @@ const RegisterCar = () => {
     };
 
     const handleCreateParkedCarSuccess = async (carData) => {
-        const createdCar = carData?.car || carData;
-
         // Package is handled payment-first, so we should never create a car here for package registrations.
         // (If it happens, treat it as hourly success.)
 
@@ -217,47 +215,6 @@ const RegisterCar = () => {
         setTimeout(() => {
             navigate('/valet/cars');
         }, 1500);
-    };
-
-    const proceedToPackagePayment = async (car, amount, priceLevelUsed) => {
-        const customerName = 'Customer';
-        const customerEmail = `${formData.phoneNumber}@tana-parking.com`;
-        const customerPhone = formData.phoneNumber;
-
-        try {
-            await initializeChapaPayment({
-                carId: car._id,
-                amount: amount,
-                customerName: customerName,
-                customerEmail: customerEmail,
-                customerPhone: customerPhone,
-                token: user?.token,
-                handleInitSuccess: (data) => {
-                    // Store payment reference
-                    localStorage.setItem(`chapa_payment_${car._id}`, JSON.stringify({
-                        txRef: data.txRef,
-                        carId: car._id,
-                        serviceType: 'package',
-                        packageDuration: packageDuration,
-                        totalPaidAmount: amount,
-                        customerPhone: customerPhone,
-                        priceLevel: priceLevelUsed || null
-                    }));
-                    
-                    // Redirect to Chapa payment page
-                    window.location.href = data.paymentUrl;
-                },
-                handleInitFailure: (error) => {
-                    console.error('Failed to initialize Chapa payment:', error);
-                    setError(`Failed to initialize payment: ${error}`);
-                    setLoading(false);
-                }
-            });
-        } catch (error) {
-            console.error('Error processing payment:', error);
-            setError('An error occurred. Please try again.');
-            setLoading(false);
-        }
     };
 
     const closePackagePaymentModal = () => {
