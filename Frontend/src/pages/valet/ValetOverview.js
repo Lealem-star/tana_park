@@ -6,26 +6,26 @@ import { Car, CheckCircle, Calendar, Package } from 'lucide-react';
 import '../../css/valetOverview.scss';
 
 // Helper to calculate package end date based on duration
-const calculateEndDate = (parkedAt, packageDuration) => {
-    const startDate = new Date(parkedAt);
-    let endDate = new Date(startDate);
-    
-    switch (packageDuration) {
-        case 'weekly':
-            endDate.setDate(startDate.getDate() + 7);
-            break;
-        case 'monthly':
-            endDate.setMonth(startDate.getMonth() + 1);
-            break;
-        case 'yearly':
-            endDate.setFullYear(startDate.getFullYear() + 1);
-            break;
-        default:
-            return null;
-    }
-    
-    return endDate;
-};
+    const calculateEndDate = (parkedAt, packageDuration) => {
+        const startDate = new Date(parkedAt);
+        let endDate = new Date(startDate);
+        
+        switch (packageDuration) {
+            case 'weekly':
+                endDate.setDate(startDate.getDate() + 7);
+                break;
+            case 'monthly':
+                endDate.setMonth(startDate.getMonth() + 1);
+                break;
+            case 'yearly':
+                endDate.setFullYear(startDate.getFullYear() + 1);
+                break;
+            default:
+                return null;
+        }
+        
+        return endDate;
+    };
 
 const ValetOverview = () => {
     const user = useSelector((state) => state.user);
@@ -182,7 +182,7 @@ const ValetOverview = () => {
                                         ? sub.packageDuration.charAt(0).toUpperCase() + sub.packageDuration.slice(1)
                                         : 'N/A';
                                     const visitsCount = sub.cars.length;
-
+                                    
                                     return (
                                         <tr key={sub.key}>
                                             <td>{sub.phoneNumber || 'N/A'}</td>

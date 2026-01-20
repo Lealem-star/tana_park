@@ -17,23 +17,52 @@ const PaymentCallback = () => {
 
         const verifyWithRetry = async ({ verifyFn, txRef, token, maxAttempts = 10, delayMs = 1200 }) => {
             for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-                // eslint-disable-next-line no-await-in-loop
-                const result = await new Promise((resolve, reject) => {
-                    verifyFn({
-                        txRef,
-                        token,
-                        handleVerifySuccess: resolve,
-                        handleVerifyFailure: reject
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    const result = await new Promise((resolve, reject) => {
+                        verifyFn({
+                            txRef,
+                            token,
+                            handleVerifySuccess: resolve,
+                            handleVerifyFailure: reject
+                        });
                     });
-                });
 
-                if (result?.transaction?.status === 'successful') return result;
+                    // Check if payment is successful
+                    if (result?.transaction?.status === 'successful') {
+                        return result;
+                    }
 
-                setMessage(`Payment is processing... (attempt ${attempt}/${maxAttempts})`);
-                // eslint-disable-next-line no-await-in-loop
-                await sleep(delayMs);
+                    // If pending/processing, continue retrying
+                    if (result?.transaction?.status === 'pending' || result?.transaction?.status === 'processing') {
+                        setMessage(`Payment is processing... (attempt ${attempt}/${maxAttempts})`);
+                        // eslint-disable-next-line no-await-in-loop
+                        await sleep(delayMs);
+                        continue;
+                    }
+
+                    // If failed status, throw error
+                    if (result?.transaction?.status === 'failed' || result?.transaction?.status === 'cancelled') {
+                        throw new Error(result?.message || 'Payment failed or was cancelled.');
+                    }
+
+                    // Unknown status, continue retrying
+                    setMessage(`Verifying payment... (attempt ${attempt}/${maxAttempts})`);
+                    // eslint-disable-next-line no-await-in-loop
+                    await sleep(delayMs);
+                } catch (error) {
+                    // If it's a network error or API error, continue retrying
+                    if (attempt < maxAttempts) {
+                        setMessage(`Payment verification error... Retrying (attempt ${attempt}/${maxAttempts})`);
+                        // eslint-disable-next-line no-await-in-loop
+                        await sleep(delayMs);
+                        continue;
+                    }
+                    // Last attempt failed
+                    throw error;
+                }
             }
-            throw new Error('Payment is still processing. Please wait and refresh this page.');
+            throw new Error('Payment is still processing. Please wait a moment and refresh this page.');
         };
 
         const verifyPayment = async () => {

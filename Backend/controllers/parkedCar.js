@@ -196,15 +196,15 @@ parkedCarRouter.put("/:id", isLoggedIn, async (req, res) => {
         if (status) {
             // For hourly or non-package cars, keep existing behavior
             if (car.serviceType !== 'package' || !car.packageDuration || !car.packageEndDate) {
-                car.status = status;
-                if (status === 'checked_out') {
-                    car.checkedOutAt = new Date();
-                    car.checkedOutBy = currentUser._id;
-                    if (totalPaidAmount !== undefined) {
-                        car.totalPaidAmount = totalPaidAmount;
-                    }
-                    if (paymentMethod !== undefined) {
-                        car.paymentMethod = paymentMethod;
+            car.status = status;
+            if (status === 'checked_out') {
+                car.checkedOutAt = new Date();
+                car.checkedOutBy = currentUser._id;
+                if (totalPaidAmount !== undefined) {
+                    car.totalPaidAmount = totalPaidAmount;
+                }
+                if (paymentMethod !== undefined) {
+                    car.paymentMethod = paymentMethod;
                     }
                 }
             } else {

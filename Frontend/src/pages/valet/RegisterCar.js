@@ -231,21 +231,47 @@ const RegisterCar = () => {
 
     const verifyPackageWithRetry = async (txRef, maxAttempts = 10, delayMs = 1200) => {
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            // eslint-disable-next-line no-await-in-loop
-            const result = await new Promise((resolve, reject) => {
-                verifyChapaPackagePayment({
-                    txRef,
-                    token: user?.token,
-                    handleVerifySuccess: resolve,
-                    handleVerifyFailure: reject
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                const result = await new Promise((resolve, reject) => {
+                    verifyChapaPackagePayment({
+                        txRef,
+                        token: user?.token,
+                        handleVerifySuccess: resolve,
+                        handleVerifyFailure: reject
+                    });
                 });
-            });
 
-            if (result?.transaction?.status === 'successful') return result;
+                // Check if payment is successful
+                if (result?.transaction?.status === 'successful') {
+                    return result;
+                }
 
-            // pending -> wait and retry
-            // eslint-disable-next-line no-await-in-loop
-            await new Promise((r) => setTimeout(r, delayMs));
+                // If pending/processing, continue retrying
+                if (result?.transaction?.status === 'pending' || result?.transaction?.status === 'processing') {
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise((r) => setTimeout(r, delayMs));
+                    continue;
+                }
+
+                // If failed status, throw error
+                if (result?.transaction?.status === 'failed' || result?.transaction?.status === 'cancelled') {
+                    throw new Error(result?.message || 'Payment failed or was cancelled.');
+                }
+
+                // Unknown status, continue retrying
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise((r) => setTimeout(r, delayMs));
+            } catch (error) {
+                // If it's a network error or API error, continue retrying
+                if (attempt < maxAttempts) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise((r) => setTimeout(r, delayMs));
+                    continue;
+                }
+                // Last attempt failed
+                throw error;
+            }
         }
         throw new Error('Payment is still pending. Please wait a moment and try again.');
     };

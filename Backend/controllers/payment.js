@@ -256,17 +256,53 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
         }
 
         // Verify payment with Chapa
-        const chapaResponse = await axios.get(
-            `${CHAPA_BASE_URL}/verify/${txRef}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
+        let chapaResponse;
+        try {
+            chapaResponse = await axios.get(
+                `${CHAPA_BASE_URL}/verify/${txRef}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
+                    }
                 }
+            );
+        } catch (chapaError) {
+            // Chapa API error - could be transaction not found or still processing
+            const errorMessage = chapaError?.response?.data?.message || chapaError?.message || "Payment verification failed";
+            const statusCode = chapaError?.response?.status;
+            
+            // If transaction not found or still processing, return pending status for retry
+            if (statusCode === 404 || errorMessage.toLowerCase().includes('not found') || 
+                errorMessage.toLowerCase().includes('processing') || 
+                errorMessage.toLowerCase().includes('pending')) {
+                return res.json({
+                    success: true,
+                    transaction: {
+                        status: 'pending',
+                        txRef: txRef,
+                    },
+                    message: "Payment is still processing. Please wait and try again."
+                });
             }
-        );
+            
+            // Other errors - return error
+            return res.status(statusCode || 400).json({ error: errorMessage });
+        }
 
         if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
             const transaction = chapaResponse.data.data;
+            
+            // Handle pending transactions - return success with pending status for retry
+            if (transaction.status === 'pending' || transaction.status === 'processing') {
+                return res.json({
+                    success: true,
+                    transaction: {
+                        status: transaction.status,
+                        txRef: transaction.tx_ref || txRef,
+                    },
+                    message: "Payment is still processing. Please wait and try again."
+                });
+            }
             
             // Extract carId from tx_ref or meta
             const carIdMatch = transaction.tx_ref.match(/tana-parking-([a-f0-9]{24})/);
@@ -325,7 +361,15 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                 });
             }
         } else {
-            res.status(400).json({ error: "Payment verification failed" });
+            // Chapa API returned unsuccessful response
+            res.json({
+                success: true,
+                transaction: {
+                    status: 'pending',
+                    txRef: txRef,
+                },
+                message: "Payment verification pending. Please wait and try again."
+            });
         }
     } catch (error) {
         console.error("Chapa payment verification error:", error);
@@ -350,17 +394,53 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
         }
 
         // Verify payment with Chapa
-        const chapaResponse = await axios.get(
-            `${CHAPA_BASE_URL}/verify/${txRef}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
+        let chapaResponse;
+        try {
+            chapaResponse = await axios.get(
+                `${CHAPA_BASE_URL}/verify/${txRef}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
+                    }
                 }
+            );
+        } catch (chapaError) {
+            // Chapa API error - could be transaction not found or still processing
+            const errorMessage = chapaError?.response?.data?.message || chapaError?.message || "Payment verification failed";
+            const statusCode = chapaError?.response?.status;
+            
+            // If transaction not found or still processing, return pending status for retry
+            if (statusCode === 404 || errorMessage.toLowerCase().includes('not found') || 
+                errorMessage.toLowerCase().includes('processing') || 
+                errorMessage.toLowerCase().includes('pending')) {
+                return res.json({
+                    success: true,
+                    transaction: {
+                        status: 'pending',
+                        txRef: txRef,
+                    },
+                    message: "Payment is still processing. Please wait and try again."
+                });
             }
-        );
+            
+            // Other errors - return error
+            return res.status(statusCode || 400).json({ error: errorMessage });
+        }
 
         if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
             const transaction = chapaResponse.data.data;
+
+            // Handle pending transactions - return success with pending status for retry
+            if (transaction.status === 'pending' || transaction.status === 'processing') {
+                return res.json({
+                    success: true,
+                    transaction: {
+                        status: transaction.status,
+                        txRef: transaction.tx_ref || txRef,
+                    },
+                    message: "Payment is still processing. Please wait and try again."
+                });
+            }
 
             if (transaction.status === 'successful') {
                 // Create the initial package subscription + first parked record
@@ -471,9 +551,29 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
 // This endpoint handles both POST (webhook) and GET (redirect) requests
 paymentRouter.post("/chapa/callback", async (req, res) => {
     try {
-        const { tx_ref, status, amount, meta } = req.body;
+        // Log the full request body to see what Chapa actually sends
+        console.log("Chapa callback full body:", JSON.stringify(req.body, null, 2));
+        console.log("Chapa callback headers:", req.headers);
+        
+        // Chapa webhook format: data might be nested in 'data' object or directly in body
+        // Try both formats
+        let tx_ref, status, amount, meta;
+        
+        if (req.body.data) {
+            // Nested format: { data: { tx_ref, status, amount, meta } }
+            tx_ref = req.body.data.tx_ref || req.body.data.txRef;
+            status = req.body.data.status;
+            amount = req.body.data.amount;
+            meta = req.body.data.meta;
+        } else {
+            // Direct format: { tx_ref, status, amount, meta }
+            tx_ref = req.body.tx_ref || req.body.txRef;
+            status = req.body.status;
+            amount = req.body.amount;
+            meta = req.body.meta;
+        }
 
-        console.log("Chapa callback received:", { tx_ref, status, amount, meta });
+        console.log("Chapa callback extracted:", { tx_ref, status, amount, meta });
 
         if (status === 'successful' && tx_ref) {
             // Extract carId from meta (preferred) or verify payment to get meta
@@ -483,7 +583,7 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
             if (meta && meta.carId) {
                 carId = meta.carId;
             } else {
-                // Verify payment with Chapa to get full transaction details including meta
+                // Verify payment with Chapa to get full transaction details including meta and amount
                 try {
                     const verifyResponse = await axios.get(
                         `${CHAPA_BASE_URL}/verify/${tx_ref}`,
@@ -496,6 +596,16 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
 
                     if (verifyResponse.data.status === 'success' && verifyResponse.data.data) {
                         const transaction = verifyResponse.data.data;
+                        
+                        // Extract amount if not already present
+                        if (!amount && transaction.amount) {
+                            amount = transaction.amount;
+                        }
+                        
+                        // Extract meta if not already present
+                        if (!meta && transaction.meta) {
+                            meta = transaction.meta;
+                        }
                         
                         if (transaction.meta && transaction.meta.carId) {
                             carId = transaction.meta.carId;
