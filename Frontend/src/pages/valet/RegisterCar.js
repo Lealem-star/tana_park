@@ -213,7 +213,7 @@ const RegisterCar = () => {
         resetForm();
 
         setTimeout(() => {
-            navigate('/valet/cars');
+            navigate('/valet/dashboard');
         }, 1500);
     };
 
@@ -379,17 +379,31 @@ const RegisterCar = () => {
                                 return;
                             }
 
+                            // Format phone number to E.164 if needed
+                            let formattedPhone = formData.phoneNumber;
+                            if (formattedPhone && !formattedPhone.startsWith('+')) {
+                                formattedPhone = formattedPhone.replace(/^0/, '+251');
+                                if (!formattedPhone.startsWith('+')) {
+                                    formattedPhone = `+251${formattedPhone}`;
+                                }
+                            }
+                            
                             const chapa = new ChapaCheckout({
                                 publicKey: chapaPublicKey,
                                 amount: feeInfo.totalWithVat.toString(),
                                 currency: 'ETB',
                                 txRef,
-                                phoneNumber: formData.phoneNumber,
+                                phoneNumber: formattedPhone,
+                                // Chapa requires these fields even if we only use phone number
+                                // Using placeholder values so user doesn't need to enter them
+                                firstName: 'Customer',
+                                lastName: 'Package',
+                                email: `${formattedPhone.replace(/[^0-9]/g, '')}@tana-parking.com`,
                                 availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
                                 customizations: {
                                     buttonText: 'Pay Now',
                                 },
-                                callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}payment/chapa/callback`,
+                                callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000'}/payment/chapa/callback`,
                                 returnUrl: `${window.location.origin}/payment/success?txRef=${txRef}`,
                                 showFlag: true,
                                 showPaymentMethodsNames: true,
@@ -432,14 +446,29 @@ const RegisterCar = () => {
                                         closePackagePaymentModal();
                                         resetForm();
                                         setLoading(false);
-                                        setTimeout(() => navigate('/valet/cars'), 800);
+                                        setTimeout(() => navigate('/valet/dashboard'), 800);
                                     } catch (verifyErr) {
                                         setError(verifyErr?.message || 'Payment succeeded but verification is still pending. Please wait and refresh.');
                                         setLoading(false);
                                     }
                                 },
                                 onPaymentFailure: (err) => {
-                                    setError(err?.message || 'Payment failed. Please try again.');
+                                    console.error('Payment failed - full error:', err);
+                                    console.error('Payment failed - error message:', err?.message);
+                                    console.error('Payment failed - error type:', typeof err);
+                                    console.error('Payment failed - error keys:', Object.keys(err || {}));
+                                    
+                                    // Extract more detailed error message
+                                    let errorMessage = 'Please try again';
+                                    if (err?.message) {
+                                        errorMessage = err.message;
+                                    } else if (typeof err === 'string') {
+                                        errorMessage = err;
+                                    } else if (err?.error) {
+                                        errorMessage = err.error;
+                                    }
+                                    
+                                    setError(`Payment failed: ${errorMessage}`);
                                     setLoading(false);
                                 },
                                 onClose: () => {

@@ -194,9 +194,24 @@ const ParkedCarsList = () => {
                         // Backend should provide publicKey in the response, fallback to env variable
                         const chapaPublicKey = data.publicKey || process.env.REACT_APP_CHAPA_PUBLIC_KEY;
                         
+                        console.log('Chapa config check:', {
+                            hasPublicKey: !!chapaPublicKey,
+                            publicKeyLength: chapaPublicKey?.length,
+                            txRef: data.txRef,
+                            amount: feeDetails.totalWithVat,
+                            customerPhone: customerPhone
+                        });
+                        
                         if (!chapaPublicKey) {
                             console.error('Chapa public key is not configured. Please add CHAPA_PUBLIC_KEY to backend .env or REACT_APP_CHAPA_PUBLIC_KEY to frontend .env');
                             alert('Payment system is not configured. Please contact administrator.');
+                            setLoading(false);
+                            return;
+                        }
+                        
+                        if (!data.txRef) {
+                            console.error('Missing txRef from payment initialization');
+                            alert('Payment initialization failed. Missing transaction reference.');
                             setLoading(false);
                             return;
                         }
@@ -240,12 +255,35 @@ const ParkedCarsList = () => {
                                 return;
                             }
 
-                            const chapa = new ChapaCheckout({
+                            // Validate and format amount
+                            const amountNum = parseFloat(feeDetails.totalWithVat);
+                            if (isNaN(amountNum) || amountNum <= 0) {
+                                throw new Error(`Invalid amount: ${feeDetails.totalWithVat}`);
+                            }
+                            // Format amount: remove trailing zeros if whole number, otherwise 2 decimals
+                            const formattedAmount = amountNum % 1 === 0 ? amountNum.toString() : amountNum.toFixed(2);
+                            
+                            // Validate phone number format (should be E.164 format: +251...)
+                            let formattedPhone = customerPhone;
+                            if (formattedPhone && !formattedPhone.startsWith('+')) {
+                                // If phone doesn't start with +, try to format it
+                                formattedPhone = formattedPhone.replace(/^0/, '+251');
+                                if (!formattedPhone.startsWith('+')) {
+                                    formattedPhone = `+251${formattedPhone}`;
+                                }
+                            }
+                            
+                            const chapaConfig = {
                                 publicKey: chapaPublicKey,
-                                amount: feeDetails.totalWithVat.toString(),
+                                amount: formattedAmount,
                                 currency: 'ETB',
                                 txRef: data.txRef,
-                                phoneNumber: customerPhone, // Pre-fill phone number
+                                phoneNumber: formattedPhone, // Pre-fill phone number
+                                // Chapa requires these fields even if we only use phone number
+                                // Using placeholder values so user doesn't need to enter them
+                                firstName: 'Customer',
+                                lastName: 'User',
+                                email: `${formattedPhone.replace(/[^0-9]/g, '')}@tana-parking.com`,
                                 availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
                                 customizations: {
                                     buttonText: 'Pay Now',
@@ -268,7 +306,7 @@ const ParkedCarsList = () => {
                                         }
                                     `
                                 },
-                                callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}payment/chapa/callback`,
+                                callbackUrl: `${(process.env.REACT_APP_BASE_URL || 'http://localhost:4000').replace(/\/$/, '')}/payment/chapa/callback`,
                                 returnUrl: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
                                 showFlag: true,
                                 showPaymentMethodsNames: true,
@@ -339,16 +377,64 @@ const ParkedCarsList = () => {
                                     });
                                 },
                                 onPaymentFailure: (error) => {
-                                    console.error('Payment failed:', error);
-                                    alert(`Payment failed: ${error?.message || 'Please try again'}`);
+                                    console.error('Payment failed - full error:', error);
+                                    console.error('Payment failed - error message:', error?.message);
+                                    console.error('Payment failed - error type:', typeof error);
+                                    console.error('Payment failed - error keys:', Object.keys(error || {}));
+                                    console.error('Payment failed - error JSON:', JSON.stringify(error, null, 2));
+                                    console.error('Payment failed - error toString:', String(error));
+                                    
+                                    // Extract more detailed error message
+                                    let errorMessage = 'Please try again';
+                                    if (error?.message) {
+                                        errorMessage = error.message;
+                                    } else if (typeof error === 'string') {
+                                        errorMessage = error;
+                                    } else if (error?.error) {
+                                        errorMessage = error.error;
+                                    } else if (error?.data?.message) {
+                                        errorMessage = error.data.message;
+                                    } else if (error?.response?.data?.message) {
+                                        errorMessage = error.response.data.message;
+                                    }
+                                    
+                                    alert(`Payment failed: ${errorMessage}`);
                                     setLoading(false);
                                 },
                                 onClose: () => {
                                     setShowPaymentFormModal(false);
                                     setLoading(false);
                                 }
+                            };
+                            
+                            console.log('Chapa config being passed:', {
+                                publicKey: chapaPublicKey ? `${chapaPublicKey.substring(0, 20)}...` : 'MISSING',
+                                publicKeyFull: chapaPublicKey, // Full key for debugging
+                                amount: formattedAmount,
+                                amountType: typeof formattedAmount,
+                                currency: chapaConfig.currency,
+                                txRef: chapaConfig.txRef,
+                                txRefLength: chapaConfig.txRef?.length,
+                                phoneNumber: formattedPhone,
+                                phoneNumberLength: formattedPhone?.length,
+                                callbackUrl: chapaConfig.callbackUrl,
+                                returnUrl: chapaConfig.returnUrl,
+                                hasOnSuccessfulPayment: !!chapaConfig.onSuccessfulPayment,
+                                hasOnPaymentFailure: !!chapaConfig.onPaymentFailure,
+                                hasOnClose: !!chapaConfig.onClose
                             });
-
+                            
+                            // Validate public key format (should be CHAPUBK, not CHASECK)
+                            // CHASECK is the secret key, CHAPUBK is the public key for inline.js
+                            if (!chapaPublicKey || (!chapaPublicKey.startsWith('CHAPUBK_TEST-') && !chapaPublicKey.startsWith('CHAPUBK_LIVE-') && !chapaPublicKey.startsWith('CHASECK_TEST-') && !chapaPublicKey.startsWith('CHASECK_LIVE-'))) {
+                                console.error('Invalid Chapa public key format. Should start with CHAPUBK_TEST-, CHAPUBK_LIVE-, CHASECK_TEST-, or CHASECK_LIVE-');
+                                console.error('Current public key:', chapaPublicKey ? `${chapaPublicKey.substring(0, 20)}...` : 'MISSING');
+                                alert('Payment configuration error: Invalid public key format. Please contact administrator.');
+                                setLoading(false);
+                                return;
+                            }
+                            
+                            const chapa = new ChapaCheckout(chapaConfig);
                             chapaInstanceRef.current = chapa;
                             
                             // Open payment form modal
