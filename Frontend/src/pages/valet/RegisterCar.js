@@ -387,24 +387,39 @@ const RegisterCar = () => {
                                     formattedPhone = `+251${formattedPhone}`;
                                 }
                             }
+                            const generatedEmail = `${formattedPhone.replace(/[^0-9]/g, '')}@tana-parking.com`;
+                            
+                            // Ensure amount is properly formatted as string with 2 decimal places
+                            const amountNum = parseFloat(feeInfo.totalWithVat);
+                            const formattedAmount = amountNum.toFixed(2);
                             
                             const chapa = new ChapaCheckout({
+                                // Provide both camelCase + snake_case keys for better Inline.js compatibility
                                 publicKey: chapaPublicKey,
-                                amount: feeInfo.totalWithVat.toString(),
+                                public_key: chapaPublicKey,
+                                amount: formattedAmount, // String with 2 decimal places
                                 currency: 'ETB',
                                 txRef,
+                                tx_ref: txRef,
                                 phoneNumber: formattedPhone,
+                                phone_number: formattedPhone,
                                 // Chapa requires these fields even if we only use phone number
                                 // Using placeholder values so user doesn't need to enter them
                                 firstName: 'Customer',
                                 lastName: 'Package',
-                                email: `${formattedPhone.replace(/[^0-9]/g, '')}@tana-parking.com`,
+                                first_name: 'Customer',
+                                last_name: 'Package',
+                                email: generatedEmail,
                                 availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
                                 customizations: {
                                     buttonText: 'Pay Now',
                                 },
-                                callbackUrl: `${process.env.REACT_APP_BASE_URL || 'http://localhost:4000'}/payment/chapa/callback`,
+                                // Chapa Inline.js requires callback_url and return_url even when using JS callbacks.
+                                // For test mode, these can be localhost URLs. In production, use publicly accessible URLs.
+                                callbackUrl: `${window.location.origin}/payment/callback`,
+                                callback_url: `${window.location.origin}/payment/callback`,
                                 returnUrl: `${window.location.origin}/payment/success?txRef=${txRef}`,
+                                return_url: `${window.location.origin}/payment/success?txRef=${txRef}`,
                                 showFlag: true,
                                 showPaymentMethodsNames: true,
                                 onSuccessfulPayment: async () => {

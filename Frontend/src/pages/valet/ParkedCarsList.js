@@ -169,6 +169,17 @@ const ParkedCarsList = () => {
         setLoading(true);
         
         try {
+            // Clean up any existing payment data and Chapa instances to prevent txRef reuse
+            if (chapaInstanceRef.current) {
+                const container = document.getElementById('chapa-inline-form');
+                if (container) {
+                    container.innerHTML = '';
+                }
+                chapaInstanceRef.current = null;
+            }
+            // Clear old localStorage entries for this car to ensure fresh payment
+            localStorage.removeItem(`chapa_payment_${selectedCar._id}`);
+
             // Initialize Chapa payment for online payment
                 const customerName = selectedCar.customerName || 'Customer';
                 const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
@@ -198,9 +209,12 @@ const ParkedCarsList = () => {
                             hasPublicKey: !!chapaPublicKey,
                             publicKeyLength: chapaPublicKey?.length,
                             txRef: data.txRef,
+                            txRefLength: data.txRef?.length,
+                            txRefTimestamp: data.txRef ? new Date().toISOString() : null,
                             amount: feeDetails.totalWithVat,
                             customerPhone: customerPhone
                         });
+                        console.log('✅ Backend generated NEW txRef:', data.txRef);
                         
                         if (!chapaPublicKey) {
                             console.error('Chapa public key is not configured. Please add CHAPA_PUBLIC_KEY to backend .env or REACT_APP_CHAPA_PUBLIC_KEY to frontend .env');
@@ -254,14 +268,27 @@ const ParkedCarsList = () => {
                                 setLoading(false);
                                 return;
                             }
+                            
+                            // Verify ChapaCheckout is the correct constructor
+                            console.log('ChapaCheckout type:', typeof ChapaCheckout);
+                            console.log('ChapaCheckout:', ChapaCheckout);
+                            console.log('window.ChapaCheckout:', window.ChapaCheckout);
+                            
+                            // Check if Chapa script loaded correctly
+                            if (typeof ChapaCheckout !== 'function') {
+                                console.error('ChapaCheckout is not a function!', ChapaCheckout);
+                                alert('Chapa library is not properly loaded. Please refresh the page.');
+                                setLoading(false);
+                                return;
+                            }
 
                             // Validate and format amount
                             const amountNum = parseFloat(feeDetails.totalWithVat);
                             if (isNaN(amountNum) || amountNum <= 0) {
                                 throw new Error(`Invalid amount: ${feeDetails.totalWithVat}`);
                             }
-                            // Format amount: remove trailing zeros if whole number, otherwise 2 decimals
-                            const formattedAmount = amountNum % 1 === 0 ? amountNum.toString() : amountNum.toFixed(2);
+                            // Chapa Inline.js expects amount as a string with 2 decimal places
+                            const formattedAmount = amountNum.toFixed(2);
                             
                             // Validate phone number format (should be E.164 format: +251...)
                             let formattedPhone = customerPhone;
@@ -273,20 +300,29 @@ const ParkedCarsList = () => {
                                 }
                             }
                             
+                            const generatedEmail = `${formattedPhone.replace(/[^0-9]/g, '')}@tana-parking.com`;
+
+                            // Chapa Inline.js uses snake_case keys. Using ONLY snake_case to avoid conflicts.
+                            // For Inline.js with JavaScript callbacks, callback_url and return_url are optional.
                             const chapaConfig = {
-                                publicKey: chapaPublicKey,
-                                amount: formattedAmount,
+                                // Public key (Chapa accepts both, but snake_case is preferred)
+                                public_key: chapaPublicKey,
+                                
+                                // Transaction + amount (snake_case)
+                                amount: formattedAmount, // Must be string
                                 currency: 'ETB',
-                                txRef: data.txRef,
-                                phoneNumber: formattedPhone, // Pre-fill phone number
-                                // Chapa requires these fields even if we only use phone number
-                                // Using placeholder values so user doesn't need to enter them
-                                firstName: 'Customer',
-                                lastName: 'User',
-                                email: `${formattedPhone.replace(/[^0-9]/g, '')}@tana-parking.com`,
-                                availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
+                                tx_ref: data.txRef,
+
+                                // Customer info (snake_case)
+                                phone_number: formattedPhone,
+                                first_name: 'Customer',
+                                last_name: 'User',
+                                email: generatedEmail,
+
+                                // Payment methods and UI
+                                available_payment_methods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
                                 customizations: {
-                                    buttonText: 'Pay Now',
+                                    button_text: 'Pay Now',
                                     styles: `
                                         .chapa-pay-button { 
                                             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -306,11 +342,18 @@ const ParkedCarsList = () => {
                                         }
                                     `
                                 },
-                                callbackUrl: `${(process.env.REACT_APP_BASE_URL || 'http://localhost:4000').replace(/\/$/, '')}/payment/chapa/callback`,
-                                returnUrl: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
-                                showFlag: true,
-                                showPaymentMethodsNames: true,
+                                
+                                // Optional: callback URLs (not required for Inline.js with JS callbacks)
+                                // But including them in case Chapa validates them
+                                callback_url: `${window.location.origin}/payment/callback`,
+                                return_url: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
+                                
+                                show_flag: true,
+                                show_payment_methods_names: true,
+                                
+                                // JavaScript callbacks (Chapa Inline.js supports these)
                                 onSuccessfulPayment: async (response) => {
+                                    console.log('✅ Payment successful (onSuccessfulPayment):', response);
                                     // Update car status after successful payment
                                     await updateParkedCar({
                                         id: selectedCar._id,
@@ -377,12 +420,48 @@ const ParkedCarsList = () => {
                                     });
                                 },
                                 onPaymentFailure: (error) => {
-                                    console.error('Payment failed - full error:', error);
-                                    console.error('Payment failed - error message:', error?.message);
-                                    console.error('Payment failed - error type:', typeof error);
-                                    console.error('Payment failed - error keys:', Object.keys(error || {}));
-                                    console.error('Payment failed - error JSON:', JSON.stringify(error, null, 2));
-                                    console.error('Payment failed - error toString:', String(error));
+                                    console.error('❌ Payment failed - full error object:', error);
+                                    console.error('❌ Payment failed - error message:', error?.message);
+                                    console.error('❌ Payment failed - error type:', typeof error);
+                                    console.error('❌ Payment failed - error keys:', Object.keys(error || {}));
+                                    
+                                    // Try to extract detailed error information
+                                    let detailedError = error;
+                                    if (typeof error === 'string') {
+                                        detailedError = { message: error, raw: error };
+                                    } else if (error?.response) {
+                                        detailedError = {
+                                            message: error.message,
+                                            status: error.response?.status,
+                                            statusText: error.response?.statusText,
+                                            data: error.response?.data,
+                                            headers: error.response?.headers
+                                        };
+                                    } else if (error?.data) {
+                                        detailedError = {
+                                            message: error.message || error.data?.message,
+                                            data: error.data,
+                                            status: error.status
+                                        };
+                                    }
+                                    
+                                    console.error('❌ Payment failed - detailed error:', JSON.stringify(detailedError, null, 2));
+                                    console.error('❌ Payment failed - error toString:', String(error));
+                                    
+                                    // Check Network tab for Chapa API response
+                                    console.warn('🔍 Please check the browser Network tab (F12 → Network) and look for requests to "chapa" or "inline.chapaservices.net" to see the actual API error response.');
+                                    
+                                    // Clean up on failure to ensure fresh txRef on retry
+                                    if (selectedCar?._id) {
+                                        localStorage.removeItem(`chapa_payment_${selectedCar._id}`);
+                                    }
+                                    if (chapaInstanceRef.current) {
+                                        const container = document.getElementById('chapa-inline-form');
+                                        if (container) {
+                                            container.innerHTML = '';
+                                        }
+                                        chapaInstanceRef.current = null;
+                                    }
                                     
                                     // Extract more detailed error message
                                     let errorMessage = 'Please try again';
@@ -402,6 +481,12 @@ const ParkedCarsList = () => {
                                     setLoading(false);
                                 },
                                 onClose: () => {
+                                    console.log('🔒 Payment modal closed');
+                                    setShowPaymentFormModal(false);
+                                    setLoading(false);
+                                },
+                                onPaymentClose: () => {
+                                    console.log('🔒 Payment modal closed (onPaymentClose)');
                                     setShowPaymentFormModal(false);
                                     setLoading(false);
                                 }
@@ -414,45 +499,208 @@ const ParkedCarsList = () => {
                                 amountType: typeof formattedAmount,
                                 currency: chapaConfig.currency,
                                 txRef: chapaConfig.txRef,
+                                tx_ref: chapaConfig.tx_ref,
                                 txRefLength: chapaConfig.txRef?.length,
                                 phoneNumber: formattedPhone,
-                                phoneNumberLength: formattedPhone?.length,
+                                phone_number: chapaConfig.phone_number,
+                                firstName: chapaConfig.firstName,
+                                first_name: chapaConfig.first_name,
+                                lastName: chapaConfig.lastName,
+                                last_name: chapaConfig.last_name,
+                                email: chapaConfig.email,
                                 callbackUrl: chapaConfig.callbackUrl,
+                                callback_url: chapaConfig.callback_url,
                                 returnUrl: chapaConfig.returnUrl,
+                                return_url: chapaConfig.return_url,
                                 hasOnSuccessfulPayment: !!chapaConfig.onSuccessfulPayment,
                                 hasOnPaymentFailure: !!chapaConfig.onPaymentFailure,
                                 hasOnClose: !!chapaConfig.onClose
                             });
                             
-                            // Validate public key format (should be CHAPUBK, not CHASECK)
-                            // CHASECK is the secret key, CHAPUBK is the public key for inline.js
-                            if (!chapaPublicKey || (!chapaPublicKey.startsWith('CHAPUBK_TEST-') && !chapaPublicKey.startsWith('CHAPUBK_LIVE-') && !chapaPublicKey.startsWith('CHASECK_TEST-') && !chapaPublicKey.startsWith('CHASECK_LIVE-'))) {
-                                console.error('Invalid Chapa public key format. Should start with CHAPUBK_TEST-, CHAPUBK_LIVE-, CHASECK_TEST-, or CHASECK_LIVE-');
-                                console.error('Current public key:', chapaPublicKey ? `${chapaPublicKey.substring(0, 20)}...` : 'MISSING');
-                                alert('Payment configuration error: Invalid public key format. Please contact administrator.');
+                            // Log the exact config object that will be passed to ChapaCheckout
+                            console.log('📋 Full Chapa config object (for debugging):', JSON.stringify({
+                                ...chapaConfig,
+                                publicKey: chapaPublicKey ? `${chapaPublicKey.substring(0, 15)}...` : 'MISSING',
+                                onSuccessfulPayment: '[Function]',
+                                onPaymentFailure: '[Function]',
+                                onClose: '[Function]'
+                            }, null, 2));
+                            
+                            // Validate public key format: Inline.js must use CHAPUBK_* (public key).
+                            if (!chapaPublicKey || (!chapaPublicKey.startsWith('CHAPUBK_TEST-') && !chapaPublicKey.startsWith('CHAPUBK_LIVE-'))) {
+                                console.error('Invalid Chapa PUBLIC key format. Inline.js requires CHAPUBK_TEST-* or CHAPUBK_LIVE-*');
+                                console.error('Current key prefix:', chapaPublicKey ? chapaPublicKey.slice(0, 12) : 'MISSING');
+                                alert('Payment configuration error: invalid Chapa public key. Please contact administrator.');
                                 setLoading(false);
                                 return;
                             }
                             
-                            const chapa = new ChapaCheckout(chapaConfig);
-                            chapaInstanceRef.current = chapa;
+                            // Log full config for debugging (mask sensitive data)
+                            console.log('Full Chapa config (masked):', {
+                                ...chapaConfig,
+                                publicKey: chapaPublicKey ? `${chapaPublicKey.substring(0, 15)}...` : 'MISSING',
+                                onSuccessfulPayment: chapaConfig.onSuccessfulPayment ? '[Function]' : 'MISSING',
+                                onPaymentFailure: chapaConfig.onPaymentFailure ? '[Function]' : 'MISSING',
+                                onClose: chapaConfig.onClose ? '[Function]' : 'MISSING'
+                            });
                             
-                            // Open payment form modal
-                            setShowPaymentFormModal(true);
-                            
-                            // Wait for DOM to update, then initialize Chapa
-                            setTimeout(() => {
-                                const container = document.getElementById('chapa-inline-form');
-                                if (container) {
-                                    chapa.initialize('chapa-inline-form');
+                            try {
+                                // Validate config before creating ChapaCheckout instance
+                                const requiredFields = ['publicKey', 'amount', 'currency', 'txRef', 'email', 'firstName', 'lastName'];
+                                const missingFields = requiredFields.filter(field => !chapaConfig[field] && !chapaConfig[field.replace(/([A-Z])/g, '_$1').toLowerCase()]);
+                                
+                                if (missingFields.length > 0) {
+                                    console.error('❌ Missing required Chapa fields:', missingFields);
+                                    alert(`Payment configuration error: Missing required fields (${missingFields.join(', ')}). Please contact support.`);
                                     setLoading(false);
-                                } else {
-                                    console.error('Chapa container not found after rendering');
-                                    alert('Failed to load payment form. Please try again.');
-                                    setShowPaymentFormModal(false);
-                                    setLoading(false);
+                                    return;
                                 }
-                            }, 100);
+                                
+                                console.log('✅ All required Chapa fields present');
+                                console.log('🔧 Creating ChapaCheckout instance with config keys:', Object.keys(chapaConfig));
+                                
+                                const chapa = new ChapaCheckout(chapaConfig);
+                                chapaInstanceRef.current = chapa;
+                                
+                                console.log('✅ ChapaCheckout instance created successfully');
+                                
+                                // Open payment form modal
+                                setShowPaymentFormModal(true);
+                                
+                                // Wait for DOM to update, then initialize Chapa
+                                setTimeout(() => {
+                                    const container = document.getElementById('chapa-inline-form');
+                                    if (container) {
+                                        console.log('Initializing Chapa Inline.js...');
+                                        console.log('Container element:', container);
+                                        console.log('Chapa instance:', chapa);
+                                        
+                                        try {
+                                            // Monitor both XMLHttpRequest and fetch (Chapa might use either)
+                                            const originalXHROpen = XMLHttpRequest.prototype.open;
+                                            const originalXHRSend = XMLHttpRequest.prototype.send;
+                                            const originalFetch = window.fetch;
+                                            
+                                            // Monitor XMLHttpRequest
+                                            XMLHttpRequest.prototype.open = function(method, url, ...args) {
+                                                if (url && (url.includes('chapa') || url.includes('inline.chapaservices'))) {
+                                                    console.log('🔍 [XHR] Chapa API Request:', method, url);
+                                                    this._chapaUrl = url;
+                                                    this._chapaMethod = method;
+                                                }
+                                                return originalXHROpen.apply(this, [method, url, ...args]);
+                                            };
+                                            
+                                            XMLHttpRequest.prototype.send = function(data) {
+                                                if (this._chapaUrl) {
+                                                    console.log('📤 [XHR] Chapa Request Data:', data ? (typeof data === 'string' ? data : JSON.stringify(data)) : 'No data');
+                                                    
+                                                    this.addEventListener('load', function() {
+                                                        console.log('📥 [XHR] Chapa Response Status:', this.status, this.statusText);
+                                                        console.log('📥 [XHR] Chapa Response URL:', this._chapaUrl);
+                                                        try {
+                                                            const responseText = this.responseText;
+                                                            console.log('📥 [XHR] Chapa Response Body:', responseText);
+                                                            if (responseText) {
+                                                                try {
+                                                                    const jsonResponse = JSON.parse(responseText);
+                                                                    console.log('📥 [XHR] Chapa Response JSON:', jsonResponse);
+                                                                } catch (e) {
+                                                                    console.log('📥 [XHR] Chapa Response (not JSON):', responseText);
+                                                                }
+                                                            }
+                                                        } catch (e) {
+                                                            console.error('Error reading Chapa response:', e);
+                                                        }
+                                                    });
+                                                    
+                                                    this.addEventListener('error', function() {
+                                                        console.error('❌ [XHR] Chapa Request Error:', this._chapaUrl);
+                                                    });
+                                                }
+                                                return originalXHRSend.apply(this, [data]);
+                                            };
+                                            
+                                            // Monitor fetch
+                                            window.fetch = function(url, options = {}) {
+                                                if (typeof url === 'string' && (url.includes('chapa') || url.includes('inline.chapaservices'))) {
+                                                    console.log('🔍 [FETCH] Chapa API Request:', url);
+                                                    console.log('📤 [FETCH] Chapa Request Options:', {
+                                                        method: options.method || 'GET',
+                                                        headers: options.headers,
+                                                        body: options.body
+                                                    });
+                                                    
+                                                    return originalFetch.apply(this, arguments)
+                                                        .then(response => {
+                                                            console.log('📥 [FETCH] Chapa Response Status:', response.status, response.statusText);
+                                                            console.log('📥 [FETCH] Chapa Response URL:', response.url);
+                                                            
+                                                            // Clone response to read body without consuming it
+                                                            const clonedResponse = response.clone();
+                                                            clonedResponse.text().then(text => {
+                                                                console.log('📥 [FETCH] Chapa Response Body:', text);
+                                                                try {
+                                                                    const jsonResponse = JSON.parse(text);
+                                                                    console.log('📥 [FETCH] Chapa Response JSON:', jsonResponse);
+                                                                } catch (e) {
+                                                                    // Not JSON, that's okay
+                                                                }
+                                                            }).catch(err => {
+                                                                console.error('Error reading fetch response:', err);
+                                                            });
+                                                            
+                                                            return response;
+                                                        })
+                                                        .catch(error => {
+                                                            console.error('❌ [FETCH] Chapa Request Error:', error);
+                                                            throw error;
+                                                        });
+                                                }
+                                                return originalFetch.apply(this, arguments);
+                                            };
+                                            
+                                            chapa.initialize('chapa-inline-form');
+                                            console.log('Chapa initialize() called successfully');
+                                            
+                                            // Restore original functions after a delay
+                                            setTimeout(() => {
+                                                XMLHttpRequest.prototype.open = originalXHROpen;
+                                                XMLHttpRequest.prototype.send = originalXHRSend;
+                                                window.fetch = originalFetch;
+                                            }, 15000);
+                                            
+                                            setLoading(false);
+                                        } catch (initError) {
+                                            console.error('Error during chapa.initialize():', initError);
+                                            console.error('Init error details:', {
+                                                message: initError?.message,
+                                                stack: initError?.stack,
+                                                name: initError?.name,
+                                                cause: initError?.cause
+                                            });
+                                            alert(`Failed to initialize payment form: ${initError?.message || 'Unknown error'}`);
+                                            setShowPaymentFormModal(false);
+                                            setLoading(false);
+                                        }
+                                    } else {
+                                        console.error('Chapa container not found after rendering');
+                                        alert('Failed to load payment form. Please try again.');
+                                        setShowPaymentFormModal(false);
+                                        setLoading(false);
+                                    }
+                                }, 100);
+                            } catch (initError) {
+                                console.error('ChapaCheckout constructor error:', initError);
+                                console.error('Error details:', {
+                                    message: initError?.message,
+                                    stack: initError?.stack,
+                                    name: initError?.name
+                                });
+                                alert(`Failed to initialize payment: ${initError?.message || 'Unknown error'}`);
+                                setShowPaymentFormModal(false);
+                                setLoading(false);
+                            }
                         } catch (error) {
                             console.error('Failed to initialize Chapa Inline:', error);
                             alert('Failed to load payment form. Please try again.');

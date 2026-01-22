@@ -49,56 +49,23 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
             return res.status(400).json({ error: "Car is not currently parked" });
         }
 
-        // Prepare Chapa payment request
-        const chapaRequest = {
-            amount: amount.toString(),
-            currency: "ETB",
-            first_name: customerName?.split(' ')[0] || "Customer",
-            last_name: customerName?.split(' ').slice(1).join(' ') || "User",
-            phone_number: customerPhone,
-            tx_ref: `tana-${carId.substring(0, 10)}-${Date.now().toString().slice(-8)}`,
-            callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback`,
-            return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?carId=${carId}`,
-            meta: {
-                carId: carId.toString(),
-                licensePlate: car.licensePlate || `${car.plateCode || ''}-${car.region || ''}-${car.licensePlateNumber || ''}`,
-            }
-        };
+        // Generate unique txRef: timestamp + random string to prevent collisions
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(2, 10); // 8 random alphanumeric chars
+        const uniqueTxRef = `tana-${carId.substring(0, 10)}-${timestamp}-${randomSuffix}`;
+        
+        console.log(`[Payment Init] Generated NEW txRef for car ${carId}: ${uniqueTxRef}`);
 
-        // Initialize payment with Chapa
-        const chapaResponse = await axios.post(
-            `${CHAPA_BASE_URL}/initialize`,
-            chapaRequest,
-            {
-                headers: {
-                    'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-
-        if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
-            // Store payment reference in car (optional - you might want a separate payment model)
-            // For now, we'll just return the payment URL
-            
-            res.json({
-                success: true,
-                paymentUrl: chapaResponse.data.data.checkout_url,
-                txRef: chapaRequest.tx_ref,
-                publicKey: CHAPA_PUBLIC_KEY, // Include public key for frontend inline.js
-                message: "Payment initialized successfully"
-            });
-        } else {
-            // Extract error message from Chapa response
-            const errorMessage = chapaResponse.data?.message;
-            const errorText = typeof errorMessage === 'string' 
-                ? errorMessage 
-                : (typeof errorMessage === 'object' && errorMessage?.message)
-                    ? errorMessage.message
-                    : JSON.stringify(errorMessage) || "Failed to initialize payment with Chapa";
-            
-            res.status(400).json({ error: errorText });
-        }
+        // NOTE: For Chapa Inline.js, we generate the txRef but let Inline.js handle initialization.
+        // Calling Chapa's /initialize API here would reserve the txRef and cause conflicts.
+        // Inline.js will initialize the payment using the public key and txRef we provide.
+        
+        res.json({
+            success: true,
+            txRef: uniqueTxRef,
+            publicKey: CHAPA_PUBLIC_KEY, // Include public key for frontend inline.js
+            message: "Payment reference generated successfully"
+        });
     } catch (error) {
         console.error("Chapa payment initialization error:", error);
         console.error("Chapa error response:", error.response?.data);
@@ -181,8 +148,12 @@ paymentRouter.post("/chapa/initialize-package", isLoggedIn, async (req, res) => 
             return res.status(403).json({ error: "Only valets can initialize package payments" });
         }
 
-        // Build txRef without carId
-        const txRef = `tana-pkg-${Date.now().toString().slice(-8)}`;
+        // Generate unique txRef: timestamp + random string to prevent collisions
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(2, 10); // 8 random alphanumeric chars
+        const txRef = `tana-pkg-${timestamp}-${randomSuffix}`;
+        
+        console.log(`[Package Payment Init] Generated NEW txRef: ${txRef}`);
 
         // Store pending payload in memory
         pendingPackagePayments[txRef] = {
@@ -194,51 +165,17 @@ paymentRouter.post("/chapa/initialize-package", isLoggedIn, async (req, res) => 
             createdAt: Date.now()
         };
 
-        // Prepare Chapa payment request
-        const chapaRequest = {
-            amount: amount.toString(),
-            currency: "ETB",
-            first_name: "Customer",
-            last_name: "Package",
-            phone_number: customerPhone,
-            tx_ref: txRef,
-            callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback`,
-            return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?txRef=${txRef}`,
-            meta: {
-                txRef,
-                serviceType: 'package',
-                packageDuration
-            }
-        };
-
-        const chapaResponse = await axios.post(
-            `${CHAPA_BASE_URL}/initialize`,
-            chapaRequest,
-            {
-                headers: {
-                    'Authorization': `Bearer ${CHAPA_SECRET_KEY}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-
-        if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
-            res.json({
-                success: true,
-                paymentUrl: chapaResponse.data.data.checkout_url,
-                txRef: chapaRequest.tx_ref,
-                publicKey: CHAPA_PUBLIC_KEY,
-                message: "Package payment initialized successfully"
-            });
-        } else {
-            const errorMessage = chapaResponse.data?.message;
-            const errorText = typeof errorMessage === 'string'
-                ? errorMessage
-                : (typeof errorMessage === 'object' && errorMessage?.message)
-                    ? errorMessage.message
-                    : JSON.stringify(errorMessage) || "Failed to initialize payment with Chapa";
-            res.status(400).json({ error: errorText });
-        }
+        // NOTE: We're using Chapa Inline.js, which handles payment initialization itself.
+        // We don't call Chapa's /initialize API here - that would reserve the txRef and cause
+        // "Transaction reference has been used before" error when Inline.js tries to use it.
+        // Instead, we just generate and return the txRef + public key, and let Inline.js initialize.
+        
+        res.json({
+            success: true,
+            txRef: txRef,
+            publicKey: CHAPA_PUBLIC_KEY,
+            message: "Package payment reference generated successfully"
+        });
     } catch (error) {
         console.error("Chapa package payment initialization error:", error);
         const errorMessage = error?.response?.data?.message || error?.message || "Failed to initialize package payment";
