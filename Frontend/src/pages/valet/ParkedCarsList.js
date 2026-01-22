@@ -179,7 +179,7 @@ const ParkedCarsList = () => {
             }
             // Clear old localStorage entries for this car to ensure fresh payment
             localStorage.removeItem(`chapa_payment_${selectedCar._id}`);
-
+                
             // Initialize Chapa payment for online payment
                 const customerName = selectedCar.customerName || 'Customer';
                 const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
@@ -287,7 +287,7 @@ const ParkedCarsList = () => {
                                 setLoading(false);
                                 return;
                             }
-                            
+
                             // Verify ChapaCheckout is the correct constructor
                             console.log('ChapaCheckout type:', typeof ChapaCheckout);
                             console.log('ChapaCheckout:', ChapaCheckout);
@@ -581,7 +581,7 @@ const ParkedCarsList = () => {
                                 console.log('🔑 Full public key value:', chapaConfig.public_key);
                                 
                                 const chapa = new ChapaCheckout(chapaConfig);
-                                chapaInstanceRef.current = chapa;
+                            chapaInstanceRef.current = chapa;
                                 
                                 console.log('✅ ChapaCheckout instance created successfully');
                                 console.log('🔑 Chapa instance internal options:', {
@@ -589,14 +589,14 @@ const ParkedCarsList = () => {
                                     public_key: chapa.options?.public_key || 'NOT FOUND',
                                     hasPublicKey: !!(chapa.options?.public_key || chapa.options?.publicKey)
                                 });
-                                
-                                // Open payment form modal
-                                setShowPaymentFormModal(true);
-                                
-                                // Wait for DOM to update, then initialize Chapa
-                                setTimeout(() => {
-                                    const container = document.getElementById('chapa-inline-form');
-                                    if (container) {
+                            
+                            // Open payment form modal
+                            setShowPaymentFormModal(true);
+                            
+                            // Wait for DOM to update, then initialize Chapa
+                            setTimeout(() => {
+                                const container = document.getElementById('chapa-inline-form');
+                                if (container) {
                                         console.log('Initializing Chapa Inline.js...');
                                         console.log('Container element:', container);
                                         console.log('Chapa instance:', chapa);
@@ -746,7 +746,7 @@ const ParkedCarsList = () => {
                                                 return originalFetch.apply(this, arguments);
                                             };
                                             
-                                            chapa.initialize('chapa-inline-form');
+                                    chapa.initialize('chapa-inline-form');
                                             console.log('Chapa initialize() called successfully');
                                             
                                             // Restore original functions after a delay
@@ -756,7 +756,7 @@ const ParkedCarsList = () => {
                                                 window.fetch = originalFetch;
                                             }, 15000);
                                             
-                                            setLoading(false);
+                                    setLoading(false);
                                         } catch (initError) {
                                             console.error('Error during chapa.initialize():', initError);
                                             console.error('Init error details:', {
@@ -769,13 +769,13 @@ const ParkedCarsList = () => {
                                             setShowPaymentFormModal(false);
                                             setLoading(false);
                                         }
-                                    } else {
-                                        console.error('Chapa container not found after rendering');
-                                        alert('Failed to load payment form. Please try again.');
-                                        setShowPaymentFormModal(false);
-                                        setLoading(false);
-                                    }
-                                }, 100);
+                                } else {
+                                    console.error('Chapa container not found after rendering');
+                                    alert('Failed to load payment form. Please try again.');
+                                    setShowPaymentFormModal(false);
+                                    setLoading(false);
+                                }
+                            }, 100);
                             } catch (initError) {
                                 console.error('ChapaCheckout constructor error:', initError);
                                 console.error('Error details:', {
