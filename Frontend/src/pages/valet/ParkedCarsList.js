@@ -223,6 +223,25 @@ const ParkedCarsList = () => {
                             return;
                         }
                         
+                        // Validate public key format
+                        console.log('🔑 Public key received from backend:', chapaPublicKey ? `${chapaPublicKey.substring(0, 20)}...` : 'MISSING');
+                        console.log('🔑 Full public key length:', chapaPublicKey?.length);
+                        console.log('🔑 Public key source:', data.publicKey ? 'Backend API response' : 'Frontend env variable');
+                        
+                        const isValidTestKey = chapaPublicKey.startsWith('CHAPUBK_TEST-');
+                        const isValidLiveKey = chapaPublicKey.startsWith('CHAPUBK-');
+                        if (!isValidTestKey && !isValidLiveKey) {
+                            console.error('❌ Public key format is INCORRECT!');
+                            console.error('Expected format: CHAPUBK_TEST-... (test) or CHAPUBK-... (live)');
+                            console.error('Current key starts with:', chapaPublicKey.substring(0, 15));
+                            console.error('Full key:', chapaPublicKey);
+                            alert('Invalid public key format. Please check your CHAPA_PUBLIC_KEY in backend .env file.');
+                            setLoading(false);
+                            return;
+                        } else {
+                            console.log('✅ Public key format is valid:', isValidTestKey ? 'TEST MODE' : 'LIVE MODE');
+                        }
+                        
                         if (!data.txRef) {
                             console.error('Missing txRef from payment initialization');
                             alert('Payment initialization failed. Missing transaction reference.');
@@ -558,11 +577,18 @@ const ParkedCarsList = () => {
                                 
                                 console.log('✅ All required Chapa fields present');
                                 console.log('🔧 Creating ChapaCheckout instance with config keys:', Object.keys(chapaConfig));
+                                console.log('🔑 Public key in config (public_key):', chapaConfig.public_key ? `${chapaConfig.public_key.substring(0, 20)}...` : 'MISSING');
+                                console.log('🔑 Full public key value:', chapaConfig.public_key);
                                 
                                 const chapa = new ChapaCheckout(chapaConfig);
                                 chapaInstanceRef.current = chapa;
                                 
                                 console.log('✅ ChapaCheckout instance created successfully');
+                                console.log('🔑 Chapa instance internal options:', {
+                                    publicKey: chapa.options?.public_key || chapa.options?.publicKey || 'NOT FOUND',
+                                    public_key: chapa.options?.public_key || 'NOT FOUND',
+                                    hasPublicKey: !!(chapa.options?.public_key || chapa.options?.publicKey)
+                                });
                                 
                                 // Open payment form modal
                                 setShowPaymentFormModal(true);
@@ -625,11 +651,50 @@ const ParkedCarsList = () => {
                                             window.fetch = function(url, options = {}) {
                                                 if (typeof url === 'string' && (url.includes('chapa') || url.includes('inline.chapaservices'))) {
                                                     console.log('🔍 [FETCH] Chapa API Request:', url);
-                                                    console.log('📤 [FETCH] Chapa Request Options:', {
-                                                        method: options.method || 'GET',
-                                                        headers: options.headers,
-                                                        body: options.body
-                                                    });
+                                                    console.log('📤 [FETCH] Chapa Request Method:', options.method || 'GET');
+                                                    
+                                                    // Parse and log the request body
+                                                    if (options.body) {
+                                                        try {
+                                                            let bodyData;
+                                                            if (typeof options.body === 'string') {
+                                                                console.log('📤 [FETCH] Request body is string, length:', options.body.length);
+                                                                bodyData = JSON.parse(options.body);
+                                                            } else if (options.body instanceof FormData) {
+                                                                console.log('📤 [FETCH] Request body is FormData');
+                                                                bodyData = {};
+                                                                for (let [key, value] of options.body.entries()) {
+                                                                    bodyData[key] = value;
+                                                                }
+                                                            } else {
+                                                                bodyData = options.body;
+                                                            }
+                                                            
+                                                            console.log('📤 [FETCH] Chapa Request Body (parsed):', bodyData);
+                                                            console.log('📤 [FETCH] Request body keys:', Object.keys(bodyData));
+                                                            
+                                                            // Check public key in request
+                                                            const publicKeyInBody = bodyData.public_key || bodyData.publicKey;
+                                                            if (publicKeyInBody) {
+                                                                console.log('🔑 [FETCH] Public key being sent:', publicKeyInBody);
+                                                                console.log('🔑 [FETCH] Public key length:', publicKeyInBody?.length);
+                                                                console.log('🔑 [FETCH] Public key starts with CHAPUBK_TEST-:', publicKeyInBody?.startsWith('CHAPUBK_TEST-'));
+                                                                console.log('🔑 [FETCH] Public key starts with CHAPUBK-:', publicKeyInBody?.startsWith('CHAPUBK-'));
+                                                                console.log('🔑 [FETCH] Full public key:', publicKeyInBody);
+                                                            } else {
+                                                                console.error('❌ [FETCH] NO PUBLIC KEY FOUND IN REQUEST BODY!');
+                                                                console.log('📤 [FETCH] Available keys in body:', Object.keys(bodyData));
+                                                                console.log('📤 [FETCH] Full body:', bodyData);
+                                                            }
+                                                        } catch (e) {
+                                                            console.error('❌ [FETCH] Error parsing request body:', e);
+                                                            console.log('📤 [FETCH] Chapa Request Body (raw, unparsed):', options.body);
+                                                        }
+                                                    } else {
+                                                        console.warn('⚠️ [FETCH] No request body found!');
+                                                    }
+                                                    
+                                                    console.log('📤 [FETCH] Chapa Request Headers:', options.headers);
                                                     
                                                     return originalFetch.apply(this, arguments)
                                                         .then(response => {
@@ -639,15 +704,36 @@ const ParkedCarsList = () => {
                                                             // Clone response to read body without consuming it
                                                             const clonedResponse = response.clone();
                                                             clonedResponse.text().then(text => {
-                                                                console.log('📥 [FETCH] Chapa Response Body:', text);
+                                                                console.log('📥 [FETCH] Chapa Response Status:', response.status);
+                                                                console.log('📥 [FETCH] Chapa Response Body (raw):', text);
+                                                                
                                                                 try {
                                                                     const jsonResponse = JSON.parse(text);
                                                                     console.log('📥 [FETCH] Chapa Response JSON:', jsonResponse);
+                                                                    console.log('📥 [FETCH] Chapa Response keys:', Object.keys(jsonResponse));
+                                                                    
+                                                                    // Log ALL error details
+                                                                    if (jsonResponse.message) {
+                                                                        console.error('❌ [FETCH] Chapa Error Message:', jsonResponse.message);
+                                                                    }
+                                                                    if (jsonResponse.error) {
+                                                                        console.error('❌ [FETCH] Chapa Error:', jsonResponse.error);
+                                                                    }
+                                                                    if (jsonResponse.status) {
+                                                                        console.error('❌ [FETCH] Chapa Status:', jsonResponse.status);
+                                                                    }
+                                                                    if (jsonResponse.data) {
+                                                                        console.error('❌ [FETCH] Chapa Data:', jsonResponse.data);
+                                                                    }
+                                                                    
+                                                                    // Log the full response for debugging
+                                                                    console.error('❌ [FETCH] FULL CHAPA ERROR RESPONSE:', JSON.stringify(jsonResponse, null, 2));
                                                                 } catch (e) {
-                                                                    // Not JSON, that's okay
+                                                                    // Not JSON, that's okay - log as text
+                                                                    console.error('❌ [FETCH] Chapa Response (not JSON, raw text):', text);
                                                                 }
                                                             }).catch(err => {
-                                                                console.error('Error reading fetch response:', err);
+                                                                console.error('❌ Error reading fetch response:', err);
                                                             });
                                                             
                                                             return response;
