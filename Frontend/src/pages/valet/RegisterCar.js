@@ -64,8 +64,8 @@ const RegisterCar = () => {
                     const hasCarTypes = ['tripod', 'automobile', 'truck', 'trailer'].some(type => data[type]);
                     if (!hasCarTypes && !data.priceLevels) {
                         // Old format - plate codes
-                        const codes = Object.keys(data);
-                        setPlateCodes(codes);
+                    const codes = Object.keys(data);
+                    setPlateCodes(codes);
                     } else {
                         // New format - keep using default codes for plate codes field
                         setPlateCodes(defaultPlateCodes);

@@ -820,7 +820,7 @@
     .customer-reports,
     .administrative-reports {
         .report-section {
-            padding: 0.75rem;
+            padding: 0.5rem;
 
             .report-header {
                 flex-direction: column;
@@ -862,30 +862,35 @@
 
             .summary-section {
                 grid-template-columns: 1fr;
-                gap: 0.75rem;
-                margin-bottom: 1.5rem;
+                gap: 0.6rem;
+                margin-bottom: 1.25rem;
 
                 .summary-card {
-                    padding: 1rem;
+                    padding: 0.8rem;
 
                     h3 {
-                        font-size: 1.5rem;
-                        margin-bottom: 0.25rem;
+                        font-size: 1.3rem;
+                        margin-bottom: 0.2rem;
                     }
 
                     p {
-                        font-size: 0.85rem;
+                        font-size: 0.8rem;
                         margin: 0;
                     }
                 }
             }
 
             .report-table-section {
-                margin-top: 1.5rem;
+                margin-top: 1.2rem;
+                overflow-x: auto;
 
                 h3 {
                     font-size: 1rem;
                     margin-bottom: 0.75rem;
+                }
+
+                .report-table {
+                    min-width: 650px;
                 }
 
                 .daily-breakdown-group {
@@ -899,11 +904,11 @@
             }
 
             .user-type-section {
-                margin-bottom: 1.5rem;
+                margin-bottom: 1.25rem;
 
                 h3 {
-                    font-size: 1rem;
-                    margin-bottom: 0.75rem;
+                    font-size: 0.95rem;
+                    margin-bottom: 0.6rem;
                 }
             }
 
@@ -950,6 +955,228 @@
             button {
                 padding: 0.5rem 0.75rem;
                 font-size: 0.8rem;
+            }
+        }
+    }
+
+    // Extra compact mobile styles specifically for Administrative Reports
+    .administrative-reports {
+        .report-section {
+            padding: 0.4rem !important;
+
+            > .report-controls {
+                padding: 0.5rem !important;
+                margin-bottom: 1rem !important;
+                gap: 0.35rem !important;
+
+                .btn-user-management,
+                .btn-refresh,
+                .btn-export {
+                    padding: 0.3rem 0.5rem !important;
+                    font-size: 0.7rem !important;
+                    gap: 0.3rem !important;
+
+                    svg {
+                        width: 12px !important;
+                        height: 12px !important;
+                    }
+                }
+            }
+
+            .summary-section {
+                gap: 0.5rem !important;
+                margin-bottom: 1rem !important;
+
+                .summary-card {
+                    padding: 0.65rem !important;
+
+                    h3 {
+                        font-size: 1.15rem !important;
+                        margin-bottom: 0.15rem !important;
+                    }
+
+                    p {
+                        font-size: 0.75rem !important;
+                    }
+                }
+            }
+
+            .report-table-section {
+                margin-top: 1rem !important;
+
+                h3 {
+                    font-size: 0.9rem !important;
+                    margin-bottom: 0.5rem !important;
+                }
+
+                .report-table {
+                    min-width: 600px !important;
+                    font-size: 0.7rem !important;
+
+                    thead th {
+                        padding: 0.5rem 0.35rem !important;
+                        font-size: 0.65rem !important;
+                        letter-spacing: 0.3px !important;
+                    }
+
+                    tbody td {
+                        padding: 0.5rem 0.35rem !important;
+                        font-size: 0.7rem !important;
+                    }
+                }
+            }
+
+            .user-type-section {
+                margin-bottom: 1rem !important;
+
+                h3 {
+                    font-size: 0.85rem !important;
+                    margin-bottom: 0.5rem !important;
+                }
+            }
+
+            .loading,
+            .no-data {
+                padding: 2rem 0.75rem !important;
+                font-size: 0.9rem !important;
+            }
+
+            .alert {
+                padding: 0.75rem !important;
+                margin-bottom: 1rem !important;
+                font-size: 0.85rem !important;
+            }
+        }
+    }
+
+    // Extra compact mobile styles specifically for Financial Reports
+    .financial-reports {
+        .report-section {
+            padding: 0.4rem !important;
+
+            .report-header {
+                padding-bottom: 0.6rem !important;
+                margin-bottom: 0.8rem !important;
+                gap: 0.4rem !important;
+
+                h2 {
+                    font-size: 1rem !important;
+                    margin-bottom: 0.5rem !important;
+                }
+
+                .ethiopian-date-picker-wrapper {
+                    min-width: 100px !important;
+                    max-width: 100px !important;
+
+                    .MuiTextField-root {
+                        .MuiOutlinedInput-root {
+                            height: 28px !important;
+                            padding: 0 4px !important;
+                        }
+
+                        .MuiInputLabel-root {
+                            font-size: 0.65rem !important;
+                        }
+
+                        .MuiInputBase-input {
+                            font-size: 0.7rem !important;
+                            padding: 4px 4px !important;
+                        }
+                    }
+                }
+
+                span {
+                    font-size: 0.75rem !important;
+                }
+
+                .btn-refresh,
+                .btn-export {
+                    padding: 0.3rem 0.5rem !important;
+                    font-size: 0.7rem !important;
+                    height: 28px !important;
+                    gap: 0.3rem !important;
+
+                    svg {
+                        width: 12px !important;
+                        height: 12px !important;
+                    }
+                }
+            }
+
+            .stats-grid {
+                gap: 0.75rem !important;
+                margin-bottom: 1rem !important;
+
+                .stat-card {
+                    padding: 1rem !important;
+
+                    .stat-icon {
+                        font-size: 1.5rem !important;
+
+                        svg {
+                            width: 20px !important;
+                            height: 20px !important;
+                        }
+                    }
+
+                    .stat-info {
+                        h3 {
+                            font-size: 1.3rem !important;
+                            margin-bottom: 0.2rem !important;
+                        }
+
+                        p {
+                            font-size: 0.8rem !important;
+                        }
+                    }
+                }
+            }
+
+            .report-table-section {
+                margin-top: 1rem !important;
+
+                h3 {
+                    font-size: 0.9rem !important;
+                    margin-bottom: 0.5rem !important;
+                }
+
+                .daily-breakdown-group {
+                    margin-bottom: 1rem !important;
+
+                    .date-header {
+                        font-size: 0.85rem !important;
+                        margin-bottom: 0.5rem !important;
+                        padding-bottom: 0.4rem !important;
+                    }
+                }
+
+                .report-table {
+                    min-width: 600px !important;
+                    font-size: 0.7rem !important;
+
+                    thead th {
+                        padding: 0.5rem 0.35rem !important;
+                        font-size: 0.65rem !important;
+                        letter-spacing: 0.3px !important;
+                    }
+
+                    tbody td {
+                        padding: 0.5rem 0.35rem !important;
+                        font-size: 0.7rem !important;
+                    }
+                }
+            }
+
+            .loading,
+            .no-data {
+                padding: 2rem 0.75rem !important;
+                font-size: 0.9rem !important;
+            }
+
+            .alert {
+                padding: 0.75rem !important;
+                margin-bottom: 1rem !important;
+                font-size: 0.85rem !important;
             }
         }
     }
