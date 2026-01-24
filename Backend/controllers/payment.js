@@ -3,6 +3,7 @@ const axios = require("axios");
 const { isLoggedIn } = require("./middleware");
 const ParkedCar = require("../models/parkedCarSchema");
 const User = require("../models/userSchema");
+const PendingPackagePayment = require("../models/pendingPackagePaymentSchema");
 const Joi = require('joi');
 const { Types } = require("mongoose");
 
@@ -12,9 +13,6 @@ const paymentRouter = Router();
 const CHAPA_SECRET_KEY = process.env.CHAPA_SECRET_KEY || "CHASECK_TEST-xxxxxxxxxxxxx"; // Replace with your Chapa secret key
 const CHAPA_PUBLIC_KEY = process.env.CHAPA_PUBLIC_KEY || ""; // Chapa public key for frontend
 const CHAPA_BASE_URL = "https://api.chapa.co/v1/transaction";
-
-// In-memory store for pending package payments (txRef -> payload)
-const pendingPackagePayments = {};
 
 // Initialize Chapa payment
 paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
@@ -155,15 +153,17 @@ paymentRouter.post("/chapa/initialize-package", isLoggedIn, async (req, res) => 
         
         console.log(`[Package Payment Init] Generated NEW txRef: ${txRef}`);
 
-        // Store pending payload in memory
-        pendingPackagePayments[txRef] = {
+        // Store pending payload in MongoDB
+        await PendingPackagePayment.create({
+            txRef,
             carData,
+            serviceType: 'package',
             packageDuration,
             amount,
+            customerPhone,
             valetId: currentUser._id,
-            parkZoneCode: currentUser.parkZoneCode || 'Unknown Zone',
-            createdAt: Date.now()
-        };
+            parkZoneCode: currentUser.parkZoneCode || 'Unknown Zone'
+        });
 
         // NOTE: We're using Chapa Inline.js, which handles payment initialization itself.
         // We don't call Chapa's /initialize API here - that would reserve the txRef and cause
@@ -325,7 +325,8 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
             return res.status(400).json({ error: "Transaction reference is required" });
         }
 
-        const pending = pendingPackagePayments[txRef];
+        // Find pending payment in MongoDB
+        const pending = await PendingPackagePayment.findOne({ txRef });
         if (!pending) {
             return res.status(404).json({ error: "Pending package payment not found or already processed" });
         }
@@ -381,14 +382,13 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
 
             if (transaction.status === 'successful') {
                 // Create the initial package subscription + first parked record
-                const payload = pendingPackagePayments[txRef];
                 const {
                     carData,
                     packageDuration,
                     amount,
                     valetId,
                     parkZoneCode
-                } = payload;
+                } = pending;
 
                 // Construct licensePlate
                 const licensePlate = `${carData.plateCode}-${carData.region}-${carData.licensePlateNumber}`.toUpperCase();
@@ -436,8 +436,8 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
                     totalPaidAmount: transaction.amount || amount || 0
                 });
 
-                // Clean up pending
-                delete pendingPackagePayments[txRef];
+                // Clean up pending payment from MongoDB
+                await PendingPackagePayment.deleteOne({ txRef });
 
                 res.json({
                     success: true,
@@ -570,17 +570,22 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
                     await car.save();
                     console.log(`Car ${carId} checked out successfully via Chapa callback`);
                 }
-            } else if (txRef && pendingPackagePayments[txRef]) {
+            } else if (txRef) {
                 // Package payment path (payment-first, no carId)
                 try {
-                    const payload = pendingPackagePayments[txRef];
+                    const pending = await PendingPackagePayment.findOne({ txRef });
+                    if (!pending) {
+                        console.log(`Pending package payment not found for txRef: ${txRef}`);
+                        return res.status(200).json({ received: true, message: "Callback processed" });
+                    }
+                    
                     const {
                         carData,
                         packageDuration,
                         amount: storedAmount,
                         valetId,
                         parkZoneCode
-                    } = payload;
+                    } = pending;
 
                     const licensePlate = `${carData.plateCode}-${carData.region}-${carData.licensePlateNumber}`.toUpperCase();
 
@@ -626,7 +631,8 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
                         totalPaidAmount: amount ? parseFloat(amount) : (storedAmount || 0)
                     });
 
-                    delete pendingPackagePayments[txRef];
+                    // Clean up pending payment from MongoDB
+                    await PendingPackagePayment.deleteOne({ txRef });
                     console.log(`Package payment successful, car created with id ${parkedCar._id}`);
                 } catch (err) {
                     console.error("Failed to create car from package payment callback:", err);
@@ -677,17 +683,22 @@ paymentRouter.get("/chapa/callback", async (req, res) => {
                             await car.save();
                             console.log(`Car ${carId} checked out successfully via Chapa callback (GET)`);
                         }
-                    } else if (transaction.tx_ref && pendingPackagePayments[transaction.tx_ref]) {
+                    } else if (transaction.tx_ref) {
                         // Package payment path (payment-first)
                         try {
-                            const payload = pendingPackagePayments[transaction.tx_ref];
+                            const pending = await PendingPackagePayment.findOne({ txRef: transaction.tx_ref });
+                            if (!pending) {
+                                console.log(`Pending package payment not found for txRef: ${transaction.tx_ref}`);
+                                return res.status(200).json({ received: true, message: "Callback processed" });
+                            }
+                            
                             const {
                                 carData,
                                 packageDuration,
                                 amount: storedAmount,
                                 valetId,
                                 parkZoneCode
-                            } = payload;
+                            } = pending;
 
                             const licensePlate = `${carData.plateCode}-${carData.region}-${carData.licensePlateNumber}`.toUpperCase();
 
@@ -733,7 +744,8 @@ paymentRouter.get("/chapa/callback", async (req, res) => {
                                 totalPaidAmount: transaction.amount || storedAmount || 0
                             });
 
-                            delete pendingPackagePayments[transaction.tx_ref];
+                            // Clean up pending payment from MongoDB
+                            await PendingPackagePayment.deleteOne({ txRef: transaction.tx_ref });
                             console.log(`Package payment successful, car created with id ${parkedCar._id} (GET callback)`);
                         } catch (err) {
                             console.error("Failed to create car from package payment callback (GET):", err);
