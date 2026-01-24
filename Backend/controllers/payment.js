@@ -1,3 +1,6 @@
+// Ensure dotenv is loaded before reading environment variables
+require('dotenv').config();
+
 const { Router } = require("express");
 const axios = require("axios");
 const { isLoggedIn } = require("./middleware");
@@ -11,8 +14,27 @@ const paymentRouter = Router();
 
 // Chapa API configuration
 const CHAPA_SECRET_KEY = process.env.CHAPA_SECRET_KEY || "CHASECK_TEST-xxxxxxxxxxxxx"; // Replace with your Chapa secret key
-const CHAPA_PUBLIC_KEY = process.env.CHAPA_PUBLIC_KEY || ""; // Chapa public key for frontend
+const CHAPA_PUBLIC_KEY = (process.env.CHAPA_PUBLIC_KEY || "").trim(); // Chapa public key for frontend (trim whitespace)
 const CHAPA_BASE_URL = "https://api.chapa.co/v1/transaction";
+
+// Debug: Log Chapa configuration status (without exposing full keys)
+console.log("🔑 Chapa Configuration Status:");
+console.log("   - CHAPA_SECRET_KEY:", CHAPA_SECRET_KEY ? `${CHAPA_SECRET_KEY.substring(0, 20)}...` : "NOT SET");
+console.log("   - CHAPA_PUBLIC_KEY:", CHAPA_PUBLIC_KEY ? `${CHAPA_PUBLIC_KEY.substring(0, 20)}...` : "NOT SET");
+console.log("   - Public Key Length:", CHAPA_PUBLIC_KEY.length);
+console.log("   - Public Key Format:", CHAPA_PUBLIC_KEY.startsWith('CHAPUBK_TEST-') ? 'TEST MODE ✅' : 
+                                          CHAPA_PUBLIC_KEY.startsWith('CHAPUBK-') ? 'LIVE MODE ✅' : 
+                                          CHAPA_PUBLIC_KEY ? 'INVALID FORMAT ❌' : 'NOT SET ❌');
+
+// Validate Chapa configuration
+if (!CHAPA_PUBLIC_KEY || CHAPA_PUBLIC_KEY === "") {
+    console.warn("⚠️  WARNING: CHAPA_PUBLIC_KEY is not set in environment variables!");
+    console.warn("⚠️  Payment initialization will fail. Please set CHAPA_PUBLIC_KEY in your .env file.");
+    console.warn("⚠️  For test mode, use: CHAPA_PUBLIC_KEY=CHAPUBK_TEST-your-test-key");
+    console.warn("⚠️  For live mode, use: CHAPA_PUBLIC_KEY=CHAPUBK-your-live-key");
+    console.warn("⚠️  Make sure there are NO quotes around the key value in .env file");
+    console.warn("⚠️  Example: CHAPA_PUBLIC_KEY=CHAPUBK_TEST-abc123 (NOT: CHAPA_PUBLIC_KEY=\"CHAPUBK_TEST-abc123\")");
+}
 
 // Initialize Chapa payment
 paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
@@ -45,6 +67,14 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
 
         if (car.status !== 'parked') {
             return res.status(400).json({ error: "Car is not currently parked" });
+        }
+
+        // Validate Chapa public key is configured
+        if (!CHAPA_PUBLIC_KEY || CHAPA_PUBLIC_KEY.trim() === "") {
+            console.error("❌ CHAPA_PUBLIC_KEY is not configured in backend .env file");
+            return res.status(500).json({ 
+                error: "Payment system is not configured. Please contact administrator. (Missing CHAPA_PUBLIC_KEY)" 
+            });
         }
 
         // Generate unique txRef: timestamp + random string to prevent collisions
@@ -144,6 +174,14 @@ paymentRouter.post("/chapa/initialize-package", isLoggedIn, async (req, res) => 
         const currentUser = await User.findOne({ phoneNumber: req.user?.phoneNumber });
         if (!currentUser || currentUser.type !== 'valet') {
             return res.status(403).json({ error: "Only valets can initialize package payments" });
+        }
+
+        // Validate Chapa public key is configured
+        if (!CHAPA_PUBLIC_KEY || CHAPA_PUBLIC_KEY.trim() === "") {
+            console.error("❌ CHAPA_PUBLIC_KEY is not configured in backend .env file");
+            return res.status(500).json({ 
+                error: "Payment system is not configured. Please contact administrator. (Missing CHAPA_PUBLIC_KEY)" 
+            });
         }
 
         // Generate unique txRef: timestamp + random string to prevent collisions
