@@ -246,8 +246,9 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
             
             // Log the response for debugging
             console.log(`[Payment Verify] Chapa API response for ${txRef}:`, {
-                status: chapaResponse.data?.status,
+                apiStatus: chapaResponse.data?.status,
                 transactionStatus: chapaResponse.data?.data?.status,
+                transactionData: chapaResponse.data?.data,
                 txRef: chapaResponse.data?.data?.tx_ref
             });
         } catch (chapaError) {
@@ -286,14 +287,20 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
         if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
             const transaction = chapaResponse.data.data;
             
+            // Normalize transaction status (Chapa can return 'success' or 'successful')
+            // Map 'success' to 'successful' for consistency
+            const normalizedStatus = transaction.status === 'success' ? 'successful' : transaction.status;
+            
+            console.log(`[Payment Verify] Transaction status - Original: ${transaction.status}, Normalized: ${normalizedStatus}, txRef: ${transaction.tx_ref || txRef}`);
+            
             // Handle pending/processing transactions - return success with pending status for retry
-            if (transaction.status === 'pending' || 
-                transaction.status === 'processing' || 
-                transaction.status === 'initiated') {
+            if (normalizedStatus === 'pending' || 
+                normalizedStatus === 'processing' || 
+                normalizedStatus === 'initiated') {
                 return res.json({
                     success: true,
                     transaction: {
-                        status: transaction.status,
+                        status: normalizedStatus,
                         txRef: transaction.tx_ref || txRef,
                     },
                     message: "Payment is still processing. Please wait and try again."
@@ -301,14 +308,14 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
             }
             
             // Handle failed or cancelled transactions
-            if (transaction.status === 'failed' || transaction.status === 'cancelled') {
+            if (normalizedStatus === 'failed' || normalizedStatus === 'cancelled') {
                 return res.json({
                     success: false,
                     transaction: {
-                        status: transaction.status,
+                        status: normalizedStatus,
                         txRef: transaction.tx_ref || txRef,
                     },
-                    message: `Payment ${transaction.status}. Please try again.`
+                    message: `Payment ${normalizedStatus}. Please try again.`
                 });
             }
             
@@ -378,10 +385,14 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                 }
             }
 
+            console.log(`[Payment Verify] Extracted carId: ${carId}, isValid: ${carId ? Types.ObjectId.isValid(carId) : false}`);
+            
             if (carId && Types.ObjectId.isValid(carId)) {
                 const car = await ParkedCar.findById(carId);
+                console.log(`[Payment Verify] Car found: ${car ? 'YES' : 'NO'}, Car status: ${car?.status}, Payment status: ${normalizedStatus}`);
                 
-                if (car && transaction.status === 'successful') {
+                // Check if payment is successful (normalized status)
+                if (car && normalizedStatus === 'successful') {
                     // Update car status to checked_out
                     car.status = 'checked_out';
                     car.checkedOutAt = new Date();
@@ -396,7 +407,7 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                     res.json({
                         success: true,
                         transaction: {
-                            status: transaction.status,
+                            status: normalizedStatus, // Use normalized status
                             amount: transaction.amount,
                             currency: transaction.currency,
                             txRef: transaction.tx_ref,
@@ -412,10 +423,10 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                     res.json({
                         success: true,
                         transaction: {
-                            status: transaction.status,
+                            status: normalizedStatus, // Use normalized status
                             txRef: transaction.tx_ref,
                         },
-                        message: transaction.status === 'successful' 
+                        message: normalizedStatus === 'successful' 
                             ? "Payment verified but car not found or already checked out" 
                             : "Payment not successful"
                     });
@@ -424,7 +435,7 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                 res.json({
                     success: true,
                     transaction: {
-                        status: transaction.status,
+                        status: normalizedStatus, // Use normalized status
                         txRef: transaction.tx_ref,
                     },
                     message: "Payment verified but car ID not found in transaction reference"
