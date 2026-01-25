@@ -324,23 +324,30 @@ const ParkedCarsList = () => {
                             // Chapa Inline.js uses snake_case keys. Using ONLY snake_case to avoid conflicts.
                             // For Inline.js with JavaScript callbacks, callback_url and return_url are optional.
                             const chapaConfig = {
-                                // Public key (Chapa accepts both, but snake_case is preferred)
+                                // Public key - provide both camelCase and snake_case for compatibility
+                                publicKey: chapaPublicKey,
                                 public_key: chapaPublicKey,
                                 
-                                // Transaction + amount (snake_case)
+                                // Transaction + amount - provide both formats
                                 amount: formattedAmount, // Must be string
                                 currency: 'ETB',
+                                txRef: data.txRef,
                                 tx_ref: data.txRef,
 
-                                // Customer info (snake_case)
+                                // Customer info - provide both formats
+                                phoneNumber: formattedPhone,
                                 phone_number: formattedPhone,
+                                firstName: 'Customer',
                                 first_name: 'Customer',
+                                lastName: 'User',
                                 last_name: 'User',
                                 email: generatedEmail,
 
-                                // Payment methods and UI
+                                // Payment methods and UI - provide both formats
+                                availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
                                 available_payment_methods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
                                 customizations: {
+                                    buttonText: 'Pay Now',
                                     button_text: 'Pay Now',
                                     styles: `
                                         .chapa-pay-button { 
@@ -362,12 +369,15 @@ const ParkedCarsList = () => {
                                     `
                                 },
                                 
-                                // Optional: callback URLs (not required for Inline.js with JS callbacks)
-                                // But including them in case Chapa validates them
+                                // Callback URLs - provide both formats (required even with JS callbacks)
+                                callbackUrl: `${window.location.origin}/payment/callback`,
                                 callback_url: `${window.location.origin}/payment/callback`,
+                                returnUrl: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
                                 return_url: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
                                 
+                                showFlag: true,
                                 show_flag: true,
+                                showPaymentMethodsNames: true,
                                 show_payment_methods_names: true,
                                 
                                 // JavaScript callbacks (Chapa Inline.js supports these)
@@ -494,6 +504,17 @@ const ParkedCarsList = () => {
                                         errorMessage = error.data.message;
                                     } else if (error?.response?.data?.message) {
                                         errorMessage = error.response.data.message;
+                                    }
+                                    
+                                    // Check for test credentials error
+                                    const errorStr = String(error).toLowerCase();
+                                    const errorMsgLower = errorMessage.toLowerCase();
+                                    if (errorStr.includes('invalid test number') || 
+                                        errorStr.includes('invalid otp') || 
+                                        errorMsgLower.includes('invalid test number') ||
+                                        errorMsgLower.includes('invalid otp') ||
+                                        (error?.data?.meta?.message && error.data.meta.message.includes('Invalid Test Number'))) {
+                                        errorMessage += '\n\nNote: In test mode, you must use Chapa\'s official test phone numbers. Please refer to Chapa\'s testing documentation for valid test credentials.';
                                     }
                                     
                                     alert(`Payment failed: ${errorMessage}`);
@@ -695,6 +716,18 @@ const ParkedCarsList = () => {
                                                     }
                                                     
                                                     console.log('📤 [FETCH] Chapa Request Headers:', options.headers);
+                                                    
+                                                    // Check if public key is in headers
+                                                    if (options.headers) {
+                                                        const headersObj = options.headers instanceof Headers 
+                                                            ? Object.fromEntries(options.headers.entries())
+                                                            : options.headers;
+                                                        console.log('📤 [FETCH] Headers object:', headersObj);
+                                                        const authHeader = headersObj['Authorization'] || headersObj['authorization'] || headersObj['x-public-key'] || headersObj['X-Public-Key'];
+                                                        if (authHeader) {
+                                                            console.log('🔑 [FETCH] Public key found in headers:', authHeader);
+                                                        }
+                                                    }
                                                     
                                                     return originalFetch.apply(this, arguments)
                                                         .then(response => {

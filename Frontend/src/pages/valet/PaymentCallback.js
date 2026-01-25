@@ -15,13 +15,14 @@ const PaymentCallback = () => {
     useEffect(() => {
         const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-        const verifyWithRetry = async ({ verifyFn, txRef, token, maxAttempts = 10, delayMs = 1200 }) => {
+        const verifyWithRetry = async ({ verifyFn, txRef, carId, token, maxAttempts = 10, delayMs = 1200 }) => {
             for (let attempt = 1; attempt <= maxAttempts; attempt++) {
                 try {
                     // eslint-disable-next-line no-await-in-loop
                     const result = await new Promise((resolve, reject) => {
                         verifyFn({
                             txRef,
+                            carId,
                             token,
                             handleVerifySuccess: resolve,
                             handleVerifyFailure: reject
@@ -101,8 +102,16 @@ const PaymentCallback = () => {
             try {
                 // Choose verification path: package vs hourly
                 const verifyFn = urlCarId ? verifyChapaPayment : verifyChapaPackagePayment;
+                
+                // Get carId from URL or paymentInfo for hourly payments
+                const carIdToVerify = urlCarId || paymentInfo?.carId;
 
-                const data = await verifyWithRetry({ verifyFn, txRef: refToVerify, token: user.token });
+                const data = await verifyWithRetry({ 
+                    verifyFn, 
+                    txRef: refToVerify, 
+                    carId: carIdToVerify,
+                    token: user.token 
+                });
 
                 if (data.transaction?.status === 'successful') {
                     setPaymentStatus('success');

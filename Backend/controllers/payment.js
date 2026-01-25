@@ -88,6 +88,8 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
         // Calling Chapa's /initialize API here would reserve the txRef and cause conflicts.
         // Inline.js will initialize the payment using the public key and txRef we provide.
         
+        console.log("[DEBUG] Returning publicKey in /chapa/initialize response:", CHAPA_PUBLIC_KEY);
+
         res.json({
             success: true,
             txRef: uniqueTxRef,
@@ -241,15 +243,30 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                     }
                 }
             );
+            
+            // Log the response for debugging
+            console.log(`[Payment Verify] Chapa API response for ${txRef}:`, {
+                status: chapaResponse.data?.status,
+                transactionStatus: chapaResponse.data?.data?.status,
+                txRef: chapaResponse.data?.data?.tx_ref
+            });
         } catch (chapaError) {
             // Chapa API error - could be transaction not found or still processing
             const errorMessage = chapaError?.response?.data?.message || chapaError?.message || "Payment verification failed";
             const statusCode = chapaError?.response?.status;
             
-            // If transaction not found or still processing, return pending status for retry
-            if (statusCode === 404 || errorMessage.toLowerCase().includes('not found') || 
+            console.log(`[Payment Verify] Chapa API error for ${txRef}:`, {
+                statusCode,
+                errorMessage,
+                responseData: chapaError?.response?.data
+            });
+            
+            // If transaction not found (404) or still processing, return pending status for retry
+            if (statusCode === 404 || 
+                errorMessage.toLowerCase().includes('not found') || 
                 errorMessage.toLowerCase().includes('processing') || 
-                errorMessage.toLowerCase().includes('pending')) {
+                errorMessage.toLowerCase().includes('pending') ||
+                errorMessage.toLowerCase().includes('not available')) {
                 return res.json({
                     success: true,
                     transaction: {
@@ -264,11 +281,15 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
             return res.status(statusCode || 400).json({ error: errorMessage });
         }
 
+        // Check Chapa API response format
+        // Chapa returns: { status: 'success', data: { status: 'successful'|'pending'|'failed', ... } }
         if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
             const transaction = chapaResponse.data.data;
             
-            // Handle pending transactions - return success with pending status for retry
-            if (transaction.status === 'pending' || transaction.status === 'processing') {
+            // Handle pending/processing transactions - return success with pending status for retry
+            if (transaction.status === 'pending' || 
+                transaction.status === 'processing' || 
+                transaction.status === 'initiated') {
                 return res.json({
                     success: true,
                     transaction: {
@@ -279,9 +300,52 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                 });
             }
             
-            // Extract carId from tx_ref or meta
-            const carIdMatch = transaction.tx_ref.match(/tana-parking-([a-f0-9]{24})/);
-            const carId = carIdMatch ? carIdMatch[1] : null;
+            // Handle failed or cancelled transactions
+            if (transaction.status === 'failed' || transaction.status === 'cancelled') {
+                return res.json({
+                    success: false,
+                    transaction: {
+                        status: transaction.status,
+                        txRef: transaction.tx_ref || txRef,
+                    },
+                    message: `Payment ${transaction.status}. Please try again.`
+                });
+            }
+            
+            // Extract carId from tx_ref
+            // Format: tana-{carIdPrefix}-{timestamp}-{randomSuffix}
+            // Example: tana-696fc624d3-1769326077675-f8qep5mo
+            let carId = null;
+            
+            // Try to extract from tx_ref pattern
+            const txRefMatch = transaction.tx_ref.match(/^tana-([a-f0-9]{10,24})-/);
+            if (txRefMatch) {
+                const carIdPrefix = txRefMatch[1];
+                // If it's a full 24-char ObjectId, use it directly
+                if (carIdPrefix.length === 24 && Types.ObjectId.isValid(carIdPrefix)) {
+                    carId = carIdPrefix;
+                } else {
+                    // If it's a prefix, try to find the car by prefix
+                    // Note: This is less reliable, but works if the prefix is unique enough
+                    const cars = await ParkedCar.find({ 
+                        _id: { $regex: `^${carIdPrefix}` } 
+                    }).limit(1);
+                    if (cars.length > 0) {
+                        carId = cars[0]._id.toString();
+                    }
+                }
+            }
+            
+            // Also check meta for carId (if provided)
+            if (!carId && transaction.meta && transaction.meta.carId) {
+                carId = transaction.meta.carId;
+            }
+            
+            // Also check if carId is passed as query parameter (for more reliable verification)
+            const queryCarId = req.query.carId;
+            if (!carId && queryCarId && Types.ObjectId.isValid(queryCarId)) {
+                carId = queryCarId;
+            }
 
             if (carId && Types.ObjectId.isValid(carId)) {
                 const car = await ParkedCar.findById(carId);

@@ -301,9 +301,13 @@ export const initializePackagePayment = async ({ amount, packageDuration, custom
     }
 };
 
-export const verifyChapaPayment = async ({ txRef, token, handleVerifySuccess, handleVerifyFailure }) => {
+export const verifyChapaPayment = async ({ txRef, carId, token, handleVerifySuccess, handleVerifyFailure }) => {
     try {
-        const result = await axios.get(`${BASE_URL}payment/chapa/verify/${txRef}`, {
+        // Include carId as query parameter for more reliable verification
+        const url = carId 
+            ? `${BASE_URL}payment/chapa/verify/${txRef}?carId=${carId}`
+            : `${BASE_URL}payment/chapa/verify/${txRef}`;
+        const result = await axios.get(url, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
