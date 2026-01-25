@@ -317,34 +317,65 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
             // Example: tana-696fc624d3-1769326077675-f8qep5mo
             let carId = null;
             
-            // Try to extract from tx_ref pattern
-            const txRefMatch = transaction.tx_ref.match(/^tana-([a-f0-9]{10,24})-/);
-            if (txRefMatch) {
-                const carIdPrefix = txRefMatch[1];
-                // If it's a full 24-char ObjectId, use it directly
-                if (carIdPrefix.length === 24 && Types.ObjectId.isValid(carIdPrefix)) {
-                    carId = carIdPrefix;
-                } else {
-                    // If it's a prefix, try to find the car by prefix
-                    // Note: This is less reliable, but works if the prefix is unique enough
-                    const cars = await ParkedCar.find({ 
-                        _id: { $regex: `^${carIdPrefix}` } 
-                    }).limit(1);
-                    if (cars.length > 0) {
-                        carId = cars[0]._id.toString();
-                    }
-                }
+            // PRIORITY 1: Check if carId is passed as query parameter (most reliable)
+            const queryCarId = req.query.carId;
+            if (queryCarId && Types.ObjectId.isValid(queryCarId)) {
+                carId = queryCarId;
             }
             
-            // Also check meta for carId (if provided)
+            // PRIORITY 2: Check meta for carId (if provided by Chapa)
             if (!carId && transaction.meta && transaction.meta.carId) {
                 carId = transaction.meta.carId;
             }
             
-            // Also check if carId is passed as query parameter (for more reliable verification)
-            const queryCarId = req.query.carId;
-            if (!carId && queryCarId && Types.ObjectId.isValid(queryCarId)) {
-                carId = queryCarId;
+            // PRIORITY 3: Try to extract from tx_ref pattern
+            if (!carId) {
+                const txRefMatch = transaction.tx_ref.match(/^tana-([a-f0-9]{10,24})-/);
+                if (txRefMatch) {
+                    const carIdPrefix = txRefMatch[1];
+                    // If it's a full 24-char ObjectId, use it directly
+                    if (carIdPrefix.length === 24 && Types.ObjectId.isValid(carIdPrefix)) {
+                        carId = carIdPrefix;
+                    } else {
+                        // If it's a prefix, try to find the car by converting ObjectId to string
+                        // Use aggregation to convert ObjectId to string for regex matching
+                        try {
+                            const cars = await ParkedCar.aggregate([
+                                {
+                                    $addFields: {
+                                        idString: { $toString: "$_id" }
+                                    }
+                                },
+                                {
+                                    $match: {
+                                        idString: { $regex: `^${carIdPrefix}`, $options: 'i' }
+                                    }
+                                },
+                                {
+                                    $limit: 1
+                                }
+                            ]);
+                            if (cars.length > 0 && cars[0]._id) {
+                                carId = cars[0]._id.toString();
+                            }
+                        } catch (aggregateError) {
+                            console.error(`[Payment Verify] Error finding car by prefix ${carIdPrefix}:`, aggregateError);
+                            // If aggregation fails (older MongoDB), try fetching all and filtering in memory
+                            // This is less efficient but works as a fallback
+                            try {
+                                const allCars = await ParkedCar.find({}).limit(100); // Limit to prevent memory issues
+                                const matchingCar = allCars.find(car => 
+                                    car._id.toString().startsWith(carIdPrefix)
+                                );
+                                if (matchingCar) {
+                                    carId = matchingCar._id.toString();
+                                }
+                            } catch (fallbackError) {
+                                console.error(`[Payment Verify] Fallback search also failed:`, fallbackError);
+                            }
+                        }
+                    }
+                }
             }
 
             if (carId && Types.ObjectId.isValid(carId)) {
