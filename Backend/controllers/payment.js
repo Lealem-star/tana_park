@@ -512,19 +512,39 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
         if (chapaResponse.data.status === 'success' && chapaResponse.data.data) {
             const transaction = chapaResponse.data.data;
 
+            // Normalize transaction status (Chapa can return 'success' or 'successful')
+            // Map 'success' to 'successful' for consistency
+            const normalizedStatus = transaction.status === 'success' ? 'successful' : transaction.status;
+            
+            console.log(`[Package Payment Verify] Transaction status - Original: ${transaction.status}, Normalized: ${normalizedStatus}, txRef: ${transaction.tx_ref || txRef}`);
+
             // Handle pending transactions - return success with pending status for retry
-            if (transaction.status === 'pending' || transaction.status === 'processing') {
+            if (normalizedStatus === 'pending' || 
+                normalizedStatus === 'processing' || 
+                normalizedStatus === 'initiated') {
                 return res.json({
                     success: true,
                     transaction: {
-                        status: transaction.status,
+                        status: normalizedStatus,
                         txRef: transaction.tx_ref || txRef,
                     },
                     message: "Payment is still processing. Please wait and try again."
                 });
             }
+            
+            // Handle failed or cancelled transactions
+            if (normalizedStatus === 'failed' || normalizedStatus === 'cancelled') {
+                return res.json({
+                    success: false,
+                    transaction: {
+                        status: normalizedStatus,
+                        txRef: transaction.tx_ref || txRef,
+                    },
+                    message: `Payment ${normalizedStatus}. Please try again.`
+                });
+            }
 
-            if (transaction.status === 'successful') {
+            if (normalizedStatus === 'successful') {
                 // Create the initial package subscription + first parked record
                 const {
                     carData,
@@ -586,7 +606,7 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
                 res.json({
                     success: true,
                     transaction: {
-                        status: transaction.status,
+                        status: normalizedStatus, // Use normalized status
                         amount: transaction.amount,
                         currency: transaction.currency,
                         txRef: transaction.tx_ref,
@@ -609,7 +629,7 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
                 return res.status(202).json({
                     success: true,
                     transaction: {
-                        status: transaction.status,
+                        status: normalizedStatus, // Use normalized status
                         amount: transaction.amount,
                         currency: transaction.currency,
                         txRef: transaction.tx_ref,
