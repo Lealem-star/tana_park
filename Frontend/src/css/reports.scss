@@ -695,7 +695,7 @@
                 max-width: 100% !important;
                 margin: 0 auto !important;
                 width: 100% !important;
-                height: calc(100vh - 80px) !important;
+                height: calc(100vh - 50px) !important;
             }
 
             .chat-messages {
@@ -764,7 +764,7 @@
 
     // Chat message boxes responsive styles
     .chat-container {
-        height: calc(100vh - 100px) !important;
+        height: calc(100vh - 50px) !important;
         max-width: 100% !important;
         margin: 0 auto !important;
     }

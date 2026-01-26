@@ -237,6 +237,9 @@
         align-items: center;
         border-bottom: 1px solid #e0e0e0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        position: sticky;
+        top: 0;
+        z-index: 100;
 
             .header-left {
                 display: flex;
@@ -350,7 +353,7 @@
     .content-area {
         flex: 1;
         padding: 30px;
-        overflow-y: auto;
+        overflow-y: visible;
         overflow-x: hidden;
         width: 100%;
         box-sizing: border-box;
@@ -477,6 +480,9 @@
 
         .dashboard-header {
             padding: 12px 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
 
             .header-left {
                 gap: 12px;
@@ -520,6 +526,8 @@
 
         .content-area {
             padding: 12px;
+            overflow-y: visible;
+            overflow-x: hidden;
         }
 
         .mobile-overlay {
@@ -572,6 +580,9 @@
     @media (max-width: 480px) {
         .dashboard-header {
             padding: 10px 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
 
             .header-left {
                 gap: 10px;
@@ -610,6 +621,8 @@
 
         .content-area {
             padding: 10px;
+            overflow-y: visible;
+            overflow-x: hidden;
         }
 
         .mobile-sidebar {

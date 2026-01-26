@@ -166,7 +166,7 @@ const GroupChat = () => {
                     </div>
                 )}
 
-                <div className="chat-container" style={{ display: 'flex', flexDirection: 'column', height: isMobile ? 'calc(100vh - 100px)' : '70vh', position: 'relative', maxWidth: isMobile ? '100%' : '100%', margin: '0 auto' }}>
+                <div className="chat-container" style={{ display: 'flex', flexDirection: 'column', height: isMobile ? 'calc(100vh - 50px)' : 'calc(100vh - 120px)', position: 'relative', maxWidth: isMobile ? '100%' : '100%', margin: '0 auto' }}>
                     <div
                         className="chat-messages"
                         style={{
