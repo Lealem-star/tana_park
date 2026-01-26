@@ -44,7 +44,8 @@ const DashboardOverview = () => {
                                 parkZoneCode: car.location || 'Unknown',
                                 valetName: valet.name || 'Unknown',
                                 totalCars: 0,
-                                totalRevenue: 0
+                                totalRevenue: 0,
+                                totalVAT: 0
                             });
                         }
 
@@ -53,7 +54,9 @@ const DashboardOverview = () => {
                         
                         // Use actual totalPaidAmount from the car (default to 0 if not set)
                         const revenue = car.totalPaidAmount || 0;
+                        const vat = car.vatAmount || 0;
                         entry.totalRevenue += revenue;
+                        entry.totalVAT += vat;
                         totalRevenue += revenue;
                     });
 
@@ -128,6 +131,7 @@ const DashboardOverview = () => {
                                         <th>Valet Officer Name</th>
                                         <th>Daily Parked Car</th>
                                         <th>Daily Revenue</th>
+                                        <th>VAT</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -137,6 +141,7 @@ const DashboardOverview = () => {
                                             <td>{row.valetName}</td>
                                             <td>{row.totalCars}</td>
                                             <td>{row.totalRevenue.toFixed(2)} ETB</td>
+                                            <td>{row.totalVAT.toFixed(2)} ETB</td>
                                         </tr>
                                     ))}
                                 </tbody>

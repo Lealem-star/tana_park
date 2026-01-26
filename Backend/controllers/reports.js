@@ -53,10 +53,11 @@ reportsRouter.get("/financial/daily", isLoggedIn, async (req, res) => {
         cars.forEach(car => {
             const valetName = car.valet_id?.name || 'Unknown';
             if (!revenueByValet[valetName]) {
-                revenueByValet[valetName] = { count: 0, revenue: 0 };
+                revenueByValet[valetName] = { count: 0, revenue: 0, vat: 0 };
             }
             revenueByValet[valetName].count++;
             revenueByValet[valetName].revenue += car.totalPaidAmount || 0;
+            revenueByValet[valetName].vat += car.vatAmount || 0;
         });
 
         res.json({
@@ -68,7 +69,8 @@ reportsRouter.get("/financial/daily", isLoggedIn, async (req, res) => {
             revenueByValet: Object.entries(revenueByValet).map(([name, data]) => ({
                 valetName: name,
                 transactionCount: data.count,
-                revenue: data.revenue
+                revenue: data.revenue,
+                vat: data.vat
             }))
         });
     } catch (error) {
@@ -129,11 +131,13 @@ reportsRouter.get("/financial/period", isLoggedIn, async (req, res) => {
                     valetName,
                     date,
                     dailyParkedCar: 0,
-                    dailyRevenue: 0
+                    dailyRevenue: 0,
+                    dailyVAT: 0
                 };
             }
             valetDailyBreakdown[key].dailyParkedCar++;
             valetDailyBreakdown[key].dailyRevenue += car.totalPaidAmount || 0;
+            valetDailyBreakdown[key].dailyVAT += car.vatAmount || 0;
         });
 
         // Convert to array and sort

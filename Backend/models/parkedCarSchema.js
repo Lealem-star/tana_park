@@ -115,6 +115,18 @@ const parkedCarSchema = new mongoose.Schema({
     totalPaidAmount: {
         type: Number,
         default: 0
+    },
+    baseAmount: {
+        type: Number,
+        default: 0
+    },
+    vatAmount: {
+        type: Number,
+        default: 0
+    },
+    vatRate: {
+        type: Number,
+        default: 0.15
     }
 })
 

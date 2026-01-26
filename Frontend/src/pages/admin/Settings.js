@@ -9,6 +9,8 @@ const carTypes = ['tripod', 'automobile', 'truck', 'trailer'];
 const Settings = () => {
     const user = useSelector((state) => state.user);
     const [priceLevels, setPriceLevels] = useState({});
+    const [vatRate, setVatRate] = useState(0.15);
+    const [activeSection, setActiveSection] = useState('pricing'); // 'pricing' | 'vat'
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
@@ -30,6 +32,8 @@ const Settings = () => {
     });
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [priceLevelToDelete, setPriceLevelToDelete] = useState(null);
+    const [editingVAT, setEditingVAT] = useState(false);
+    const [vatInput, setVatInput] = useState('');
 
     useEffect(() => {
         fetchPricingSettings({
@@ -41,6 +45,14 @@ const Settings = () => {
                     // Backward compatibility or empty state
                     setPriceLevels({});
                 }
+                // Load VAT rate
+                if (data && data.vatRate !== undefined) {
+                    setVatRate(data.vatRate);
+                    setVatInput((data.vatRate * 100).toFixed(2));
+                } else {
+                    setVatRate(0.15);
+                    setVatInput('15.00');
+                }
             }
         });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -51,8 +63,8 @@ const Settings = () => {
         setError('');
         setSuccess('');
 
-        // Convert to API format: {priceLevels: {[name]: {carType: {...}}}}
-        const settingsToSave = { priceLevels: {} };
+        // Convert to API format: {priceLevels: {[name]: {carType: {...}}}, vatRate: number}
+        const settingsToSave = { priceLevels: {}, vatRate: vatRate };
         Object.keys(updatedPriceLevels).forEach(priceLevelName => {
             const priceLevel = updatedPriceLevels[priceLevelName];
             settingsToSave.priceLevels[priceLevelName] = {};
@@ -179,10 +191,171 @@ const Settings = () => {
         setPriceLevelToDelete(null);
     };
 
+    // Handle VAT rate edit
+    const handleEditVAT = () => {
+        setEditingVAT(true);
+        setVatInput((vatRate * 100).toFixed(2));
+        setError('');
+    };
+
+    // Handle VAT rate save
+    const handleSaveVAT = () => {
+        const vatPercentage = parseFloat(vatInput);
+        if (isNaN(vatPercentage) || vatPercentage < 0 || vatPercentage > 100) {
+            setError('VAT rate must be between 0 and 100');
+            return;
+        }
+        const newVatRate = vatPercentage / 100;
+        setVatRate(newVatRate);
+        setEditingVAT(false);
+        setError('');
+        
+        // Save VAT rate to backend
+        const settingsToSave = { 
+            priceLevels: priceLevels, 
+            vatRate: newVatRate 
+        };
+        
+        setLoading(true);
+        updatePricingSettings({
+            settings: settingsToSave,
+            token: user?.token,
+            handleUpdateSuccess: (data) => {
+                setSuccess('VAT rate updated successfully!');
+                setLoading(false);
+                setTimeout(() => setSuccess(''), 3000);
+            },
+            handleUpdateFailure: (errorMessage) => {
+                setError(errorMessage);
+                setLoading(false);
+            }
+        });
+    };
+
+    // Handle VAT rate cancel
+    const handleCancelVAT = () => {
+        setEditingVAT(false);
+        setVatInput((vatRate * 100).toFixed(2));
+        setError('');
+    };
+
     return (
         <div className="settings-page">
-            {/* <h1>Settings</h1> */}
-            
+            <div className="settings-toggle">
+                <button
+                    type="button"
+                    className={`toggle-btn ${activeSection === 'pricing' ? 'active' : ''}`}
+                    onClick={() => setActiveSection('pricing')}
+                    disabled={loading}
+                >
+                    Car Type Pricing Configuration
+                </button>
+                <button
+                    type="button"
+                    className={`toggle-btn ${activeSection === 'vat' ? 'active' : ''}`}
+                    onClick={() => setActiveSection('vat')}
+                    disabled={loading}
+                >
+                    VAT Rate Configuration
+                </button>
+            </div>
+
+            {activeSection === 'vat' && (
+            /* VAT Rate Configuration Card */
+            <div className="settings-card vat-card">
+                <div className="card-header-row">
+                    <div>
+                        <h2>VAT Rate Configuration</h2>
+                        <p className="card-subtitle">Configure the Value Added Tax rate applied to all transactions</p>
+                    </div>
+                </div>
+                
+                {success && <div className="alert alert-success">{success}</div>}
+                {error && <div className="alert alert-danger">{error}</div>}
+                
+                <div className="vat-config-section">
+                    <div className="vat-display">
+                        <div className="vat-info">
+                            <label>Current VAT Rate</label>
+                            {editingVAT ? (
+                                <div className="vat-edit-group">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.01"
+                                        value={vatInput}
+                                        onChange={(e) => {
+                                            setVatInput(e.target.value);
+                                            setError('');
+                                        }}
+                                        className="vat-input"
+                                        placeholder="15.00"
+                                    />
+                                    <span className="vat-percent">%</span>
+                                </div>
+                            ) : (
+                                <div className="vat-value-display">
+                                    <span className="vat-percentage">{(vatRate * 100).toFixed(2)}%</span>
+                                    <span className="vat-description">({(vatRate * 100).toFixed(2)}% of base amount)</span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="vat-actions">
+                            {editingVAT ? (
+                                <>
+                                    <button
+                                        className="btn-icon btn-save-edit"
+                                        onClick={handleSaveVAT}
+                                        title="Save VAT Rate"
+                                        disabled={loading}
+                                    >
+                                        <Check size={18} />
+                                    </button>
+                                    <button
+                                        className="btn-icon btn-cancel-edit"
+                                        onClick={handleCancelVAT}
+                                        title="Cancel"
+                                        disabled={loading}
+                                    >
+                                        <XIcon size={18} />
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    className="btn-icon btn-edit"
+                                    onClick={handleEditVAT}
+                                    title="Edit VAT Rate"
+                                    disabled={loading}
+                                >
+                                    <Edit2 size={18} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    <div className="vat-preview">
+                        <p className="vat-preview-label">Example Calculation:</p>
+                        <div className="vat-preview-example">
+                            <div className="preview-row">
+                                <span>Base Amount:</span>
+                                <span>100.00 ETB</span>
+                            </div>
+                            <div className="preview-row">
+                                <span>VAT ({(vatRate * 100).toFixed(2)}%):</span>
+                                <span>{(100 * vatRate).toFixed(2)} ETB</span>
+                            </div>
+                            <div className="preview-row total-row">
+                                <span>Total Amount:</span>
+                                <span>{(100 * (1 + vatRate)).toFixed(2)} ETB</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            )}
+
+            {activeSection === 'pricing' && (
+            /* Car Type Pricing Configuration Card */
             <div className="settings-card">
                 <div className="card-header-row">
                     <h2>Car Type Pricing Configuration</h2>
@@ -338,6 +511,7 @@ const Settings = () => {
                     })
                 )}
             </div>
+            )}
 
             {/* Add Price Level Modal */}
             {showAddModal && (

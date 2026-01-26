@@ -13,6 +13,18 @@
         margin-bottom: 20px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 
+        &.vat-card {
+            background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+            border: 2px solid #e8ecff;
+            
+            .card-subtitle {
+                font-size: 14px;
+                color: #666;
+                margin: 8px 0 0 0;
+                font-weight: 400;
+            }
+        }
+
         .alert {
             padding: 12px 20px;
             border-radius: 8px;
@@ -249,6 +261,173 @@
                         transform: scale(1.1);
                     }
                 }
+            }
+        }
+
+        .vat-config-section {
+            margin-top: 20px;
+            
+            .vat-display {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 20px;
+                padding: 24px;
+                background: white;
+                border-radius: 10px;
+                border: 1px solid #e0e0e0;
+                margin-bottom: 20px;
+
+                .vat-info {
+                    flex: 1;
+
+                    label {
+                        display: block;
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #333;
+                        margin-bottom: 12px;
+                    }
+
+                    .vat-edit-group {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+
+                        .vat-input {
+                            width: 150px;
+                            padding: 12px 16px;
+                            border: 2px solid #667eea;
+                            border-radius: 8px;
+                            font-size: 18px;
+                            font-weight: 600;
+                            color: #333;
+                            text-align: center;
+
+                            &::-webkit-inner-spin-button,
+                            &::-webkit-outer-spin-button {
+                                -webkit-appearance: none;
+                                margin: 0;
+                            }
+                            appearance: textfield;
+                            -moz-appearance: textfield;
+
+                            &:focus {
+                                outline: none;
+                                border-color: #764ba2;
+                                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+                            }
+                        }
+
+                        .vat-percent {
+                            font-size: 18px;
+                            font-weight: 600;
+                            color: #667eea;
+                        }
+                    }
+
+                    .vat-value-display {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 4px;
+
+                        .vat-percentage {
+                            font-size: 32px;
+                            font-weight: 700;
+                            color: #667eea;
+                            line-height: 1;
+                        }
+
+                        .vat-description {
+                            font-size: 14px;
+                            color: #666;
+                            font-weight: 400;
+                        }
+                    }
+                }
+
+                .vat-actions {
+                    display: flex;
+                    gap: 8px;
+                }
+            }
+
+            .vat-preview {
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 10px;
+                border-left: 4px solid #667eea;
+
+                .vat-preview-label {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #333;
+                    margin: 0 0 12px 0;
+                }
+
+                .vat-preview-example {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+
+                    .preview-row {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        font-size: 14px;
+                        color: #555;
+
+                        &.total-row {
+                            margin-top: 8px;
+                            padding-top: 12px;
+                            border-top: 2px solid #e0e0e0;
+                            font-weight: 600;
+                            font-size: 16px;
+                            color: #333;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    .settings-toggle {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding: 6px;
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
+        .toggle-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+
+            &:hover:not(:disabled) {
+                background: #f5f7fa;
+                color: #333;
+            }
+
+            &.active {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+            }
+
+            &:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
             }
         }
     }
@@ -519,6 +698,62 @@
                         height: 14px;
                     }
                 }
+            }
+
+            .vat-config-section {
+                .vat-display {
+                    flex-direction: column;
+                    gap: 16px;
+                    padding: 16px;
+
+                    .vat-info {
+                        width: 100%;
+
+                        .vat-value-display {
+                            .vat-percentage {
+                                font-size: 24px;
+                            }
+                        }
+
+                        .vat-edit-group {
+                            .vat-input {
+                                width: 120px;
+                                font-size: 16px;
+                            }
+                        }
+                    }
+
+                    .vat-actions {
+                        width: 100%;
+                        justify-content: flex-start;
+                    }
+                }
+
+                .vat-preview {
+                    padding: 16px;
+
+                    .vat-preview-example {
+                        .preview-row {
+                            font-size: 13px;
+
+                            &.total-row {
+                                font-size: 14px;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        .settings-toggle {
+            gap: 8px;
+            padding: 5px;
+            margin-bottom: 15px;
+
+            .toggle-btn {
+                padding: 10px 10px;
+                font-size: 12px;
+                border-radius: 9px;
             }
         }
     }

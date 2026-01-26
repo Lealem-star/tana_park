@@ -418,12 +418,13 @@ export const exportFinancialReportToPDF = async ({
                 item.parkZoneCode || 'N/A',
                 item.valetName || 'Unknown',
                 item.dailyParkedCar || 0,
-                formatCurrency(item.dailyRevenue || 0)
+                formatCurrency(item.dailyRevenue || 0),
+                formatCurrency(item.dailyVAT || 0)
             ]);
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['Park Zone Code', 'Valet Officer Name', 'Daily Parked Car', 'Daily Revenue']],
+                head: [['Park Zone Code', 'Valet Officer Name', 'Daily Parked Car', 'Daily Revenue', 'VAT']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: {
@@ -446,10 +447,11 @@ export const exportFinancialReportToPDF = async ({
                     cellWidth: 'wrap'
                 },
                 columnStyles: {
-                    0: { cellWidth: 40 },
-                    1: { cellWidth: 60 },
-                    2: { cellWidth: 40, halign: 'center' },
-                    3: { cellWidth: 50, halign: 'right' }
+                    0: { cellWidth: 35 },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 35, halign: 'center' },
+                    3: { cellWidth: 45, halign: 'right' },
+                    4: { cellWidth: 40, halign: 'right' }
                 },
                 didDrawPage: (data) => {
                     doc.setFontSize(8);

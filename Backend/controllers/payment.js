@@ -11,6 +11,7 @@ const Joi = require('joi');
 const { Types } = require("mongoose");
 
 const paymentRouter = Router();
+const { calculateVAT, reverseCalculateVAT, getVATRate } = require('../utils/vatCalculator');
 
 // Chapa API configuration
 const CHAPA_SECRET_KEY = process.env.CHAPA_SECRET_KEY || "CHASECK_TEST-xxxxxxxxxxxxx"; // Replace with your Chapa secret key
@@ -398,9 +399,14 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                     car.checkedOutAt = new Date();
                     car.paymentMethod = 'online';
                     car.paymentReference = txRef;
-                    // Save the transaction amount as totalPaidAmount
+                    // Save the transaction amount as totalPaidAmount and calculate VAT
                     if (transaction.amount) {
-                        car.totalPaidAmount = transaction.amount;
+                        const vatRate = await getVATRate();
+                        const vatBreakdown = reverseCalculateVAT(transaction.amount, vatRate);
+                        car.totalPaidAmount = vatBreakdown.totalWithVat;
+                        car.baseAmount = vatBreakdown.baseAmount;
+                        car.vatAmount = vatBreakdown.vatAmount;
+                        car.vatRate = vatRate;
                     }
                     await car.save();
 
@@ -600,6 +606,17 @@ paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) =
                     totalPaidAmount: transaction.amount || amount || 0
                 });
 
+                // Calculate and store VAT breakdown
+                const finalAmount = transaction.amount || amount || 0;
+                if (finalAmount > 0) {
+                    const vatRate = await getVATRate();
+                    const vatBreakdown = reverseCalculateVAT(finalAmount, vatRate);
+                    parkedCar.baseAmount = vatBreakdown.baseAmount;
+                    parkedCar.vatAmount = vatBreakdown.vatAmount;
+                    parkedCar.vatRate = vatRate;
+                    await parkedCar.save();
+                }
+
                 // Clean up pending payment from MongoDB
                 await PendingPackagePayment.deleteOne({ txRef });
 
@@ -729,7 +746,12 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
                     car.paymentMethod = 'online';
                     car.paymentReference = txRef || tx_ref;
                     if (amount) {
-                        car.totalPaidAmount = parseFloat(amount);
+                        const vatRate = await getVATRate();
+                        const vatBreakdown = reverseCalculateVAT(parseFloat(amount), vatRate);
+                        car.totalPaidAmount = vatBreakdown.totalWithVat;
+                        car.baseAmount = vatBreakdown.baseAmount;
+                        car.vatAmount = vatBreakdown.vatAmount;
+                        car.vatRate = vatRate;
                     }
                     await car.save();
                     console.log(`Car ${carId} checked out successfully via Chapa callback`);
@@ -795,6 +817,17 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
                         totalPaidAmount: amount ? parseFloat(amount) : (storedAmount || 0)
                     });
 
+                    // Calculate and store VAT breakdown
+                    const finalAmount = amount ? parseFloat(amount) : (storedAmount || 0);
+                    if (finalAmount > 0) {
+                        const vatRate = await getVATRate();
+                        const vatBreakdown = reverseCalculateVAT(finalAmount, vatRate);
+                        parkedCar.baseAmount = vatBreakdown.baseAmount;
+                        parkedCar.vatAmount = vatBreakdown.vatAmount;
+                        parkedCar.vatRate = vatRate;
+                        await parkedCar.save();
+                    }
+
                     // Clean up pending payment from MongoDB
                     await PendingPackagePayment.deleteOne({ txRef });
                     console.log(`Package payment successful, car created with id ${parkedCar._id}`);
@@ -842,7 +875,12 @@ paymentRouter.get("/chapa/callback", async (req, res) => {
                             car.paymentMethod = 'online';
                             car.paymentReference = tx_ref;
                             if (transaction.amount) {
-                                car.totalPaidAmount = transaction.amount;
+                                const vatRate = await getVATRate();
+                                const vatBreakdown = reverseCalculateVAT(transaction.amount, vatRate);
+                                car.totalPaidAmount = vatBreakdown.totalWithVat;
+                                car.baseAmount = vatBreakdown.baseAmount;
+                                car.vatAmount = vatBreakdown.vatAmount;
+                                car.vatRate = vatRate;
                             }
                             await car.save();
                             console.log(`Car ${carId} checked out successfully via Chapa callback (GET)`);

@@ -74,6 +74,12 @@ const RegisterCar = () => {
                     // Use default codes if database is empty
                     setPlateCodes(defaultPlateCodes);
                 }
+                // Store VAT rate from backend
+                if (data && data.vatRate !== undefined) {
+                    window.vatRate = data.vatRate;
+                } else {
+                    window.vatRate = 0.15; // Default
+                }
             }
         });
     }, []);
@@ -99,7 +105,8 @@ const RegisterCar = () => {
         }
 
         const priceNumber = Number(packagePrice);
-        const vatRate = 0.15;
+        // Get VAT rate from backend settings (stored in window.vatRate) or use default
+        const vatRate = window.vatRate || 0.15;
         const vatAmount = Math.round(priceNumber * vatRate * 100) / 100;
         const totalWithVat = Math.round((priceNumber + vatAmount) * 100) / 100;
 

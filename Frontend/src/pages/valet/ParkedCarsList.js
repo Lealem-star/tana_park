@@ -63,6 +63,13 @@ const ParkedCarsList = () => {
                         trailer: { hourly: 100, weekly: 0, monthly: 0, yearly: 0 }
                     });
                 }
+                // Store VAT rate from backend
+                if (data && data.vatRate !== undefined) {
+                    // Store in component state if needed, or use directly
+                    window.vatRate = data.vatRate;
+                } else {
+                    window.vatRate = 0.15; // Default
+                }
             }
         });
     }, [user, filter, selectedDate, loadCars]);
@@ -111,7 +118,8 @@ const ParkedCarsList = () => {
             parkingFee = Math.round((hoursParked * pricePerHour) * 100) / 100;
         }
 
-        const vatRate = 0.15;
+        // Get VAT rate from backend settings (stored in window.vatRate) or use default
+        const vatRate = window.vatRate || 0.15;
         const vatAmount = Math.round(parkingFee * vatRate * 100) / 100;
         const totalWithVat = Math.round((parkingFee + vatAmount) * 100) / 100;
 

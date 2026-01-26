@@ -199,9 +199,16 @@ parkedCarRouter.put("/:id", isLoggedIn, async (req, res) => {
             car.status = status;
             if (status === 'checked_out') {
                 car.checkedOutAt = new Date();
-                car.checkedOutBy = currentUser._id;
+                car.checkedBy = currentUser._id;
                 if (totalPaidAmount !== undefined) {
-                    car.totalPaidAmount = totalPaidAmount;
+                    // Calculate VAT breakdown for manual payments
+                    const vatRate = await getVATRate();
+                    // For manual payments, assume totalPaidAmount includes VAT
+                    const vatBreakdown = reverseCalculateVAT(totalPaidAmount, vatRate);
+                    car.totalPaidAmount = vatBreakdown.totalWithVat;
+                    car.baseAmount = vatBreakdown.baseAmount;
+                    car.vatAmount = vatBreakdown.vatAmount;
+                    car.vatRate = vatRate;
                 }
                 if (paymentMethod !== undefined) {
                     car.paymentMethod = paymentMethod;

@@ -175,6 +175,7 @@ const FinancialReports = () => {
                                                         <th>Valet Officer Name</th>
                                                         <th>Daily Parked Car</th>
                                                         <th>Daily Revenue</th>
+                                                        <th>VAT</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -184,6 +185,7 @@ const FinancialReports = () => {
                                                             <td>{item.valetName}</td>
                                                             <td>{item.dailyParkedCar}</td>
                                                             <td>{formatCurrency(item.dailyRevenue)}</td>
+                                                            <td>{formatCurrency(item.dailyVAT || 0)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

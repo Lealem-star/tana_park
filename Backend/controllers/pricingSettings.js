@@ -44,7 +44,8 @@ pricingSettingsRouter.put("/", isLoggedIn, async (req, res) => {
 
         const schema = Joi.object({
             settings: Joi.object({
-                priceLevels: Joi.object().pattern(Joi.string(), priceLevelSchema).optional()
+                priceLevels: Joi.object().pattern(Joi.string(), priceLevelSchema).optional(),
+                vatRate: Joi.number().min(0).max(1).optional()
             }).allow({}) // Allow other fields for backward compatibility
         });
 
