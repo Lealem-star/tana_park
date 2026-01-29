@@ -21,6 +21,7 @@ const ParkedCarsList = () => {
     const [feeDetails, setFeeDetails] = useState(null);
     const [loading, setLoading] = useState(false);
     const chapaInstanceRef = useRef(null);
+    const lastChapaErrorRef = useRef(null); // Store last Chapa API error response
     const [dailyStats, setDailyStats] = useState({
         totalParked: 0,
         checkedOut: 0,
@@ -187,6 +188,8 @@ const ParkedCarsList = () => {
             }
             // Clear old localStorage entries for this car to ensure fresh payment
             localStorage.removeItem(`chapa_payment_${selectedCar._id}`);
+            // Clear any stored error from previous attempts
+            lastChapaErrorRef.current = null;
                 
             // Initialize Chapa payment for online payment
                 const customerName = selectedCar.customerName || 'Customer';
@@ -317,46 +320,73 @@ const ParkedCarsList = () => {
                             // Chapa Inline.js expects amount as a string with 2 decimal places
                             const formattedAmount = amountNum.toFixed(2);
                             
-                            // Validate phone number format (should be E.164 format: +251...)
+                            // Validate phone number format
+                            // CRITICAL: Chapa test mode requires LOCAL format with leading 0 (0900112233)
+                            // Chapa Inline.js strips the leading 0 if we pass E.164 format (+251900112233)
+                            // So for test mode, we MUST use local format (0900112233)
+                            const isTestMode = chapaPublicKey.startsWith('CHAPUBK_TEST-');
                             let formattedPhone = customerPhone;
-                            if (formattedPhone && !formattedPhone.startsWith('+')) {
-                                // If phone doesn't start with +, try to format it
-                                formattedPhone = formattedPhone.replace(/^0/, '+251');
-                                if (!formattedPhone.startsWith('+')) {
-                                    formattedPhone = `+251${formattedPhone}`;
+                            
+                            if (isTestMode) {
+                                // TEST MODE: Use local format with leading 0 (0900112233)
+                                // Ensure phone starts with 0 for Ethiopian numbers
+                                if (formattedPhone.startsWith('+251')) {
+                                    // Convert E.164 to local: +251900112233 -> 0900112233
+                                    formattedPhone = '0' + formattedPhone.substring(4);
+                                } else if (!formattedPhone.startsWith('0')) {
+                                    // Add leading 0 if missing: 900112233 -> 0900112233
+                                    formattedPhone = '0' + formattedPhone;
+                                }
+                                // Keep as-is if already in local format (0900112233)
+                            } else {
+                                // LIVE MODE: Use E.164 format (+251900112233)
+                                if (formattedPhone && !formattedPhone.startsWith('+')) {
+                                    // Convert local to E.164: 0900112233 -> +251900112233
+                                    formattedPhone = formattedPhone.replace(/^0/, '+251');
+                                    if (!formattedPhone.startsWith('+')) {
+                                        formattedPhone = `+251${formattedPhone}`;
+                                    }
                                 }
                             }
                             
+                            // Log phone number format for debugging
+                            console.log('📱 Phone number formatting:', {
+                                original: customerPhone,
+                                formatted: formattedPhone,
+                                format: formattedPhone.startsWith('+') ? 'E.164' : formattedPhone.startsWith('0') ? 'Local' : 'Other',
+                                isTestMode: isTestMode,
+                                note: isTestMode ? 'Using LOCAL format (0...) for Chapa test mode' : 'Using E.164 format (+251...) for live mode'
+                            });
+                            
                             const generatedEmail = `${formattedPhone.replace(/[^0-9]/g, '')}@tana-parking.com`;
 
-                            // Chapa Inline.js uses snake_case keys. Using ONLY snake_case to avoid conflicts.
-                            // For Inline.js with JavaScript callbacks, callback_url and return_url are optional.
+                            // Chapa Inline.js configuration - using camelCase (primary format)
+                            // Chapa Inline.js accepts camelCase and converts internally as needed
                             const chapaConfig = {
-                                // Public key - provide both camelCase and snake_case for compatibility
+                                // Public key (required)
                                 publicKey: chapaPublicKey,
-                                public_key: chapaPublicKey,
                                 
-                                // Transaction + amount - provide both formats
+                                // Transaction reference (required)
+                                txRef: data.txRef,
+                                
+                                // Amount and currency (required)
                                 amount: formattedAmount, // Must be string
                                 currency: 'ETB',
-                                txRef: data.txRef,
-                                tx_ref: data.txRef,
-
-                                // Customer info - provide both formats
+                                
+                                // Customer information (required)
                                 phoneNumber: formattedPhone,
-                                phone_number: formattedPhone,
                                 firstName: 'Customer',
-                                first_name: 'Customer',
                                 lastName: 'User',
-                                last_name: 'User',
                                 email: generatedEmail,
-
-                                // Payment methods and UI - provide both formats
+                                
+                                // Payment methods (optional - restricts available methods)
                                 availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
-                                available_payment_methods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
+                                
+                                // UI customizations (optional)
                                 customizations: {
+                                    title: 'Tana Parking Payment',
+                                    description: `Parking fee payment for ${selectedCar.licensePlate || 'your vehicle'}`,
                                     buttonText: 'Pay Now',
-                                    button_text: 'Pay Now',
                                     styles: `
                                         .chapa-pay-button { 
                                             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -377,16 +407,13 @@ const ParkedCarsList = () => {
                                     `
                                 },
                                 
-                                // Callback URLs - provide both formats (required even with JS callbacks)
+                                // Callback URLs (optional but recommended)
                                 callbackUrl: `${window.location.origin}/payment/callback`,
-                                callback_url: `${window.location.origin}/payment/callback`,
                                 returnUrl: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
-                                return_url: `${window.location.origin}/payment/success?carId=${selectedCar._id}`,
                                 
+                                // UI options (optional)
                                 showFlag: true,
-                                show_flag: true,
                                 showPaymentMethodsNames: true,
-                                show_payment_methods_names: true,
                                 
                                 // JavaScript callbacks (Chapa Inline.js supports these)
                                 onSuccessfulPayment: async (response) => {
@@ -457,36 +484,31 @@ const ParkedCarsList = () => {
                                     });
                                 },
                                 onPaymentFailure: (error) => {
-                                    console.error('❌ Payment failed - full error object:', error);
-                                    console.error('❌ Payment failed - error message:', error?.message);
-                                    console.error('❌ Payment failed - error type:', typeof error);
-                                    console.error('❌ Payment failed - error keys:', Object.keys(error || {}));
+                                    console.error('❌ Payment failed - error received:', error);
                                     
-                                    // Try to extract detailed error information
-                                    let detailedError = error;
-                                    if (typeof error === 'string') {
-                                        detailedError = { message: error, raw: error };
-                                    } else if (error?.response) {
-                                        detailedError = {
-                                            message: error.message,
-                                            status: error.response?.status,
-                                            statusText: error.response?.statusText,
-                                            data: error.response?.data,
-                                            headers: error.response?.headers
-                                        };
-                                    } else if (error?.data) {
-                                        detailedError = {
-                                            message: error.message || error.data?.message,
-                                            data: error.data,
-                                            status: error.status
-                                        };
+                                    // Get detailed error from stored API response
+                                    const storedError = lastChapaErrorRef.current;
+                                    let chapaDetailedMessage = null;
+                                    
+                                    if (storedError) {
+                                        // Extract detailed message from Chapa's API response structure
+                                        chapaDetailedMessage = storedError?.data?.meta?.message || 
+                                                             storedError?.message;
+                                        console.error('❌ Payment failed - Chapa API error details:', storedError);
                                     }
                                     
-                                    console.error('❌ Payment failed - detailed error:', JSON.stringify(detailedError, null, 2));
-                                    console.error('❌ Payment failed - error toString:', String(error));
-                                    
-                                    // Check Network tab for Chapa API response
-                                    console.warn('🔍 Please check the browser Network tab (F12 → Network) and look for requests to "chapa" or "inline.chapaservices.net" to see the actual API error response.');
+                                    // Try to extract from error object if available
+                                    if (!chapaDetailedMessage) {
+                                        if (error?.data?.meta?.message) {
+                                            chapaDetailedMessage = error.data.meta.message;
+                                        } else if (error?.data?.data?.meta?.message) {
+                                            chapaDetailedMessage = error.data.data.meta.message;
+                                        } else if (error?.response?.data?.data?.meta?.message) {
+                                            chapaDetailedMessage = error.response.data.data.meta.message;
+                                        } else if (error?.response?.data?.meta?.message) {
+                                            chapaDetailedMessage = error.response.data.meta.message;
+                                        }
+                                    }
                                     
                                     // Clean up on failure to ensure fresh txRef on retry
                                     if (selectedCar?._id) {
@@ -500,29 +522,31 @@ const ParkedCarsList = () => {
                                         chapaInstanceRef.current = null;
                                     }
                                     
-                                    // Extract more detailed error message
-                                    let errorMessage = 'Please try again';
-                                    if (error?.message) {
-                                        errorMessage = error.message;
-                                    } else if (typeof error === 'string') {
-                                        errorMessage = error;
-                                    } else if (error?.error) {
-                                        errorMessage = error.error;
-                                    } else if (error?.data?.message) {
-                                        errorMessage = error.data.message;
-                                    } else if (error?.response?.data?.message) {
-                                        errorMessage = error.response.data.message;
-                                    }
+                                    // Clear stored error after use
+                                    lastChapaErrorRef.current = null;
                                     
-                                    // Check for test credentials error
-                                    const errorStr = String(error).toLowerCase();
+                                    // Extract error message - prioritize Chapa's detailed message
+                                    let errorMessage = chapaDetailedMessage || 
+                                                     error?.message || 
+                                                     (typeof error === 'string' ? error : 'Payment failed. Please try again.');
+                                    
+                                    // Add helpful context for common test mode errors
                                     const errorMsgLower = errorMessage.toLowerCase();
-                                    if (errorStr.includes('invalid test number') || 
-                                        errorStr.includes('invalid otp') || 
-                                        errorMsgLower.includes('invalid test number') ||
-                                        errorMsgLower.includes('invalid otp') ||
-                                        (error?.data?.meta?.message && error.data.meta.message.includes('Invalid Test Number'))) {
-                                        errorMessage += '\n\nNote: In test mode, you must use Chapa\'s official test phone numbers. Please refer to Chapa\'s testing documentation for valid test credentials.';
+                                    const phoneNumber = selectedCar?.phoneNumber || 'N/A';
+                                    
+                                    if (errorMsgLower.includes('invalid test number') || 
+                                        errorMsgLower.includes('invalid otp') || 
+                                        errorMsgLower.includes('payment method')) {
+                                        let helpText = '\n\n⚠️ TEST MODE REQUIREMENTS:\n';
+                                        helpText += `• Phone number used: ${phoneNumber}\n`;
+                                        helpText += '• Valid test numbers:\n';
+                                        helpText += '  - telebirr/cbebirr/ebirr: 0900112233, 0900123456, 0900881111\n';
+                                        helpText += '  - mpesa: 0700112233, 0700123456, 0700881111\n';
+                                        helpText += '• Make sure the payment method matches the phone number prefix:\n';
+                                        helpText += '  - 09xxx = telebirr/cbebirr/ebirr\n';
+                                        helpText += '  - 07xxx = mpesa\n';
+                                        helpText += '• Check your Chapa dashboard to ensure payment methods are enabled for test mode';
+                                        errorMessage += helpText;
                                     }
                                     
                                     alert(`Payment failed: ${errorMessage}`);
@@ -702,18 +726,39 @@ const ParkedCarsList = () => {
                                                             console.log('📤 [FETCH] Chapa Request Body (parsed):', bodyData);
                                                             console.log('📤 [FETCH] Request body keys:', Object.keys(bodyData));
                                                             
-                                                            // Check public key in request
+                                                            // Log ALL FormData values for debugging
+                                                            console.log('📋 [FETCH] Full FormData values:', Object.entries(bodyData).map(([k, v]) => {
+                                                                const valueStr = typeof v === 'string' ? (v.length > 100 ? v.substring(0, 100) + '...' : v) : JSON.stringify(v);
+                                                                return `${k}: ${valueStr}`;
+                                                            }).join(', '));
+                                                            
+                                                            // Log phone number specifically
+                                                            const phoneInBody = bodyData.phone_number || bodyData.phoneNumber || bodyData.phone || bodyData.mobile;
+                                                            if (phoneInBody) {
+                                                                console.log('📱 [FETCH] Phone number being sent:', phoneInBody);
+                                                                console.log('📱 [FETCH] Phone number format:', phoneInBody.startsWith('+') ? 'E.164 (+251...)' : phoneInBody.startsWith('0') ? 'Local (0...)' : 'Other');
+                                                                console.log('📱 [FETCH] Phone number length:', phoneInBody.length);
+                                                            } else {
+                                                                console.warn('⚠️ [FETCH] Phone number not found in request body!');
+                                                                console.log('📤 [FETCH] Available keys:', Object.keys(bodyData));
+                                                                console.log('📤 [FETCH] Full body values:', Object.entries(bodyData).map(([k, v]) => `${k}: ${typeof v === 'string' ? v.substring(0, 50) : v}`));
+                                                            }
+                                                            
+                                                            // Log payment method being used
+                                                            const paymentMethod = bodyData.payment_method || bodyData.paymentMethod || bodyData.method || bodyData.type;
+                                                            if (paymentMethod) {
+                                                                console.log('💳 [FETCH] Payment method being sent:', paymentMethod);
+                                                            } else {
+                                                                console.warn('⚠️ [FETCH] Payment method not found in request body!');
+                                                            }
+                                                            
+                                                            // Check public key in request body (optional - key is usually in headers)
                                                             const publicKeyInBody = bodyData.public_key || bodyData.publicKey;
                                                             if (publicKeyInBody) {
-                                                                console.log('🔑 [FETCH] Public key being sent:', publicKeyInBody);
-                                                                console.log('🔑 [FETCH] Public key length:', publicKeyInBody?.length);
-                                                                console.log('🔑 [FETCH] Public key starts with CHAPUBK_TEST-:', publicKeyInBody?.startsWith('CHAPUBK_TEST-'));
-                                                                console.log('🔑 [FETCH] Public key starts with CHAPUBK-:', publicKeyInBody?.startsWith('CHAPUBK-'));
-                                                                console.log('🔑 [FETCH] Full public key:', publicKeyInBody);
+                                                                console.log('🔑 [FETCH] Public key found in request body:', publicKeyInBody.substring(0, 20) + '...');
                                                             } else {
-                                                                console.error('❌ [FETCH] NO PUBLIC KEY FOUND IN REQUEST BODY!');
-                                                                console.log('📤 [FETCH] Available keys in body:', Object.keys(bodyData));
-                                                                console.log('📤 [FETCH] Full body:', bodyData);
+                                                                // This is normal - Chapa Inline.js sends public key in Authorization header, not body
+                                                                console.log('ℹ️ [FETCH] Public key not in request body (normal - sent in Authorization header instead)');
                                                             }
                                                         } catch (e) {
                                                             console.error('❌ [FETCH] Error parsing request body:', e);
@@ -769,6 +814,11 @@ const ParkedCarsList = () => {
                                                                     
                                                                     // Log the full response for debugging
                                                                     console.error('❌ [FETCH] FULL CHAPA ERROR RESPONSE:', JSON.stringify(jsonResponse, null, 2));
+                                                                    
+                                                                    // Store error response for error handler
+                                                                    if (jsonResponse.status === 'failed' || jsonResponse.message) {
+                                                                        lastChapaErrorRef.current = jsonResponse;
+                                                                    }
                                                                 } catch (e) {
                                                                     // Not JSON, that's okay - log as text
                                                                     console.error('❌ [FETCH] Chapa Response (not JSON, raw text):', text);
