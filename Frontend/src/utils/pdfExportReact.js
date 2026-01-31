@@ -429,3 +429,276 @@ export const exportFinancialReportToPDF = async ({
     }
 };
 
+// PDF Document Component for Administrative Reports
+const AdministrativeReportPDF = ({ title, subtitle, data, logoBase64, type = 'users' }) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const renderHeader = () => (
+        <View style={styles.header}>
+            <View style={styles.logoContainer}>
+                {logoBase64 && (
+                    <Image src={logoBase64} style={styles.logo} />
+                )}
+                <Text style={styles.companyName}>TanaPark</Text>
+            </View>
+            <Text style={styles.title}>{title}</Text>
+            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            <Text style={styles.generatedDate}>Generated on: {dateStr}</Text>
+        </View>
+    );
+
+    if (type === 'users') {
+        const valetUsers = [];
+        const administrativeUsers = [];
+
+        (data.usersByType || []).forEach(typeGroup => {
+            if (typeGroup.type === 'valet') {
+                valetUsers.push(...typeGroup.users);
+            } else if (typeGroup.type === 'system_admin' || typeGroup.type === 'manager') {
+                administrativeUsers.push(...typeGroup.users);
+            }
+        });
+
+        return (
+            <Document>
+                <Page size="A4" style={styles.page}>
+                    {renderHeader()}
+                    
+                    <View style={styles.summary}>
+                        <Text style={styles.summaryTitle}>Summary</Text>
+                        <View style={styles.summaryRow}>
+                            <Text style={styles.summaryLabel}>Total officers:</Text>
+                            <Text style={styles.summaryValue}>{data.totalUsers || 0}</Text>
+                        </View>
+                        <View style={styles.summaryRow}>
+                            <Text style={styles.summaryLabel}>Valet:</Text>
+                            <Text style={styles.summaryValue}>{valetUsers.length}</Text>
+                        </View>
+                        <View style={styles.summaryRow}>
+                            <Text style={styles.summaryLabel}>Administrative:</Text>
+                            <Text style={styles.summaryValue}>{administrativeUsers.length}</Text>
+                        </View>
+                    </View>
+
+                    {valetUsers.length > 0 && (
+                        <View style={{ marginTop: 15 }}>
+                            <Text style={styles.dateHeader}>Valet ({valetUsers.length})</Text>
+                            <View style={styles.tableHeader}>
+                                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Name</Text>
+                                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Phone Number</Text>
+                                <Text style={[styles.tableHeaderCell, { flex: 0.8 }]}>Park Zone Code</Text>
+                            </View>
+                            {valetUsers.map((user, index) => (
+                                <View key={index} style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]}>
+                                    <Text style={[styles.tableCell, { flex: 1 }]}>{user.name || 'N/A'}</Text>
+                                    <Text style={[styles.tableCell, { flex: 1 }]}>{user.phoneNumber || 'N/A'}</Text>
+                                    <Text style={[styles.tableCell, { flex: 0.8 }]}>{user.parkZoneCode || 'N/A'}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
+                    {administrativeUsers.length > 0 && (
+                        <View style={{ marginTop: 15 }}>
+                            <Text style={styles.dateHeader}>Administrative ({administrativeUsers.length})</Text>
+                            <View style={styles.tableHeader}>
+                                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Name</Text>
+                                <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Phone Number</Text>
+                                <Text style={[styles.tableHeaderCell, { flex: 0.8 }]}>Role</Text>
+                            </View>
+                            {administrativeUsers.map((user, index) => (
+                                <View key={index} style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]}>
+                                    <Text style={[styles.tableCell, { flex: 1 }]}>{user.name || 'N/A'}</Text>
+                                    <Text style={[styles.tableCell, { flex: 1 }]}>{user.phoneNumber || 'N/A'}</Text>
+                                    <Text style={[styles.tableCell, { flex: 0.8 }]}>
+                                        {user.role || (data.usersByType?.find(t => t.type === 'system_admin' || t.type === 'manager')?.type || 'N/A')}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
+                    <Text style={styles.footer}>
+                        TanaPark - Professional Parking Management System
+                    </Text>
+                </Page>
+            </Document>
+        );
+    }
+
+    return null;
+};
+
+// Export function for Administrative Reports
+export const exportAdministrativeReportToPDF = async ({
+    title,
+    subtitle,
+    data,
+    filename,
+    type = 'users'
+}) => {
+    try {
+        const logoBase64 = await getImageAsBase64();
+        const doc = (
+            <AdministrativeReportPDF
+                title={title}
+                subtitle={subtitle}
+                data={data}
+                logoBase64={logoBase64}
+                type={type}
+            />
+        );
+        const blob = await pdf(doc).toBlob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        throw error;
+    }
+};
+
+// PDF Document Component for Customer Reports
+const CustomerReportPDF = ({ title, subtitle, data, logoBase64, type = 'vehicle-history' }) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const renderHeader = () => (
+        <View style={styles.header}>
+            <View style={styles.logoContainer}>
+                {logoBase64 && (
+                    <Image src={logoBase64} style={styles.logo} />
+                )}
+                <Text style={styles.companyName}>TanaPark</Text>
+            </View>
+            <Text style={styles.title}>{title}</Text>
+            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            <Text style={styles.generatedDate}>Generated on: {dateStr}</Text>
+        </View>
+    );
+
+    if (type === 'vehicle-history') {
+        const formatDateTime = (date) => {
+            if (!date) return 'N/A';
+            return new Date(date).toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        };
+
+        return (
+            <Document>
+                <Page size="A4" style={styles.page}>
+                    {renderHeader()}
+                    
+                    {data.totalVisits && (
+                        <View style={styles.summary}>
+                            <Text style={styles.summaryTitle}>Summary</Text>
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Total Visits:</Text>
+                                <Text style={styles.summaryValue}>{data.totalVisits}</Text>
+                            </View>
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Total Paid:</Text>
+                                <Text style={styles.summaryValue}>{formatCurrency(data.totalPaid || 0)}</Text>
+                            </View>
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Average Payment:</Text>
+                                <Text style={styles.summaryValue}>{formatCurrency(data.averagePayment || 0)}</Text>
+                            </View>
+                        </View>
+                    )}
+
+                    <View style={{ marginTop: 15 }}>
+                        <View style={styles.tableHeader}>
+                            <Text style={[styles.tableHeaderCell, { flex: 0.8 }]}>Parked At</Text>
+                            <Text style={[styles.tableHeaderCell, { flex: 0.8 }]}>Checked Out At</Text>
+                            <Text style={[styles.tableHeaderCell, { flex: 0.7 }]}>License Plate</Text>
+                            <Text style={[styles.tableHeaderCell, { flex: 0.6 }]}>Model</Text>
+                            <Text style={[styles.tableHeaderCell, { flex: 0.5 }]}>Status</Text>
+                            <Text style={[styles.tableHeaderCell, { flex: 0.6 }]}>Amount</Text>
+                        </View>
+                        {(data.history || []).map((item, index) => (
+                            <View key={index} style={[styles.tableRow, index % 2 === 1 && styles.tableRowEven]}>
+                                <Text style={[styles.tableCell, { flex: 0.8, fontSize: 8 }]}>
+                                    {formatDateTime(item.parkedAt)}
+                                </Text>
+                                <Text style={[styles.tableCell, { flex: 0.8, fontSize: 8 }]}>
+                                    {formatDateTime(item.checkedOutAt)}
+                                </Text>
+                                <Text style={[styles.tableCell, { flex: 0.7 }]}>{item.licensePlate || 'N/A'}</Text>
+                                <Text style={[styles.tableCell, { flex: 0.6 }]}>{item.model || 'N/A'}</Text>
+                                <Text style={[styles.tableCell, { flex: 0.5 }]}>{item.status || 'N/A'}</Text>
+                                <Text style={[styles.tableCell, styles.tableCellRight, { flex: 0.6 }]}>
+                                    {formatCurrency(item.totalPaidAmount || 0)}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+
+                    <Text style={styles.footer}>
+                        TanaPark - Professional Parking Management System
+                    </Text>
+                </Page>
+            </Document>
+        );
+    }
+
+    return null;
+};
+
+// Export function for Customer Reports
+export const exportCustomerReportToPDF = async ({
+    title,
+    subtitle,
+    data,
+    filename,
+    type = 'vehicle-history'
+}) => {
+    try {
+        const logoBase64 = await getImageAsBase64();
+        const doc = (
+            <CustomerReportPDF
+                title={title}
+                subtitle={subtitle}
+                data={data}
+                logoBase64={logoBase64}
+                type={type}
+            />
+        );
+        const blob = await pdf(doc).toBlob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        throw error;
+    }
+};
+

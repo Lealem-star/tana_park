@@ -4,7 +4,7 @@ import {
     fetchUsersReport
 } from '../../../api/api';
 import { Users, Download } from 'lucide-react';
-import { exportAdministrativeReportToPDF } from '../../../utils/pdfExport';
+import { exportAdministrativeReportToPDF } from '../../../utils/pdfExportReact';
 import '../../../css/reports.scss';
 
 const AdministrativeReports = () => {

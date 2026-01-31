@@ -4,7 +4,7 @@ import {
     fetchVehicleHistoryReport
 } from '../../../api/api';
 import { Car, Search, Download } from 'lucide-react';
-import { exportCustomerReportToPDF } from '../../../utils/pdfExport';
+import { exportCustomerReportToPDF } from '../../../utils/pdfExportReact';
 import '../../../css/reports.scss';
 
 const CustomerReports = () => {
