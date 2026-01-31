@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { setUser } from '../../reducers/userReducer';
 import { resetPassword, updateUser, uploadProfilePhoto } from '../../api/api';
+import { syncLanguageWithUser } from '../../utils/languageSync';
 import { X, User, Camera } from 'lucide-react';
 import '../../css/valetDashboard.scss';
 
 const Profile = () => {
+    const { t } = useTranslation();
     const [showProfileModal, setShowProfileModal] = useState(true); // Always show when routed to /valet/profile
     const [profileForm, setProfileForm] = useState({
         name: '',
@@ -14,7 +17,8 @@ const Profile = () => {
         password: '',
         confirmPassword: '',
         profilePhoto: null,
-        profilePhotoPreview: null
+        profilePhotoPreview: null,
+        language: 'en'
     });
     const [isUpdated, setIsUpdated] = useState(false);
     const [error, setError] = useState('');
@@ -42,7 +46,8 @@ const Profile = () => {
             password: '',
             confirmPassword: '',
             profilePhoto: null,
-            profilePhotoPreview: photoUrl
+            profilePhotoPreview: photoUrl,
+            language: user?.language || 'en'
         });
     }, [user, navigate]);
 
@@ -80,7 +85,7 @@ const Profile = () => {
         setLoading(true);
 
         if (profileForm.password && profileForm.password !== profileForm.confirmPassword) {
-            setError('New password and confirm password must match');
+            setError(t('profile.passwordMismatch'));
             setLoading(false);
             return;
         }
@@ -89,9 +94,10 @@ const Profile = () => {
         const needsPhoneNumberUpdate = profileForm.phoneNumber !== user?.phoneNumber;
         const needsPasswordUpdate = profileForm.password && profileForm.password.length > 0;
         const needsPhotoUpdate = profileForm.profilePhoto !== null;
+        const needsLanguageUpdate = profileForm.language !== (user?.language || 'en');
 
-        if (!needsNameUpdate && !needsPhoneNumberUpdate && !needsPasswordUpdate && !needsPhotoUpdate) {
-            setError('No changes to save');
+        if (!needsNameUpdate && !needsPhoneNumberUpdate && !needsPasswordUpdate && !needsPhotoUpdate && !needsLanguageUpdate) {
+            setError(t('profile.noChangesToSave'));
             setLoading(false);
             return;
         }
@@ -120,19 +126,25 @@ const Profile = () => {
             });
         }
 
-        // 2. Update name and phone number if changed
-        if (needsNameUpdate || needsPhoneNumberUpdate) {
+        // 2. Update name, phone number, and language if changed
+        if (needsNameUpdate || needsPhoneNumberUpdate || needsLanguageUpdate) {
             updateChain = updateChain.then(() => {
                 return new Promise((resolve, reject) => {
+                    const updateBody = {};
+                    if (needsNameUpdate) updateBody.name = profileForm.name;
+                    if (needsPhoneNumberUpdate) updateBody.phoneNumber = profileForm.phoneNumber;
+                    if (needsLanguageUpdate) updateBody.language = profileForm.language;
+                    
                     updateUser({
                         user_id: user?._id,
-                        body: { 
-                            name: profileForm.name,
-                            phoneNumber: profileForm.phoneNumber
-                        },
+                        body: updateBody,
                         handleUpdateUserSuccess: (data) => {
                             updatedUser = { ...updatedUser, ...data?.user };
                             dispatch(setUser(updatedUser));
+                            // Sync language immediately if changed
+                            if (needsLanguageUpdate) {
+                                syncLanguageWithUser(profileForm.language);
+                            }
                             resolve();
                         },
                         handleUpdateUserFailure: (error) => {
@@ -185,7 +197,7 @@ const Profile = () => {
             <div className="profile-modal-overlay" onClick={handleCloseProfileModal}>
                 <div className="profile-modal-content" onClick={(e) => e.stopPropagation()}>
                     <div className="profile-modal-header">
-                        <h2>Update Profile</h2>
+                        <h2>{t('profile.updateProfile')}</h2>
                         <button className="modal-close-btn" onClick={handleCloseProfileModal}>
                             <X size={24} />
                         </button>
@@ -194,7 +206,7 @@ const Profile = () => {
                 <div className="profile-modal-body">
                     {isUpdated && (
                         <div className="alert alert-success">
-                            Profile updated successfully!
+                            {t('profile.profileUpdatedSuccessfully')}
                         </div>
                     )}
                     {error && (
@@ -227,12 +239,12 @@ const Profile = () => {
                                 />
                             </label>
                         </div>
-                        <p className="profile-photo-hint">Click camera icon to upload photo</p>
+                        <p className="profile-photo-hint">{t('profile.clickCameraToUpload')}</p>
                     </div>
 
                     {/* Name Field */}
                     <div className="form-group">
-                        <label htmlFor="profile-name">Name</label>
+                        <label htmlFor="profile-name">{t('profile.name')}</label>
                         <input
                             type="text"
                             id="profile-name"
@@ -245,7 +257,7 @@ const Profile = () => {
 
                     {/* Phone Number Field */}
                     <div className="form-group">
-                        <label htmlFor="profile-phone">Phone Number</label>
+                        <label htmlFor="profile-phone">{t('profile.phoneNumber')}</label>
                         <input
                             type="text"
                             id="profile-phone"
@@ -256,11 +268,25 @@ const Profile = () => {
                         />
                     </div>
 
+                    {/* Language Selection */}
+                    <div className="form-group">
+                        <label htmlFor="profile-language">{t('profile.language')}</label>
+                        <select
+                            id="profile-language"
+                            className="form-control"
+                            value={profileForm.language}
+                            onChange={(e) => handleProfileFormChange('language', e.target.value)}
+                        >
+                            <option value="en">{t('profile.english')}</option>
+                            <option value="am">{t('profile.amharic')}</option>
+                        </select>
+                    </div>
+
                     {/* Password Change Section */}
                     <div className="password-section">
-                        <h3>Change Password</h3>
+                        <h3>{t('profile.changePassword')}</h3>
                         <div className="form-group">
-                            <label htmlFor="profile-password">New Password</label>
+                            <label htmlFor="profile-password">{t('profile.newPassword')}</label>
                             <input
                                 type="password"
                                 id="profile-password"
@@ -271,7 +297,7 @@ const Profile = () => {
                             />
                         </div>
                         <div className="form-group">
-                            <label htmlFor="profile-confirm-password">Confirm Password</label>
+                            <label htmlFor="profile-confirm-password">{t('profile.confirmPassword')}</label>
                             <input
                                 type="password"
                                 id="profile-confirm-password"
@@ -289,14 +315,14 @@ const Profile = () => {
                             onClick={handleCloseProfileModal}
                             disabled={loading}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button 
                             className="btn-submit"
                             onClick={handleUpdateProfile}
                             disabled={loading}
                         >
-                            {loading ? 'Updating...' : 'Update Profile'}
+                            {loading ? t('profile.updating') : t('profile.updateProfile')}
                         </button>
                     </div>
                 </div>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { clearUser, setUser } from '../../reducers/userReducer';
 import { resetPassword, updateUser, uploadProfilePhoto } from '../../api/api';
+import { syncLanguageWithUser } from '../../utils/languageSync';
 import TanaLogo from '../../img/Tana.png';
 import { 
     LayoutDashboard, 
@@ -21,6 +23,7 @@ import { socket } from '../../utils/chatSocket';
 import '../../css/adminDashboard.scss';
 
 const AdminDashboard = () => {
+    const { t } = useTranslation();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -31,7 +34,8 @@ const AdminDashboard = () => {
         password: '',
         confirmPassword: '',
         profilePhoto: null,
-        profilePhotoPreview: null
+        profilePhotoPreview: null,
+        language: 'en'
     });
     const [isUpdated, setIsUpdated] = useState(false);
     const [error, setError] = useState('');
@@ -67,7 +71,8 @@ const AdminDashboard = () => {
                 password: '',
                 confirmPassword: '',
                 profilePhoto: null,
-                profilePhotoPreview: photoUrl
+                profilePhotoPreview: photoUrl,
+                language: user?.language || 'en'
             });
         } else {
             setShowProfileModal(false);
@@ -134,7 +139,7 @@ const AdminDashboard = () => {
 
         // Validate password if provided
         if (profileForm.password && profileForm.password !== profileForm.confirmPassword) {
-            setError('New password and confirm password must match');
+            setError(t('profile.passwordMismatch'));
             setLoading(false);
             return;
         }
@@ -143,9 +148,10 @@ const AdminDashboard = () => {
         const needsNameUpdate = profileForm.name !== user?.name;
         const needsPasswordUpdate = profileForm.password && profileForm.password.length > 0;
         const needsPhotoUpdate = profileForm.profilePhoto !== null;
+        const needsLanguageUpdate = profileForm.language !== (user?.language || 'en');
 
-        if (!needsNameUpdate && !needsPasswordUpdate && !needsPhotoUpdate) {
-            setError('No changes to save');
+        if (!needsNameUpdate && !needsPasswordUpdate && !needsPhotoUpdate && !needsLanguageUpdate) {
+            setError(t('profile.noChangesToSave'));
             setLoading(false);
             return;
         }
@@ -174,16 +180,24 @@ const AdminDashboard = () => {
             });
         }
 
-        // 2. Update name if changed
-        if (needsNameUpdate) {
+        // 2. Update name and language if changed
+        if (needsNameUpdate || needsLanguageUpdate) {
             updateChain = updateChain.then(() => {
                 return new Promise((resolve, reject) => {
+                    const updateBody = {};
+                    if (needsNameUpdate) updateBody.name = profileForm.name;
+                    if (needsLanguageUpdate) updateBody.language = profileForm.language;
+                    
                     updateUser({
                         user_id: user?._id,
-                        body: { name: profileForm.name },
+                        body: updateBody,
                         handleUpdateUserSuccess: (data) => {
                             updatedUser = { ...updatedUser, ...data?.user };
                             dispatch(setUser(updatedUser));
+                            // Sync language immediately if changed
+                            if (needsLanguageUpdate) {
+                                syncLanguageWithUser(profileForm.language);
+                            }
                             resolve();
                         },
                         handleUpdateUserFailure: (error) => {
@@ -245,10 +259,10 @@ const AdminDashboard = () => {
     };
 
     const menuItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
-        { icon: Users, label: 'User Management', path: '/admin/users' },
-        { icon: FileText, label: 'Reports', path: '/admin/reports' },
-        { icon: Settings, label: 'Settings', path: '/admin/settings' },
+        { icon: LayoutDashboard, label: t('navigation.dashboard'), path: '/admin/dashboard' },
+        { icon: Users, label: t('admin.userManagement'), path: '/admin/users' },
+        { icon: FileText, label: t('navigation.reports'), path: '/admin/reports' },
+        { icon: Settings, label: t('navigation.settings'), path: '/admin/settings' },
     ];
 
     const isActive = (path) => {
@@ -327,14 +341,14 @@ const AdminDashboard = () => {
                                     className="dropdown-item"
                                     onClick={handleProfileUpdate}
                                 >
-                                    <span>Profile Update</span>
+                                    <span>{t('profile.profileUpdate')}</span>
                                 </button>
                                 <button 
                                     className="dropdown-item logout-item"
                                     onClick={handleLogout}
                                 >
                                     <LogOut size={16} />
-                                    <span>Logout</span>
+                                    <span>{t('common.logout')}</span>
                                 </button>
                             </div>
                         )}
@@ -354,7 +368,7 @@ const AdminDashboard = () => {
                             <Menu size={24} />
                         </button>
                         <div className="welcome-message">
-                            <span>Welcome, {user?.name || 'Admin'}</span>
+                            <span>{t('dashboard.welcome')}, {user?.name || 'Admin'}</span>
                         </div>
                     </div>
                     
@@ -444,7 +458,7 @@ const AdminDashboard = () => {
                 <div className="profile-modal-overlay" onClick={handleCloseProfileModal}>
                     <div className="profile-modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="profile-modal-header">
-                            <h2>Update Profile</h2>
+                            <h2>{t('profile.updateProfile')}</h2>
                             <button className="modal-close-btn" onClick={handleCloseProfileModal}>
                                 <X size={24} />
                             </button>
@@ -453,7 +467,7 @@ const AdminDashboard = () => {
                         <div className="profile-modal-body">
                             {isUpdated && (
                                 <div className="alert alert-success">
-                                    Profile updated successfully!
+                                    {t('profile.profileUpdatedSuccessfully')}
                                 </div>
                             )}
                             {error && (
@@ -486,12 +500,12 @@ const AdminDashboard = () => {
                                         />
                                     </label>
                                 </div>
-                                <p className="profile-photo-hint">Click camera icon to upload photo</p>
+                                <p className="profile-photo-hint">{t('profile.clickCameraToUpload')}</p>
                             </div>
 
                             {/* Name Field */}
                             <div className="form-group">
-                                <label htmlFor="profile-name">Name</label>
+                                <label htmlFor="profile-name">{t('profile.name')}</label>
                                 <input
                                     type="text"
                                     id="profile-name"
@@ -502,9 +516,23 @@ const AdminDashboard = () => {
                                 />
                             </div>
 
+                            {/* Language Selection */}
+                            <div className="form-group">
+                                <label htmlFor="profile-language">{t('profile.language')}</label>
+                                <select
+                                    id="profile-language"
+                                    className="form-control"
+                                    value={profileForm.language}
+                                    onChange={(e) => handleProfileFormChange('language', e.target.value)}
+                                >
+                                    <option value="en">{t('profile.english')}</option>
+                                    <option value="am">{t('profile.amharic')}</option>
+                                </select>
+                            </div>
+
                             {/* Email (read-only) */}
                             <div className="form-group">
-                                <label htmlFor="profile-email">Email</label>
+                                <label htmlFor="profile-email">{t('profile.email')}</label>
                                 <input
                                     type="email"
                                     id="profile-email"
@@ -516,9 +544,9 @@ const AdminDashboard = () => {
 
                             {/* Password Change Section */}
                             <div className="password-section">
-                                <h3>Change Password</h3>
+                                <h3>{t('profile.changePassword')}</h3>
                                 <div className="form-group">
-                                    <label htmlFor="profile-password">New Password</label>
+                                    <label htmlFor="profile-password">{t('profile.newPassword')}</label>
                                     <input
                                         type="password"
                                         id="profile-password"
@@ -529,7 +557,7 @@ const AdminDashboard = () => {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label htmlFor="profile-confirm-password">Confirm Password</label>
+                                    <label htmlFor="profile-confirm-password">{t('profile.confirmPassword')}</label>
                                     <input
                                         type="password"
                                         id="profile-confirm-password"
@@ -547,14 +575,14 @@ const AdminDashboard = () => {
                                     onClick={handleCloseProfileModal}
                                     disabled={loading}
                                 >
-                                    Cancel
+                                    {t('common.cancel')}
                                 </button>
                                 <button 
                                     className="btn-submit"
                                     onClick={handleUpdateProfile}
                                     disabled={loading}
                                 >
-                                    {loading ? 'Updating...' : 'Update Profile'}
+                                    {loading ? t('profile.updating') : t('profile.updateProfile')}
                                 </button>
                             </div>
                         </div>

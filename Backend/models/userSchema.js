@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema({
     profilePhoto: {
         type: String,
         default: ''
+    },
+    language: {
+        type: String,
+        enum: ['en', 'am'],
+        default: 'en'
     }
 })
 

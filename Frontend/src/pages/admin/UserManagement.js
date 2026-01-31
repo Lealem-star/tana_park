@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { deleteUser, fetchUsers, createUser, fetchPricingSettings } from '../../api/api';
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { DeleteModal } from '../../components';
 import { Plus, Trash2 } from 'lucide-react';
 import '../../css/userManagement.scss';
 
 const UserManagement = () => {
+    const { t } = useTranslation();
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState();
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -115,14 +117,14 @@ const UserManagement = () => {
     return (
         <div className="user-management">
             <div className="page-header">
-                <h1>User Management</h1>
+                <h1>{t('admin.userManagement')}</h1>
                 {canCreateUsers && (
                     <button 
                         className="btn-create"
                         onClick={() => setShowCreateModal(true)}
                     >
                         <Plus size={18} />
-                        Create User
+                        {t('admin.addUser')}
                     </button>
                 )}
             </div>
@@ -135,10 +137,10 @@ const UserManagement = () => {
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Name</th>
-                            <th>Phone Number</th>
-                            <th>Type</th>
-                            <th>Actions</th>
+                            <th>{t('profile.name')}</th>
+                            <th>{t('auth.phoneNumber')}</th>
+                            <th>{t('admin.userType')}</th>
+                            <th>{t('settings.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>

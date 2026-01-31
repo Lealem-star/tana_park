@@ -18,15 +18,6 @@ const CHAPA_SECRET_KEY = process.env.CHAPA_SECRET_KEY || "CHASECK_TEST-xxxxxxxxx
 const CHAPA_PUBLIC_KEY = (process.env.CHAPA_PUBLIC_KEY || "").trim(); // Chapa public key for frontend (trim whitespace)
 const CHAPA_BASE_URL = "https://api.chapa.co/v1/transaction";
 
-// Debug: Log Chapa configuration status (without exposing full keys)
-console.log("🔑 Chapa Configuration Status:");
-console.log("   - CHAPA_SECRET_KEY:", CHAPA_SECRET_KEY ? `${CHAPA_SECRET_KEY.substring(0, 20)}...` : "NOT SET");
-console.log("   - CHAPA_PUBLIC_KEY:", CHAPA_PUBLIC_KEY ? `${CHAPA_PUBLIC_KEY.substring(0, 20)}...` : "NOT SET");
-console.log("   - Public Key Length:", CHAPA_PUBLIC_KEY.length);
-console.log("   - Public Key Format:", CHAPA_PUBLIC_KEY.startsWith('CHAPUBK_TEST-') ? 'TEST MODE ✅' : 
-                                          CHAPA_PUBLIC_KEY.startsWith('CHAPUBK-') ? 'LIVE MODE ✅' : 
-                                          CHAPA_PUBLIC_KEY ? 'INVALID FORMAT ❌' : 'NOT SET ❌');
-
 // Validate Chapa configuration
 if (!CHAPA_PUBLIC_KEY || CHAPA_PUBLIC_KEY === "") {
     console.warn("⚠️  WARNING: CHAPA_PUBLIC_KEY is not set in environment variables!");

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { fetchParkedCars, updateParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchPricingSettings } from '../../api/api';
 import { EthiopianDatePicker } from '../../components';
 import { CheckCircle, Clock, X, Car } from 'lucide-react';
@@ -8,6 +9,7 @@ import '../../css/parkedCarsList.scss';
 import '../../css/valetOverview.scss';
 
 const ParkedCarsList = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.user);
     const navigate = useNavigate();
     const [cars, setCars] = useState([]);
@@ -943,12 +945,12 @@ const ParkedCarsList = () => {
     return (
         <div className="parked-cars-list">
             <div className="page-header">
-                <h1>Parked Cars</h1>
+                <h1>{t('valet.parkedCars')}</h1>
                 <button 
                     className="btn-primary"
                     onClick={() => navigate('/valet/register-car')}
                 >
-                    Register New Car
+                    {t('valet.registerNewCar')}
                 </button>
             </div>
 
@@ -958,19 +960,19 @@ const ParkedCarsList = () => {
                         className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
                         onClick={() => setFilter('all')}
                     >
-                        All
+                        {t('valet.all')}
                     </button>
                     <button 
                         className={`filter-btn ${filter === 'parked' ? 'active' : ''}`}
                         onClick={() => setFilter('parked')}
                     >
-                        Parked
+                        {t('valet.parked')}
                     </button>
                     <button 
                         className={`filter-btn ${filter === 'checked_out' ? 'active' : ''}`}
                         onClick={() => setFilter('checked_out')}
                     >
-                        Checked Out
+                        {t('valet.checkedOut')}
                     </button>
                 </div>
                 <div className="date-selector">
@@ -988,21 +990,21 @@ const ParkedCarsList = () => {
                     <div className="stat-icon"><Car size={14} /></div>
                     <div className="stat-content">
                         <h3>{dailyStats.totalParked}</h3>
-                        <p>Total Parked</p>
+                        <p>{t('valet.totalParked')}</p>
                     </div>
                 </div>
                 <div className="stat-card stat-parked">
                     <div className="stat-icon"><Clock size={14} /></div>
                     <div className="stat-content">
                         <h3>{dailyStats.stillParked}</h3>
-                        <p>Still Parked</p>
+                        <p>{t('valet.stillParked')}</p>
                     </div>
                 </div>
                 <div className="stat-card stat-checked">
                     <div className="stat-icon"><CheckCircle size={14} /></div>
                     <div className="stat-content">
                         <h3>{dailyStats.checkedOut}</h3>
-                        <p>Checked Out</p>
+                        <p>{t('valet.checkedOut')}</p>
                     </div>
                 </div>
             </div>
@@ -1012,13 +1014,13 @@ const ParkedCarsList = () => {
                     <table className="cars-table">
                         <thead>
                             <tr>
-                                <th>License Plate</th>
-                                <th>Vehicle</th>
-                                <th>Parked At</th>
-                                <th>Checked Out At</th>
-                                <th>Parking Fee</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>{t('valet.licensePlate')}</th>
+                                <th>{t('valet.vehicle')}</th>
+                                <th>{t('valet.parkedAt')}</th>
+                                <th>{t('valet.checkedOutAt')}</th>
+                                <th>{t('valet.parkingFee')}</th>
+                                <th>{t('valet.status')}</th>
+                                <th>{t('valet.actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1047,7 +1049,7 @@ const ParkedCarsList = () => {
                                                     className="btn-action btn-checkout"
                                                     onClick={() => handleStatusChange(car, 'checked_out')}
                                                 >
-                                                    Check Out
+                                                    {t('valet.checkOut')}
                                                 </button>
                                             )}
                                         </div>
@@ -1058,12 +1060,12 @@ const ParkedCarsList = () => {
                     </table>
                 ) : (
                     <div className="no-data">
-                        <p>No parked cars found</p>
+                        <p>{t('valet.noParkedCars')}</p>
                         <button 
                             className="btn-primary"
                             onClick={() => navigate('/valet/register-car')}
                         >
-                            Register First Car
+                            {t('valet.registerFirstCar')}
                         </button>
                     </div>
                 )}
@@ -1073,14 +1075,14 @@ const ParkedCarsList = () => {
             {showStatusModal && (
                 <div className="modal-overlay" onClick={() => setShowStatusModal(false)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <h3>Change Status</h3>
-                        <p>Are you sure you want to change the status to <strong>{newStatus.replace('_', ' ')}</strong>?</p>
+                        <h3>{t('valet.changeStatus')}</h3>
+                        <p>{t('messages.confirmDelete')} <strong>{newStatus.replace('_', ' ')}</strong>?</p>
                         <div className="modal-actions">
                             <button className="btn-cancel" onClick={() => setShowStatusModal(false)}>
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                             <button className="btn-confirm" onClick={confirmStatusChange}>
-                                Confirm
+                                {t('common.confirm')}
                             </button>
                         </div>
                     </div>
@@ -1092,7 +1094,7 @@ const ParkedCarsList = () => {
                 <div className="payment-modal-overlay" onClick={handleClosePaymentModal}>
                     <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>Parked Out - Payment Details</h2>
+                            <h2>{t('valet.parkedOut')} - {t('valet.paymentDetails')}</h2>
                             <button className="close-btn" onClick={handleClosePaymentModal} disabled={loading}>
                                 <X size={20} />
                             </button>

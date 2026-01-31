@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { 
     fetchPeriodRevenueReport
 } from '../../../api/api';
@@ -10,6 +11,7 @@ import { EthiopianDateUtil } from 'habesha-datepicker';
 import '../../../css/reports.scss';
 
 const FinancialReports = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.user);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -56,8 +58,8 @@ const FinancialReports = () => {
     const handleExportPDF = async () => {
         try {
             if (periodData) {
-                const title = 'Period Revenue Report';
-                const subtitle = `From ${periodStartDate} to ${periodEndDate}`;
+                const title = t('reports.periodRevenueReport');
+                const subtitle = `${t('reports.from')} ${periodStartDate} ${t('reports.to')} ${periodEndDate}`;
                 const filename = `period-revenue-${periodStartDate}-${periodEndDate}.pdf`;
                 await exportFinancialReportToPDF({ 
                     title, 
@@ -69,7 +71,7 @@ const FinancialReports = () => {
             }
         } catch (error) {
             console.error('Error exporting PDF:', error);
-            setError('Failed to export PDF. Please try again.');
+            setError(t('reports.failedToExport'));
         }
     };
 
@@ -88,22 +90,22 @@ const FinancialReports = () => {
 
                 <div className="report-section">
                     <div className="report-header">
-                        <h2>Period Revenue Report</h2>
+                        <h2>{t('reports.periodRevenueReport')}</h2>
                     <EthiopianDatePicker
                                 value={periodStartDate}
                         onChange={(date) => setPeriodStartDate(date)}
-                        label="Start Date"
+                        label={t('reports.startDate')}
                                 className="date-input"
                             />
-                            <span>to</span>
+                            <span>{t('reports.to')}</span>
                     <EthiopianDatePicker
                                 value={periodEndDate}
                         onChange={(date) => setPeriodEndDate(date)}
-                        label="End Date"
+                        label={t('reports.endDate')}
                                 className="date-input"
                             />
                             <button onClick={loadPeriodReport} className="btn-refresh" disabled={loading}>
-                                {loading ? 'Loading...' : 'Refresh'}
+                                {loading ? t('common.loading') : t('common.refresh')}
                             </button>
                             {periodData && (
                                 <button 
@@ -111,13 +113,13 @@ const FinancialReports = () => {
                                     className="btn-export"
                                 >
                                     <Download size={16} />
-                                    Export PDF
+                                    {t('reports.exportPDF')}
                                 </button>
                             )}
                     </div>
 
                     {loading ? (
-                        <div className="loading">Loading report data...</div>
+                        <div className="loading">{t('reports.loadingReport')}</div>
                     ) : periodData ? (
                         <div className="report-content">
                             <div className="stats-grid">
@@ -127,7 +129,7 @@ const FinancialReports = () => {
                                 </div>
                                 <div className="stat-info">
                                     <h3>{formatCurrency(periodData.totalRevenue || 0)}</h3>
-                                    <p>Total Revenue</p>
+                                    <p>{t('admin.totalRevenue')}</p>
                                 </div>
                                 </div>
                             <div className="stat-card cars">
@@ -140,7 +142,7 @@ const FinancialReports = () => {
                                             ? periodData.dailyBreakdown.reduce((sum, item) => sum + (item.dailyParkedCar || 0), 0)
                                             : 0
                                     }</h3>
-                                    <p>Total Car Parked</p>
+                                    <p>{t('admin.totalCarParked')}</p>
                                 </div>
                             </div>
                         </div>
@@ -164,18 +166,18 @@ const FinancialReports = () => {
 
                             return (
                                 <div className="report-table-section">
-                                    <h3>Daily Breakdown</h3>
+                                    <h3>{t('admin.dailyBreakdown')}</h3>
                                     {sortedDates.map((date, dateIdx) => (
                                         <div key={dateIdx} className="daily-breakdown-group">
                                             <h4 className="date-header">{formatDate(date)}</h4>
                                     <table className="report-table">
                                         <thead>
                                             <tr>
-                                                        <th>Park Zone Code</th>
-                                                        <th>Valet Officer Name</th>
-                                                        <th>Daily Parked Car</th>
-                                                        <th>Daily Revenue</th>
-                                                        <th>VAT</th>
+                                                        <th>{t('dashboard.parkZoneCode')}</th>
+                                                        <th>{t('dashboard.valetOfficerName')}</th>
+                                                        <th>{t('dashboard.dailyParkedCar')}</th>
+                                                        <th>{t('dashboard.dailyRevenue')}</th>
+                                                        <th>{t('dashboard.vat')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -197,7 +199,7 @@ const FinancialReports = () => {
                         })()}
                         </div>
                     ) : (
-                        <div className="no-data">No data available. Select date range and click Refresh.</div>
+                        <div className="no-data">{t('reports.noDataForPeriod')}</div>
                     )}
                 </div>
         </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { fetchPricingSettings, updatePricingSettings } from '../../api/api';
 import { Edit2, Check, X as XIcon, Plus, Trash2 } from 'lucide-react';
 import '../../css/settings.scss';
@@ -7,6 +8,7 @@ import '../../css/settings.scss';
 const carTypes = ['tripod', 'automobile', 'truck', 'trailer'];
 
 const Settings = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.user);
     const [priceLevels, setPriceLevels] = useState({});
     const [vatRate, setVatRate] = useState(0.15);
@@ -83,7 +85,7 @@ const Settings = () => {
             settings: settingsToSave,
             token: user?.token,
             handleUpdateSuccess: (data) => {
-                setSuccess('Price level saved successfully!');
+                setSuccess(t('settings.priceLevelSaved'));
                 setLoading(false);
                 setTimeout(() => setSuccess(''), 3000);
             },
@@ -202,7 +204,7 @@ const Settings = () => {
     const handleSaveVAT = () => {
         const vatPercentage = parseFloat(vatInput);
         if (isNaN(vatPercentage) || vatPercentage < 0 || vatPercentage > 100) {
-            setError('VAT rate must be between 0 and 100');
+            setError(t('settings.vatRateMustBeValid'));
             return;
         }
         const newVatRate = vatPercentage / 100;
@@ -221,7 +223,7 @@ const Settings = () => {
             settings: settingsToSave,
             token: user?.token,
             handleUpdateSuccess: (data) => {
-                setSuccess('VAT rate updated successfully!');
+                setSuccess(t('settings.vatRateUpdated'));
                 setLoading(false);
                 setTimeout(() => setSuccess(''), 3000);
             },
@@ -248,7 +250,7 @@ const Settings = () => {
                     onClick={() => setActiveSection('pricing')}
                     disabled={loading}
                 >
-                    Car Type Pricing Configuration
+                    {t('settings.carTypePricingConfiguration')}
                 </button>
                 <button
                     type="button"
@@ -256,7 +258,7 @@ const Settings = () => {
                     onClick={() => setActiveSection('vat')}
                     disabled={loading}
                 >
-                    VAT Rate Configuration
+                    {t('settings.vatRateConfiguration')}
                 </button>
             </div>
 
@@ -265,8 +267,8 @@ const Settings = () => {
             <div className="settings-card vat-card">
                 <div className="card-header-row">
                     <div>
-                        <h2>VAT Rate Configuration</h2>
-                        <p className="card-subtitle">Configure the Value Added Tax rate applied to all transactions</p>
+                        <h2>{t('settings.vatRateConfiguration')}</h2>
+                        <p className="card-subtitle">{t('settings.configureVATRate')}</p>
                     </div>
                 </div>
                 
@@ -276,7 +278,7 @@ const Settings = () => {
                 <div className="vat-config-section">
                     <div className="vat-display">
                         <div className="vat-info">
-                            <label>Current VAT Rate</label>
+                            <label>{t('settings.currentVATRate')}</label>
                             {editingVAT ? (
                                 <div className="vat-edit-group">
                                     <input
@@ -297,7 +299,7 @@ const Settings = () => {
                             ) : (
                                 <div className="vat-value-display">
                                     <span className="vat-percentage">{(vatRate * 100).toFixed(2)}%</span>
-                                    <span className="vat-description">({(vatRate * 100).toFixed(2)}% of base amount)</span>
+                                    <span className="vat-description">({(vatRate * 100).toFixed(2)}% {t('settings.vatRateDescription')})</span>
                                 </div>
                             )}
                         </div>
@@ -307,7 +309,7 @@ const Settings = () => {
                                     <button
                                         className="btn-icon btn-save-edit"
                                         onClick={handleSaveVAT}
-                                        title="Save VAT Rate"
+                                        title={t('common.save')}
                                         disabled={loading}
                                     >
                                         <Check size={18} />
@@ -334,18 +336,18 @@ const Settings = () => {
                         </div>
                     </div>
                     <div className="vat-preview">
-                        <p className="vat-preview-label">Example Calculation:</p>
+                        <p className="vat-preview-label">{t('settings.exampleCalculation')}</p>
                         <div className="vat-preview-example">
                             <div className="preview-row">
-                                <span>Base Amount:</span>
+                                <span>{t('settings.baseAmount')}</span>
                                 <span>100.00 ETB</span>
                             </div>
                             <div className="preview-row">
-                                <span>VAT ({(vatRate * 100).toFixed(2)}%):</span>
+                                <span>{t('dashboard.vat')} ({(vatRate * 100).toFixed(2)}%):</span>
                                 <span>{(100 * vatRate).toFixed(2)} ETB</span>
                             </div>
                             <div className="preview-row total-row">
-                                <span>Total Amount:</span>
+                                <span>{t('settings.totalAmount')}</span>
                                 <span>{(100 * (1 + vatRate)).toFixed(2)} ETB</span>
                             </div>
                         </div>
@@ -358,14 +360,14 @@ const Settings = () => {
             /* Car Type Pricing Configuration Card */
             <div className="settings-card">
                 <div className="card-header-row">
-                    <h2>Car Type Pricing Configuration</h2>
+                    <h2>{t('settings.carTypePricingConfiguration')}</h2>
                     <button 
                         className="btn-add-plate-code"
                         onClick={() => setShowAddModal(true)}
                         disabled={loading}
                     >
                         <Plus size={18} />
-                        Add Price Level
+                        {t('settings.addPriceLevel')}
                     </button>
                 </div>
                 
@@ -374,7 +376,7 @@ const Settings = () => {
                 
                 {Object.keys(priceLevels).length === 0 ? (
                     <div className="empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
-                        <p>No price levels configured. Click "Add Price Level" to get started.</p>
+                        <p>{t('settings.noPriceLevels')}</p>
                     </div>
                 ) : (
                     Object.keys(priceLevels).map((priceLevelName) => {
@@ -396,12 +398,12 @@ const Settings = () => {
                                     <table className="settings-table">
                                         <thead>
                                             <tr>
-                                                <th>Car Type</th>
-                                                <th>Hourly Rate (ETB)</th>
-                                                <th>Weekly Package (ETB)</th>
-                                                <th>Monthly Package (ETB)</th>
-                                                <th>Yearly Package (ETB)</th>
-                                                <th>Actions</th>
+                                                <th>{t('settings.carType')}</th>
+                                                <th>{t('settings.hourlyRate')}</th>
+                                                <th>{t('settings.weeklyPackage')}</th>
+                                                <th>{t('settings.monthlyPackage')}</th>
+                                                <th>{t('settings.yearlyPackage')}</th>
+                                                <th>{t('settings.actions')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -475,24 +477,24 @@ const Settings = () => {
                                                                     <button
                                                                         className="btn-icon btn-save-edit"
                                                                         onClick={handleSaveEdit}
-                                                                        title="Save"
-                                                                    >
-                                                                        <Check size={16} />
-                                                                    </button>
-                                                                    <button
-                                                                        className="btn-icon btn-cancel-edit"
-                                                                        onClick={handleCancelEdit}
-                                                                        title="Cancel"
-                                                                    >
-                                                                        <XIcon size={16} />
-                                                                    </button>
-                                                                </div>
+                                        title={t('common.save')}
+                                    >
+                                        <Check size={16} />
+                                    </button>
+                                    <button
+                                        className="btn-icon btn-cancel-edit"
+                                        onClick={handleCancelEdit}
+                                        title={t('common.cancel')}
+                                    >
+                                        <XIcon size={16} />
+                                    </button>
+                                </div>
                                                             ) : (
                                                                 <div className="action-buttons">
                                                                     <button
                                                                         className="btn-icon btn-edit"
                                                                         onClick={() => handleEditCarTypePricing(priceLevelName, carType)}
-                                                                        title="Edit"
+                                                                        title={t('common.edit')}
                                                                         disabled={loading}
                                                                     >
                                                                         <Edit2 size={16} />
@@ -518,7 +520,7 @@ const Settings = () => {
                 <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'auto' }}>
                         <div className="modal-header">
-                            <h2>Add New Price Level</h2>
+                            <h2>{t('settings.addPriceLevel')}</h2>
                             <button 
                                 className="modal-close"
                                 onClick={() => {
@@ -539,7 +541,7 @@ const Settings = () => {
                         <div className="modal-body">
                             {error && <div className="alert alert-danger">{error}</div>}
                             <div className="form-group">
-                                <label>Price Level Name</label>
+                                <label>{t('settings.priceLevelName')}</label>
                                 <input
                                     type="text"
                                     value={newPriceLevelName}
@@ -547,17 +549,17 @@ const Settings = () => {
                                         setNewPriceLevelName(e.target.value);
                                         setError('');
                                     }}
-                                    placeholder="e.g., Premium Zone, Standard Zone"
+                                    placeholder={t('settings.priceLevelNamePlaceholder')}
                                 />
                             </div>
                             <div style={{ marginTop: '1.5rem' }}>
-                                <h4 style={{ marginBottom: '1rem', color: '#333', fontWeight: '600' }}>Pricing for Each Car Type:</h4>
+                                <h4 style={{ marginBottom: '1rem', color: '#333', fontWeight: '600' }}>{t('settings.pricingForEachCarType')}</h4>
                                 {carTypes.map((carType) => (
                                     <div key={carType} style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
                                         <h5 style={{ marginBottom: '0.5rem', textTransform: 'capitalize', color: '#333', fontWeight: '600' }}>{carType}</h5>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
                                             <div className="form-group">
-                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>Hourly (ETB)</label>
+                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('settings.hourly')}</label>
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -570,7 +572,7 @@ const Settings = () => {
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>Weekly (ETB)</label>
+                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('settings.weekly')}</label>
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -583,7 +585,7 @@ const Settings = () => {
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>Monthly (ETB)</label>
+                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('settings.monthly')}</label>
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -596,7 +598,7 @@ const Settings = () => {
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>Yearly (ETB)</label>
+                                                <label style={{ color: '#333', display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('settings.yearly')}</label>
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -628,13 +630,13 @@ const Settings = () => {
                                     setError('');
                                 }}
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                             <button 
                                 className="btn-submit"
                                 onClick={handleAddPriceLevel}
                             >
-                                Add Price Level
+                                {t('settings.addPriceLevel')}
                             </button>
                         </div>
                     </div>
@@ -646,7 +648,7 @@ const Settings = () => {
                 <div className="modal-overlay" onClick={cancelDelete}>
                     <div className="modal-content delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>Delete Price Level</h2>
+                            <h2>{t('settings.deletePriceLevel')}</h2>
                             <button 
                                 className="modal-close"
                                 onClick={cancelDelete}
@@ -656,9 +658,9 @@ const Settings = () => {
                         </div>
                         <div className="modal-body">
                             <p>
-                                Are you sure you want to delete price level <strong>"{priceLevelToDelete}"</strong>?
+                                {t('settings.deleteConfirmation')} <strong>"{priceLevelToDelete}"</strong>?
                             </p>
-                            <p className="warning-text">This action cannot be undone.</p>
+                            <p className="warning-text">{t('settings.cannotBeUndone')}</p>
                         </div>
                         <div className="modal-footer">
                             <button 
@@ -672,7 +674,7 @@ const Settings = () => {
                                 onClick={confirmDelete}
                                 disabled={loading}
                             >
-                                {loading ? 'Deleting...' : 'Delete'}
+                                {loading ? t('settings.deleting') : t('common.delete')}
                             </button>
                         </div>
                     </div>

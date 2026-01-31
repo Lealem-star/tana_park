@@ -437,7 +437,7 @@ userRouter.post("/:id/upload-photo", (req, res, next) => {
 userRouter.put("/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const { cash, interac, name, phoneNumber, parkZoneCode } = req.body
+        const { cash, interac, name, phoneNumber, parkZoneCode, language } = req.body
 
         console.log('id - ', id);
         if (Types.ObjectId.isValid(id)) {
@@ -473,9 +473,13 @@ userRouter.put("/:id", async (req, res) => {
                     user.parkZoneCode = parkZoneCode.trim();
                     hasUpdates = true;
                 }
+                if (language && ['en', 'am'].includes(language)) {
+                    user.language = language;
+                    hasUpdates = true;
+                }
 
                 if (!hasUpdates) {
-                    res.status(400).json({ error: 'Must provide at least one field to update (cash, interac, name, phoneNumber, or parkZoneCode)' });
+                    res.status(400).json({ error: 'Must provide at least one field to update (cash, interac, name, phoneNumber, parkZoneCode, or language)' });
                 } else {
                     user.save().then(user => {
                         // Don't send password in response

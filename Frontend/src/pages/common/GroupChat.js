@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { fetchChatMessages, sendChatMessage } from '../../api/api';
 import { socket } from '../../utils/chatSocket';
 import { Paperclip, Smile, Mic, Send } from 'lucide-react';
@@ -9,6 +10,7 @@ import chatBack from '../../img/chatBack.jpg';
 import '../../css/reports.scss';
 
 const GroupChat = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.user);
     const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
@@ -182,9 +184,9 @@ const GroupChat = () => {
                         }}
                     >
                         {loading ? (
-                            <div className="loading">Loading messages...</div>
+                            <div className="loading">{t('valet.loadingMessages')}</div>
                         ) : messages.length === 0 ? (
-                            <div className="no-data">No messages yet. Start the conversation!</div>
+                            <div className="no-data">{t('valet.noMessagesYet')}</div>
                         ) : (
                             messages.map((msg) => (
                                 <div
@@ -308,7 +310,7 @@ const GroupChat = () => {
                                     color: '#667eea',
                                     marginBottom: isMobile ? '0.2rem' : '0.25rem'
                                 }}>
-                                    Replying to {replyingTo.senderName || 'Unknown'}
+                                    {t('valet.replyingTo')} {replyingTo.senderName || 'Unknown'}
                                 </div>
                                 <div style={{ 
                                     fontSize: isMobile ? '0.75rem' : '0.8rem',
@@ -393,7 +395,7 @@ const GroupChat = () => {
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.color = '#667eea'}
                             onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
-                            title="Attach file"
+                            title={t('valet.attachFile')}
                         >
                             <Paperclip size={isMobile ? 18 : 20} />
                         </button>
@@ -403,7 +405,7 @@ const GroupChat = () => {
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder={replyingTo ? `Replying to ${replyingTo.senderName}...` : "Write a message..."}
+                            placeholder={replyingTo ? `${t('valet.replyingTo')} ${replyingTo.senderName}...` : t('valet.writeMessage')}
                             style={{
                                 flex: 1,
                                 border: 'none',
@@ -440,7 +442,7 @@ const GroupChat = () => {
                                     e.currentTarget.style.color = '#666';
                                 }
                             }}
-                            title="Add emoji"
+                            title={t('valet.addEmoji')}
                         >
                             <Smile size={isMobile ? 18 : 20} />
                         </button>
@@ -474,7 +476,7 @@ const GroupChat = () => {
                                     e.currentTarget.style.background = '#667eea';
                                     e.currentTarget.style.transform = 'scale(1)';
                                 }}
-                                title="Send message"
+                                title={t('valet.sendMessage')}
                             >
                                 {sending ? (
                                     <div style={{ 
@@ -505,7 +507,7 @@ const GroupChat = () => {
                                 }}
                                 onMouseEnter={(e) => e.currentTarget.style.color = '#667eea'}
                                 onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
-                                title="Voice message"
+                                title={t('valet.voiceMessage')}
                             >
                                 <Mic size={isMobile ? 18 : 20} />
                             </button>

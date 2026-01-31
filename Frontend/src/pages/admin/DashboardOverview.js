@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { fetchUsers, fetchParkedCars } from '../../api/api';
 import { EthiopianDatePicker } from '../../components';
 import '../../css/dashboardOverview.scss';
 
 const DashboardOverview = () => {
+    const { t } = useTranslation();
     const [users, setUsers] = useState([]); // eslint-disable-line no-unused-vars
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [revenueRows, setRevenueRows] = useState([]);
@@ -79,7 +81,7 @@ const DashboardOverview = () => {
                 <div className="stat-card gradient-purple">
                     <div className="stat-content">
                         <h3>{totalDailyCars}</h3>
-                        <p>Total Daily Cars</p>
+                        <p>{t('dashboard.totalDailyCars')}</p>
                     </div>
                     <div className="stat-chart">
                         <div className="mini-chart"></div>
@@ -89,7 +91,7 @@ const DashboardOverview = () => {
                 <div className="stat-card gradient-green">
                     <div className="stat-content">
                         <h3>{totalDailyRevenue.toFixed(2)}</h3>
-                        <p>Total Daily Revenue</p>
+                        <p>{t('dashboard.totalDailyRevenue')}</p>
                     </div>
                     <div className="stat-chart">
                         <div className="mini-chart"></div>
@@ -100,19 +102,19 @@ const DashboardOverview = () => {
             <div className="dashboard-grid">
                 <div className="dashboard-card">
                     <div className="card-header">
-                        <h2>Daily Revenue by Valet</h2>
+                        <h2>{t('dashboard.dailyRevenueByValet')}</h2>
                         <div className="date-selector">
                             <EthiopianDatePicker
                                 value={selectedDate}
                                 onChange={(date) => setSelectedDate(date)}
-                                label="Select Date"
+                                label={t('dashboard.selectDate')}
                             />
                         </div>
                     </div>
 
                     {loadingRevenue ? (
                         <div className="chart-placeholder">
-                            <p>Loading revenue data...</p>
+                            <p>{t('dashboard.loadingRevenueData')}</p>
                         </div>
                     ) : revenueError ? (
                         <div className="chart-placeholder">
@@ -120,18 +122,18 @@ const DashboardOverview = () => {
                         </div>
                     ) : revenueRows.length === 0 ? (
                         <div className="chart-placeholder">
-                            <p>No revenue data for this date.</p>
+                            <p>{t('dashboard.noRevenueData')}</p>
                         </div>
                     ) : (
                         <div className="revenue-table-wrapper">
                             <table className="revenue-table">
                                 <thead>
                                     <tr>
-                                        <th>Park Zone Code</th>
-                                        <th>Valet Officer Name</th>
-                                        <th>Daily Parked Car</th>
-                                        <th>Daily Revenue</th>
-                                        <th>VAT</th>
+                                        <th>{t('dashboard.parkZoneCode')}</th>
+                                        <th>{t('dashboard.valetOfficerName')}</th>
+                                        <th>{t('dashboard.dailyParkedCar')}</th>
+                                        <th>{t('dashboard.dailyRevenue')}</th>
+                                        <th>{t('dashboard.vat')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>

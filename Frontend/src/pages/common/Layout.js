@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { clearUser } from "../../reducers/userReducer";
 import {Instagram, Github, LinkedinIcon, Mail} from "lucide-react";
 import '../../css/layout.scss';
 
 const Layout = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.user);
     const navigate = useNavigate();
     const location = useLocation();
@@ -35,29 +37,29 @@ const Layout = () => {
                     <div className="collapse navbar-collapse" id="navbarNavDropdown">
                         <ul className="navbar-nav ms-auto align-items-center">
                             <li className="nav-item">
-                                <Link className="nav-link" to='/'>Home</Link>
+                                <Link className="nav-link" to='/'>{t('navigation.home')}</Link>
                             </li>
                             <li className="nav-item">
-                                <Link className="nav-link" to='/about'>About</Link>
+                                <Link className="nav-link" to='/about'>{t('navigation.about')}</Link>
                             </li>
                             {user?.type === "system_admin" &&
                                 <>
                                     <li className="nav-item">
-                                        <Link className="nav-link" to='/admin/dashboard'>Admin Dashboard</Link>
+                                        <Link className="nav-link" to='/admin/dashboard'>{t('navigation.adminDashboard')}</Link>
                                     </li>
                                 </>
                             }
                             {user?.type === "valet" &&
                                 <>
                                     <li className="nav-item">
-                                        <Link className="nav-link" to='/valet/dashboard'>Valet Dashboard</Link>
+                                        <Link className="nav-link" to='/valet/dashboard'>{t('navigation.valetDashboard')}</Link>
                                     </li>
                                 </>
                             }
                             {user?.type === "admin" &&
                                 <>
                                     <li className="nav-item">
-                                        <Link className="nav-link" to='/users'>Users</Link>
+                                        <Link className="nav-link" to='/users'>{t('navigation.users')}</Link>
                                     </li>
                                 </>
                             }
@@ -67,12 +69,12 @@ const Layout = () => {
                                         <Link className="nav-link" to='/profile'><div className="bg-dark px-3 py-2 pointer">{user?.name && user?.name[0]}</div></Link>
                                     </li>
                                     <li className="nav-item">
-                                        <button className="btn btn-outline-info " onClick={handleLogout}>Logout</button>
+                                        <button className="btn btn-outline-info " onClick={handleLogout}>{t('common.logout')}</button>
                                     </li>
                                 </>
                                 :
                                 <li className="nav-item ms-4">
-                                    <Link className="btn btn-outline-info " to='/login'>Login</Link>
+                                    <Link className="btn btn-outline-info " to='/login'>{t('common.login')}</Link>
                                 </li>
                             }
                         </ul>

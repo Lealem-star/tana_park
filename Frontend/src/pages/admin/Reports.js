@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { FileText, DollarSign, Users } from 'lucide-react';
 import FinancialReports from './reports/FinancialReports';
 import CustomerReports from './reports/CustomerReports';
@@ -7,13 +8,14 @@ import AdministrativeReports from './reports/AdministrativeReports';
 import '../../css/reports.scss';
 
 const Reports = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.user);
     const [activeTab, setActiveTab] = useState('financial');
 
     const tabs = [
-        { id: 'financial', label: 'Financial Reports', icon: DollarSign, component: FinancialReports },
-        { id: 'customer', label: 'Customer Reports', icon: Users, component: CustomerReports },
-        { id: 'administrative', label: 'Administrative Reports', icon: FileText, component: AdministrativeReports },
+        { id: 'financial', label: t('reports.financialReports'), icon: DollarSign, component: FinancialReports },
+        { id: 'customer', label: t('reports.customerReports'), icon: Users, component: CustomerReports },
+        { id: 'administrative', label: t('reports.administrativeReports'), icon: FileText, component: AdministrativeReports },
     ];
 
     const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || FinancialReports;
@@ -22,8 +24,8 @@ const Reports = () => {
         return (
             <div className="reports-container">
                 <div className="access-denied">
-                    <h2>Access Denied</h2>
-                    <p>You don't have permission to view reports.</p>
+                    <h2>{t('reports.accessDenied')}</h2>
+                    <p>{t('reports.noPermission')}</p>
                 </div>
             </div>
         );

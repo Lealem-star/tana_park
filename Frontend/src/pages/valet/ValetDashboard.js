@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { clearUser } from '../../reducers/userReducer';
 import TanaLogo from '../../img/Tana.png';
 import { 
@@ -17,6 +18,7 @@ import { socket } from '../../utils/chatSocket';
 import '../../css/valetDashboard.scss';
 
 const ValetDashboard = () => {
+    const { t } = useTranslation();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -61,9 +63,9 @@ const ValetDashboard = () => {
     };
 
     const menuItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/valet/dashboard' },
-        { icon: Car, label: 'Register Car', path: '/valet/register-car' },
-        { icon: List, label: 'Package Service', path: '/valet/cars' },
+        { icon: LayoutDashboard, label: t('navigation.dashboard'), path: '/valet/dashboard' },
+        { icon: Car, label: t('valet.registerCar'), path: '/valet/register-car' },
+        { icon: List, label: t('valet.packageService'), path: '/valet/cars' },
     ];
 
     const isActive = (path) => {
@@ -142,14 +144,14 @@ const ValetDashboard = () => {
                                     className="dropdown-item"
                                     onClick={handleProfileUpdate}
                                 >
-                                    <span>Profile Update</span>
+                                    <span>{t('profile.profileUpdate')}</span>
                                 </button>
                                 <button 
                                     className="dropdown-item logout-item"
                                     onClick={handleLogout}
                                 >
                                     <LogOut size={16} />
-                                    <span>Logout</span>
+                                    <span>{t('common.logout')}</span>
                                 </button>
                             </div>
                         )}
@@ -230,7 +232,7 @@ const ValetDashboard = () => {
                                     }}
                                 >
                                     <User size={20} />
-                                    <span>Profile</span>
+                                    <span>{t('navigation.profile')}</span>
                                 </button>
                                 <button
                                     className="nav-item logout-item"
@@ -240,7 +242,7 @@ const ValetDashboard = () => {
                                     }}
                                 >
                                     <LogOut size={20} />
-                                    <span>Logout</span>
+                                    <span>{t('common.logout')}</span>
                                 </button>
                             </nav>
                         </aside>

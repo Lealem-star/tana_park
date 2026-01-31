@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { createParkedCar, sendSmsNotification, fetchPricingSettings, initializePackagePayment, verifyChapaPackagePayment } from '../../api/api';
 import '../../css/registerCar.scss';
 
@@ -16,6 +17,7 @@ const regions = [
 const carTypes = ['tripod', 'automobile', 'truck', 'trailer'];
 
 const RegisterCar = () => {
+    const { t } = useTranslation();
     const user = useSelector((state) => state.user);
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
@@ -128,7 +130,7 @@ const RegisterCar = () => {
         setSuccess('');
 
         if (!formData.plateCode || !formData.region || !formData.licensePlateNumber || !formData.phoneNumber || !formData.carType) {
-            setError('Please fill in all required fields');
+            setError(t('valet.fillAllFields'));
             return;
         }
 
@@ -557,13 +559,13 @@ const RegisterCar = () => {
                 <form onSubmit={handleSubmit}>
                     <div className="form-row">
                         <div className="form-group">
-                            <label>Plate Code *</label>
+                            <label>{t('valet.plateCode')} *</label>
                             <select
                                 value={formData.plateCode}
                                 onChange={(e) => handleChange('plateCode', e.target.value)}
                                 required
                             >
-                                <option value="" disabled>Select Plate Code</option>
+                                <option value="" disabled>{t('auth.select')} {t('valet.plateCode')}</option>
                                 {plateCodes.map((code) => (
                                     <option key={code} value={code}>
                                         {code}
@@ -573,13 +575,13 @@ const RegisterCar = () => {
                         </div>
 
                         <div className="form-group">
-                            <label>Region *</label>
+                            <label>{t('valet.region')} *</label>
                             <select
                                 value={formData.region}
                                 onChange={(e) => handleChange('region', e.target.value)}
                                 required
                             >
-                                <option value="" disabled>Select Region</option>
+                                <option value="" disabled>{t('auth.select')} {t('valet.region')}</option>
                                 {regions.map((regionCode) => (
                                     <option key={regionCode} value={regionCode}>
                                         {regionCode}
@@ -589,7 +591,7 @@ const RegisterCar = () => {
                         </div>
 
                         <div className="form-group">
-                            <label>License Plate Number *</label>
+                            <label>{t('valet.licensePlateNumber')} *</label>
                             <input
                                 type="text"
                                 value={formData.licensePlateNumber}
@@ -618,7 +620,7 @@ const RegisterCar = () => {
 
                     <div className="form-row">
                         <div className="form-group">
-                            <label>Phone Number *</label>
+                            <label>{t('valet.phoneNumber')} *</label>
                             <input
                                 type="text"
                                 value={formData.phoneNumber}
@@ -631,7 +633,7 @@ const RegisterCar = () => {
 
                     <div className="form-row">
                         <div className="form-group">
-                            <label>Model</label>
+                            <label>{t('valet.model')}</label>
                             <input
                                 type="text"
                                 value={formData.model}
@@ -641,7 +643,7 @@ const RegisterCar = () => {
                         </div>
 
                         <div className="form-group">
-                            <label>Color</label>
+                            <label>{t('valet.color')}</label>
                             <input
                                 type="text"
                                 value={formData.color}
@@ -652,7 +654,7 @@ const RegisterCar = () => {
                     </div>
 
                     <div className="form-group">
-                        <label>Notes (Optional)</label>
+                        <label>{t('valet.notes')} ({t('common.optional') || 'Optional'})</label>
                         <textarea
                             value={formData.notes}
                             onChange={(e) => handleChange('notes', e.target.value)}
@@ -667,14 +669,14 @@ const RegisterCar = () => {
                             className="btn-cancel"
                             onClick={() => navigate('/valet/dashboard')}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button 
                             type="submit" 
                             className="btn-submit"
                             disabled={loading}
                         >
-                            {loading ? 'Registering...' : 'Register Car'}
+                            {loading ? t('common.loading') : t('valet.registerCar')}
                         </button>
                     </div>
                 </form>
@@ -712,10 +714,10 @@ const RegisterCar = () => {
                     >
                         <div style={{ padding: '24px', borderBottom: '1px solid #e0e0e0' }}>
                             <h3 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '600', color: '#333' }}>
-                                Select Service Type
+                                {t('valet.selectServiceType')}
                             </h3>
                             <p style={{ margin: '0', fontSize: '14px', color: '#666' }}>
-                                Choose the service type for this vehicle
+                                {t('valet.selectServiceType')}
                             </p>
                         </div>
                         
@@ -747,7 +749,7 @@ const RegisterCar = () => {
                                         e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
                                     }}
                                 >
-                                    Hourly Service
+                                    {t('valet.hourly')} {t('valet.serviceType')}
                                 </button>
                                 <button 
                                     type="button"
@@ -775,7 +777,7 @@ const RegisterCar = () => {
                                         e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
                                     }}
                                 >
-                                    Package Service
+                                    {t('valet.package')} {t('valet.serviceType')}
                                 </button>
                             </div>
                         </div>
