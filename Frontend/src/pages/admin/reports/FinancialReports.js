@@ -5,7 +5,7 @@ import {
     fetchPeriodRevenueReport
 } from '../../../api/api';
 import { Download, DollarSign, Car } from 'lucide-react';
-import { exportFinancialReportToPDF } from '../../../utils/pdfExport';
+import { exportFinancialReportToPDF } from '../../../utils/pdfExportReact';
 import { EthiopianDatePicker } from '../../../components';
 import { EthiopianDateUtil } from 'habesha-datepicker';
 import '../../../css/reports.scss';
