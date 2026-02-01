@@ -20,6 +20,7 @@ const ParkedCarsList = () => {
     const [newStatus, setNewStatus] = useState('');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showPaymentFormModal, setShowPaymentFormModal] = useState(false);
+    const [showCheckoutModal, setShowCheckoutModal] = useState(false); // New modal for Pay Now / Flag Him
     const [feeDetails, setFeeDetails] = useState(null);
     const [loading, setLoading] = useState(false);
     const chapaInstanceRef = useRef(null);
@@ -142,16 +143,63 @@ const ParkedCarsList = () => {
 
     const handleStatusChange = (car, status) => {
         if (status === 'checked_out') {
-            // Show payment form modal directly for online payment
+            // Show checkout modal with Pay Now / Flag Him options
             const fee = calculateFee(car);
             setSelectedCar(car);
             setFeeDetails(fee);
-            handlePaymentMethod('online');
+            setShowCheckoutModal(true);
         } else {
             // Show confirmation modal for other status changes
             setSelectedCar(car);
             setNewStatus(status);
             setShowStatusModal(true);
+        }
+    };
+
+    const handlePayNow = () => {
+        // Close checkout modal and proceed with payment
+        setShowCheckoutModal(false);
+        if (selectedCar && feeDetails) {
+            handlePaymentMethod('online');
+        }
+    };
+
+    const handleFlagHim = async () => {
+        if (!selectedCar || !feeDetails) return;
+        
+        setLoading(true);
+        try {
+            // Call flag API
+            const response = await fetch(`${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}parkedCar/${selectedCar._id}/flag`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user?.token}`
+                },
+                body: JSON.stringify({
+                    baseAmount: feeDetails.parkingFee,
+                    vatAmount: feeDetails.vatAmount,
+                    totalWithVat: feeDetails.totalWithVat
+                })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Refresh cars list and stats
+                loadCars();
+                fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
+                setShowCheckoutModal(false);
+                setSelectedCar(null);
+                setFeeDetails(null);
+            } else {
+                alert(data.error || 'Failed to flag car');
+            }
+        } catch (error) {
+            console.error('Flag car error:', error);
+            alert('Failed to flag car. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -1083,6 +1131,119 @@ const ParkedCarsList = () => {
                             </button>
                             <button className="btn-confirm" onClick={confirmStatusChange}>
                                 {t('common.confirm')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Checkout Modal - Pay Now / Flag Him */}
+            {showCheckoutModal && selectedCar && feeDetails && (
+                <div className="modal-overlay" onClick={() => !loading && setShowCheckoutModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{
+                        background: 'white',
+                        borderRadius: '12px',
+                        width: '90%',
+                        maxWidth: '500px',
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+                        padding: '0'
+                    }}>
+                        <div style={{ padding: '24px', borderBottom: '1px solid #e0e0e0' }}>
+                            <h3 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '600', color: '#333' }}>
+                                {t('valet.checkOut')} - {t('valet.paymentDetails')}
+                            </h3>
+                            <p style={{ margin: '0', fontSize: '14px', color: '#666' }}>
+                                {t('valet.selectPaymentOption')}
+                            </p>
+                        </div>
+                        
+                        <div style={{ padding: '24px' }}>
+                            <div className="payment-details-section" style={{ marginBottom: '24px' }}>
+                                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>{t('valet.paymentDetails')}</h3>
+                                <div className="detail-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                                    <span className="label" style={{ color: '#666' }}>{t('valet.parkingFee')}:</span>
+                                    <span className="value" style={{ fontWeight: '500' }}>{feeDetails.parkingFee.toFixed(2)} ETB</span>
+                                </div>
+                                <div className="detail-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                                    <span className="label" style={{ color: '#666' }}>VAT:</span>
+                                    <span className="value" style={{ fontWeight: '500' }}>{feeDetails.vatAmount.toFixed(2)} ETB</span>
+                                </div>
+                                <div className="detail-row total-fee" style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: '2px solid #667eea', marginTop: '8px' }}>
+                                    <span className="label" style={{ fontWeight: '600', fontSize: '16px' }}>{t('common.total')}:</span>
+                                    <span className="value" style={{ fontWeight: '700', fontSize: '18px', color: '#667eea' }}>{feeDetails.totalWithVat.toFixed(2)} ETB</span>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
+                                <button 
+                                    type="button"
+                                    className="btn-service"
+                                    onClick={handlePayNow}
+                                    disabled={loading}
+                                    style={{ 
+                                        width: '100%',
+                                        padding: '16px 24px', 
+                                        fontSize: '16px',
+                                        fontWeight: '600',
+                                        borderRadius: '8px',
+                                        border: '2px solid #667eea',
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: '#fff',
+                                        cursor: loading ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                                        opacity: loading ? 0.6 : 1
+                                    }}
+                                >
+                                    {t('valet.payNow')}
+                                </button>
+                                <button 
+                                    type="button"
+                                    className="btn-service"
+                                    onClick={handleFlagHim}
+                                    disabled={loading}
+                                    style={{ 
+                                        width: '100%',
+                                        padding: '16px 24px', 
+                                        fontSize: '16px',
+                                        fontWeight: '600',
+                                        borderRadius: '8px',
+                                        border: '2px solid #f59e0b',
+                                        background: loading ? '#e5e7eb' : '#fff',
+                                        color: loading ? '#9ca3af' : '#f59e0b',
+                                        cursor: loading ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(245, 158, 11, 0.2)'
+                                    }}
+                                >
+                                    {loading ? t('common.loading') : t('valet.flagHim')}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{ 
+                            padding: '20px 24px', 
+                            borderTop: '1px solid #e0e0e0',
+                            display: 'flex',
+                            justifyContent: 'flex-end'
+                        }}>
+                            <button 
+                                className="btn-cancel" 
+                                onClick={() => !loading && setShowCheckoutModal(false)}
+                                disabled={loading}
+                                style={{
+                                    padding: '10px 20px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #e0e0e0',
+                                    background: '#f5f7fa',
+                                    color: '#666',
+                                    cursor: loading ? 'not-allowed' : 'pointer',
+                                    fontWeight: '500',
+                                    transition: 'all 0.2s',
+                                    opacity: loading ? 0.6 : 1
+                                }}
+                            >
+                                {t('common.cancel')}
                             </button>
                         </div>
                     </div>

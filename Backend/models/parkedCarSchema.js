@@ -127,6 +127,25 @@ const parkedCarSchema = new mongoose.Schema({
     vatRate: {
         type: Number,
         default: 0.15
+    },
+    // Flagging fields for unpaid parking
+    isFlagged: {
+        type: Boolean,
+        default: false
+    },
+    flaggedAt: {
+        type: Date
+    },
+    flaggedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    notificationSent: {
+        type: Boolean,
+        default: false
+    },
+    lastNotificationSentAt: {
+        type: Date
     }
 })
 

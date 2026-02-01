@@ -214,6 +214,68 @@ export const deleteParkedCar = async ({ id, token, handleDeleteParkedCarSuccess,
     }
 }
 
+// Flag a parked car (mark as unpaid)
+export const flagParkedCar = async ({ id, baseAmount, vatAmount, totalWithVat, token, handleFlagSuccess, handleFlagFailure }) => {
+    try {
+        const result = await axios.put(`${BASE_URL}parkedCar/${id}/flag`, {
+            baseAmount,
+            vatAmount,
+            totalWithVat
+        }, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (result?.data?.car) {
+            return handleFlagSuccess(result.data);
+        }
+        console.log('flagParkedCar ', result);
+    } catch (error) {
+        console.error('flagParkedCar ', error);
+        handleFlagFailure(error?.response?.data?.error || 'Failed to flag car');
+    }
+};
+
+// Fetch all flagged cars
+export const fetchFlaggedCars = async ({ token, setFlaggedCars, handleError }) => {
+    try {
+        const result = await axios.get(`${BASE_URL}parkedCar/flagged`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (result?.data) {
+            setFlaggedCars(result.data);
+        }
+        console.log('fetchFlaggedCars ', result);
+    } catch (error) {
+        console.error('fetchFlaggedCars ', error);
+        if (handleError) {
+            handleError(error?.response?.data?.error || 'Failed to fetch flagged cars');
+        }
+    }
+};
+
+// Send notification to flagged customer
+export const notifyFlaggedCustomer = async ({ id, token, handleNotifySuccess, handleNotifyFailure }) => {
+    try {
+        const result = await axios.post(`${BASE_URL}parkedCar/${id}/notify`, {}, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (result?.data?.message) {
+            return handleNotifySuccess(result.data);
+        }
+        console.log('notifyFlaggedCustomer ', result);
+    } catch (error) {
+        console.error('notifyFlaggedCustomer ', error);
+        handleNotifyFailure(error?.response?.data?.error || 'Failed to send notification');
+    }
+};
+
 export const sendSmsNotification = async ({ phoneNumber, message, token, handleSendSmsSuccess, handleSendSmsFailure }) => {
     try {
         const result = await axios.post(`${BASE_URL}sms/send`, { phoneNumber, message }, {

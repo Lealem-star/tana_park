@@ -59,6 +59,52 @@ parkedCarRouter.post("/", isLoggedIn, async (req, res) => {
             return res.status(400).json({ error: "Car with this license plate is already parked" });
         }
 
+        // Check for flagged customers with matching license plate or phone number
+        const flaggedCar = await ParkedCar.findOne({
+            isFlagged: true,
+            $or: [
+                { licensePlate: licensePlate },
+                { plateCode: plateCode, region: region, licensePlateNumber: licensePlateNumber.toUpperCase() },
+                { phoneNumber: phoneNumber.trim() }
+            ]
+        });
+
+        if (flaggedCar) {
+            // Calculate outstanding amount
+            let outstandingAmount = 0;
+            if (flaggedCar.baseAmount && flaggedCar.vatAmount) {
+                outstandingAmount = (flaggedCar.baseAmount || 0) + (flaggedCar.vatAmount || 0);
+            } else if (flaggedCar.totalPaidAmount === 0 && flaggedCar.parkedAt && flaggedCar.checkedOutAt) {
+                // Calculate from duration if amounts not stored
+                const diffMs = new Date(flaggedCar.checkedOutAt) - new Date(flaggedCar.parkedAt);
+                const hoursParked = Math.max(0.01, diffMs / (1000 * 60 * 60));
+                const PricingSettings = require('../models/pricingSettingsSchema');
+                const pricingSettings = await PricingSettings.findOne();
+                const priceLevels = pricingSettings?.priceLevels || {};
+                const priceLevelNames = Object.keys(priceLevels);
+                let pricePerHour = 50; // Default
+                if (priceLevelNames.length > 0) {
+                    const carPricing = priceLevels[priceLevelNames[0]]?.[flaggedCar.carType] || {};
+                    pricePerHour = carPricing.hourly || 50;
+                }
+                const parkingFee = Math.round((hoursParked * pricePerHour) * 100) / 100;
+                const vatRate = flaggedCar.vatRate || 0.15;
+                const vatAmount = Math.round(parkingFee * vatRate * 100) / 100;
+                outstandingAmount = parkingFee + vatAmount;
+            }
+
+            const licenseDisplay = flaggedCar.licensePlate || `${flaggedCar.plateCode || ''}-${flaggedCar.region || ''}-${flaggedCar.licensePlateNumber || ''}`;
+            return res.status(400).json({ 
+                error: `This customer has an unpaid parking fee. Please ask them to pay the outstanding amount of ${outstandingAmount.toFixed(2)} ETB first before registering a new car. License Plate: ${licenseDisplay}`,
+                flaggedCar: {
+                    id: flaggedCar._id,
+                    licensePlate: licenseDisplay,
+                    phoneNumber: flaggedCar.phoneNumber,
+                    outstandingAmount: outstandingAmount.toFixed(2)
+                }
+            });
+        }
+
         // Get parking zone from valet's parkZoneCode
         const location = currentUser.parkZoneCode || 'Unknown Zone';
 
@@ -473,6 +519,193 @@ parkedCarRouter.get("/stats/daily/history", isLoggedIn, async (req, res) => {
         res.json(stats);
     } catch (error) {
         console.error(" error - ", error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Flag a parked car (mark as unpaid)
+parkedCarRouter.put("/:id/flag", isLoggedIn, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { baseAmount, vatAmount, totalWithVat } = req.body;
+
+        if (!Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: "Invalid car id" });
+        }
+
+        const User = require("../models/userSchema");
+        const currentUser = await User.findOne({ phoneNumber: req.user?.phoneNumber });
+
+        const car = await ParkedCar.findById(id);
+
+        if (!car) {
+            return res.status(404).json({ error: "Parked car not found" });
+        }
+
+        // Only the valet who registered or admin/manager can flag
+        if (currentUser.type !== 'system_admin' && 
+            currentUser.type !== 'manager' && 
+            currentUser.type !== 'admin' &&
+            car.valet_id.toString() !== currentUser._id.toString()) {
+            return res.status(403).json({ error: "You don't have permission to flag this car" });
+        }
+
+        // Can only flag parked cars
+        if (car.status !== 'parked') {
+            return res.status(400).json({ error: "Can only flag cars that are currently parked" });
+        }
+
+        // Set checked out time to stop timer
+        const now = new Date();
+        car.status = 'checked_out';
+        car.checkedOutAt = now;
+        car.checkedOutBy = currentUser._id;
+        
+        // Mark as flagged
+        car.isFlagged = true;
+        car.flaggedAt = now;
+        car.flaggedBy = currentUser._id;
+
+        // Store fee details if provided
+        if (baseAmount !== undefined) {
+            car.baseAmount = baseAmount;
+        }
+        if (vatAmount !== undefined) {
+            car.vatAmount = vatAmount;
+        }
+        if (totalWithVat !== undefined) {
+            car.totalPaidAmount = 0; // Not paid yet
+            // Store the amount owed
+            if (!car.baseAmount && baseAmount === undefined) {
+                // Calculate from totalWithVat if baseAmount not provided
+                const { reverseCalculateVAT } = require('../utils/vatCalculator');
+                const vatRate = car.vatRate || 0.15;
+                const breakdown = reverseCalculateVAT(totalWithVat, vatRate);
+                car.baseAmount = breakdown.baseAmount;
+                car.vatAmount = breakdown.vatAmount;
+            }
+        }
+
+        await car.save();
+
+        const updatedCar = await ParkedCar.findById(id)
+            .populate('valet_id', 'name phoneNumber priceLevel')
+            .populate('checkedOutBy', 'name phoneNumber')
+            .populate('flaggedBy', 'name phoneNumber');
+
+        res.json({ message: "Car flagged successfully", car: updatedCar });
+    } catch (error) {
+        console.error("Flag car error - ", error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Get all flagged cars (visible to all users)
+parkedCarRouter.get("/flagged", isLoggedIn, async (req, res) => {
+    try {
+        const cars = await ParkedCar.find({ isFlagged: true })
+            .populate('valet_id', 'name phoneNumber priceLevel')
+            .populate('flaggedBy', 'name phoneNumber')
+            .populate('checkedOutBy', 'name phoneNumber')
+            .sort({ flaggedAt: -1 });
+
+        res.json(cars);
+    } catch (error) {
+        console.error("Get flagged cars error - ", error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Send notification to flagged customer
+parkedCarRouter.post("/:id/notify", isLoggedIn, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: "Invalid car id" });
+        }
+
+        const car = await ParkedCar.findById(id)
+            .populate('valet_id', 'name phoneNumber priceLevel');
+
+        if (!car) {
+            return res.status(404).json({ error: "Parked car not found" });
+        }
+
+        if (!car.isFlagged) {
+            return res.status(400).json({ error: "Car is not flagged" });
+        }
+
+        if (!car.phoneNumber) {
+            return res.status(400).json({ error: "Phone number not available" });
+        }
+
+        // Calculate fee if not already stored
+        let parkingFee = car.baseAmount || 0;
+        let vatAmount = car.vatAmount || 0;
+        let totalWithVat = parkingFee + vatAmount;
+
+        // If fee not stored, calculate from duration
+        if (totalWithVat === 0 && car.parkedAt && car.checkedOutAt) {
+            const { calculateVAT, getVATRate } = require('../utils/vatCalculator');
+            const vatRate = await getVATRate();
+            
+            // Calculate hours parked
+            const diffMs = new Date(car.checkedOutAt) - new Date(car.parkedAt);
+            const hoursParked = Math.max(0.01, diffMs / (1000 * 60 * 60));
+            
+            // Get pricing (simplified - use first available price level)
+            const PricingSettings = require('../models/pricingSettingsSchema');
+            const pricingSettings = await PricingSettings.findOne();
+            const priceLevels = pricingSettings?.priceLevels || {};
+            const priceLevelNames = Object.keys(priceLevels);
+            
+            let pricePerHour = 50; // Default
+            if (priceLevelNames.length > 0) {
+                const carPricing = priceLevels[priceLevelNames[0]]?.[car.carType] || {};
+                pricePerHour = carPricing.hourly || 50;
+            }
+            
+            parkingFee = Math.round((hoursParked * pricePerHour) * 100) / 100;
+            vatAmount = calculateVAT(parkingFee, vatRate);
+            totalWithVat = parkingFee + vatAmount;
+        }
+
+        // Construct warning message
+        const licenseDisplay = car.licensePlate || `${car.plateCode || ''}-${car.region || ''}-${car.licensePlateNumber || ''}`;
+        const checkedOutDate = car.checkedOutAt ? new Date(car.checkedOutAt).toLocaleDateString() : 'N/A';
+        const checkedOutTime = car.checkedOutAt ? new Date(car.checkedOutAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+        
+        const smsMessage = `⚠️ WARNING: Unpaid Parking Fee\n\nDear customer,\n\nYour vehicle (${licenseDisplay}) was checked out from Tana Parking on ${checkedOutDate} at ${checkedOutTime} without payment.\n\nOutstanding Amount:\nParking Fee: ${parkingFee.toFixed(2)} ETB\nVAT: ${vatAmount.toFixed(2)} ETB\nTotal: ${totalWithVat.toFixed(2)} ETB\n\nPlease return to the parking facility to complete your payment. Failure to pay may result in additional penalties.\n\nThank you for your cooperation.`;
+
+        // Format phone number for SMS (ensure it starts with +)
+        let formattedPhone = car.phoneNumber.trim();
+        if (!formattedPhone.startsWith('+')) {
+            if (formattedPhone.startsWith('251')) {
+                formattedPhone = '+' + formattedPhone;
+            } else if (formattedPhone.startsWith('0')) {
+                formattedPhone = '+251' + formattedPhone.substring(1);
+            } else {
+                formattedPhone = '+' + formattedPhone;
+            }
+        }
+
+        // Send SMS notification
+        const userController = require('./user');
+        if (userController && userController.sendSms) {
+            await userController.sendSms(formattedPhone, smsMessage);
+        } else {
+            return res.status(500).json({ error: "SMS service not available" });
+        }
+
+        // Update notification status
+        car.notificationSent = true;
+        car.lastNotificationSentAt = new Date();
+        await car.save();
+
+        res.json({ message: "Notification sent successfully", car });
+    } catch (error) {
+        console.error("Notify flagged customer error - ", error);
         res.status(400).json({ error: error.message });
     }
 });

@@ -654,7 +654,7 @@ const RegisterCar = () => {
                     </div>
 
                     <div className="form-group">
-                        <label>{t('valet.notes')} ({t('common.optional') || 'Optional'})</label>
+                        <label>{t('valet.notes')} ({t('common.optional')})</label>
                         <textarea
                             value={formData.notes}
                             onChange={(e) => handleChange('notes', e.target.value)}

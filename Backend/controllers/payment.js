@@ -170,6 +170,53 @@ paymentRouter.post("/chapa/initialize-package", isLoggedIn, async (req, res) => 
             return res.status(403).json({ error: "Only valets can initialize package payments" });
         }
 
+        // Check for flagged customers with matching license plate or phone number
+        const licensePlate = `${carData.plateCode}-${carData.region}-${carData.licensePlateNumber}`.toUpperCase();
+        const flaggedCar = await ParkedCar.findOne({
+            isFlagged: true,
+            $or: [
+                { licensePlate: licensePlate },
+                { plateCode: carData.plateCode, region: carData.region, licensePlateNumber: carData.licensePlateNumber.toUpperCase() },
+                { phoneNumber: carData.phoneNumber.trim() }
+            ]
+        });
+
+        if (flaggedCar) {
+            // Calculate outstanding amount
+            let outstandingAmount = 0;
+            if (flaggedCar.baseAmount && flaggedCar.vatAmount) {
+                outstandingAmount = (flaggedCar.baseAmount || 0) + (flaggedCar.vatAmount || 0);
+            } else if (flaggedCar.totalPaidAmount === 0 && flaggedCar.parkedAt && flaggedCar.checkedOutAt) {
+                // Calculate from duration if amounts not stored
+                const diffMs = new Date(flaggedCar.checkedOutAt) - new Date(flaggedCar.parkedAt);
+                const hoursParked = Math.max(0.01, diffMs / (1000 * 60 * 60));
+                const PricingSettings = require('../models/pricingSettingsSchema');
+                const pricingSettings = await PricingSettings.findOne();
+                const priceLevels = pricingSettings?.priceLevels || {};
+                const priceLevelNames = Object.keys(priceLevels);
+                let pricePerHour = 50; // Default
+                if (priceLevelNames.length > 0) {
+                    const carPricing = priceLevels[priceLevelNames[0]]?.[flaggedCar.carType] || {};
+                    pricePerHour = carPricing.hourly || 50;
+                }
+                const parkingFee = Math.round((hoursParked * pricePerHour) * 100) / 100;
+                const vatRate = flaggedCar.vatRate || 0.15;
+                const vatAmount = Math.round(parkingFee * vatRate * 100) / 100;
+                outstandingAmount = parkingFee + vatAmount;
+            }
+
+            const licenseDisplay = flaggedCar.licensePlate || `${flaggedCar.plateCode || ''}-${flaggedCar.region || ''}-${flaggedCar.licensePlateNumber || ''}`;
+            return res.status(400).json({ 
+                error: `This customer has an unpaid parking fee. Please ask them to pay the outstanding amount of ${outstandingAmount.toFixed(2)} ETB first before registering a new car. License Plate: ${licenseDisplay}`,
+                flaggedCar: {
+                    id: flaggedCar._id,
+                    licensePlate: licenseDisplay,
+                    phoneNumber: flaggedCar.phoneNumber,
+                    outstandingAmount: outstandingAmount.toFixed(2)
+                }
+            });
+        }
+
         // Validate Chapa public key is configured
         if (!CHAPA_PUBLIC_KEY || CHAPA_PUBLIC_KEY.trim() === "") {
             console.error("❌ CHAPA_PUBLIC_KEY is not configured in backend .env file");

@@ -28,7 +28,8 @@
     "confirm": "Confirm",
     "yes": "Yes",
     "no": "No",
-    "ok": "OK"
+    "ok": "OK",
+    "optional": "Optional"
   },
   "auth": {
     "phoneNumber": "Phone Number",
@@ -189,7 +190,19 @@
     "paymentSuccessful": "Payment successful!",
     "paymentFailed": "Payment failed",
     "processingPayment": "Processing payment...",
-    "selectPaymentMethod": "Select Payment Method"
+    "selectPaymentMethod": "Select Payment Method",
+    "flaggedCustomers": "Flagged Customers",
+    "unpaidParking": "Unpaid Parking",
+    "payNow": "Pay Now",
+    "flagHim": "Flag Him",
+    "notify": "Notify",
+    "notificationSent": "Notification sent successfully",
+    "notified": "Notified",
+    "noFlaggedCars": "No flagged cars found",
+    "selectPaymentOption": "Choose how to proceed with checkout",
+    "flaggedCustomerError": "This customer has an unpaid parking fee. Please ask them to pay the outstanding amount first before registering a new car.",
+    "outstandingAmount": "Outstanding Amount",
+    "pleasePayFirst": "Please pay the outstanding amount first"
   },
   "admin": {
     "userManagement": "User Management",

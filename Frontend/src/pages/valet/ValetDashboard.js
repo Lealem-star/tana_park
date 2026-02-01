@@ -12,7 +12,8 @@ import {
     Menu,
     X,
     Bell,
-    User
+    User,
+    AlertTriangle
 } from 'lucide-react';
 import { socket } from '../../utils/chatSocket';
 import '../../css/valetDashboard.scss';
@@ -66,6 +67,7 @@ const ValetDashboard = () => {
         { icon: LayoutDashboard, label: t('navigation.dashboard'), path: '/valet/dashboard' },
         { icon: Car, label: t('valet.registerCar'), path: '/valet/register-car' },
         { icon: List, label: t('valet.packageService'), path: '/valet/cars' },
+        { icon: AlertTriangle, label: t('valet.flaggedCustomers'), path: '/valet/flagged-customers' },
     ];
 
     const isActive = (path) => {

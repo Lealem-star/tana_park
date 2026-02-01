@@ -2,7 +2,7 @@ import './App.css';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
-import { Layout, Home, NoPage, Users, About, Login, Register, AdminDashboard, DashboardOverview, UserManagement, Settings, Reports, GroupChat, ValetDashboard, ValetOverview, RegisterCar, ParkedCarsList } from './pages/common';
+import { Layout, Home, NoPage, Users, About, Login, Register, AdminDashboard, DashboardOverview, UserManagement, Settings, Reports, GroupChat, ValetDashboard, ValetOverview, RegisterCar, ParkedCarsList, FlaggedCustomers } from './pages/common';
 import Profile from './pages/valet/Profile';
 import PaymentCallback from './pages/valet/PaymentCallback';
 import SplashScreen from './components/SplashScreen';
@@ -75,6 +75,7 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
           <Route path="chat" element={<GroupChat />} />
+          <Route path="flagged-customers" element={<FlaggedCustomers />} />
         </Route>
         <Route path="/valet" element={<ValetDashboard />}>
           <Route index element={<ParkedCarsList />} />
@@ -83,6 +84,7 @@ function App() {
           <Route path="cars" element={<ValetOverview />} />
           <Route path="profile" element={<Profile />} />
           <Route path="chat" element={<GroupChat />} />
+          <Route path="flagged-customers" element={<FlaggedCustomers />} />
         </Route>
         <Route path="login" element={
           <PublicRoute>

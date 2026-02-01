@@ -16,7 +16,8 @@ import {
     Bell,
     User,
     Camera,
-    FileText
+    FileText,
+    AlertTriangle
 } from 'lucide-react';
 import { socket } from '../../utils/chatSocket';
 
@@ -263,6 +264,7 @@ const AdminDashboard = () => {
         { icon: Users, label: t('admin.userManagement'), path: '/admin/users' },
         { icon: FileText, label: t('navigation.reports'), path: '/admin/reports' },
         { icon: Settings, label: t('navigation.settings'), path: '/admin/settings' },
+        { icon: AlertTriangle, label: t('valet.flaggedCustomers'), path: '/admin/flagged-customers' },
     ];
 
     const isActive = (path) => {

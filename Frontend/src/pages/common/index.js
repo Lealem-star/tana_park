@@ -18,6 +18,7 @@ import UserManagement from "../admin/UserManagement";
 import Settings from "../admin/Settings";
 import Reports from "../admin/Reports";
 import GroupChat from "./GroupChat";
+import FlaggedCustomers from "./FlaggedCustomers";
 
 export {
     Layout,
@@ -37,5 +38,6 @@ export {
     UserManagement,
     Settings,
     Reports,
-    GroupChat
+    GroupChat,
+    FlaggedCustomers
 }

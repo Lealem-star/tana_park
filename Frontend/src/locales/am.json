@@ -28,7 +28,8 @@
     "confirm": "አረጋግጥ",
     "yes": "አዎ",
     "no": "አይ",
-    "ok": "እሺ"
+    "ok": "እሺ",
+    "optional": "አማራጭ"
   },
   "auth": {
     "phoneNumber": "የስልክ ቁጥር",
@@ -175,7 +176,19 @@
     "paymentSuccessful": "ክፍያ በትክክል ተጠናቋል!",
     "paymentFailed": "ክፍያ አልተሳካም",
     "processingPayment": "ክፍያ በመስራት ላይ...",
-    "selectPaymentMethod": "የመክፈያ ዘዴ ምረጥ"
+    "selectPaymentMethod": "የመክፈያ ዘዴ ምረጥ",
+    "flaggedCustomers": "የተመዘገቡ ደንበኞች",
+    "unpaidParking": "ያልተከፈለ ፓርኪንግ",
+    "payNow": "አሁን ይክፈሉ",
+    "flagHim": "አስተውው",
+    "notify": "አሳውቅ",
+    "notificationSent": "ማሳወቂያ በትክክል ተላከ",
+    "notified": "ተላከ",
+    "noFlaggedCars": "የተመዘገቡ መኪኖች አልተገኙም",
+    "selectPaymentOption": "የመውጫ ሂደትን እንዴት መቀጠል እንደሚፈልጉ ይምረጡ",
+    "flaggedCustomerError": "ይህ ደንበኛ ያልተከፈለ የፓርኪንግ ክፍያ አለው። እባክዎ አዲስ መኪና ከመመዝገብዎ በፊት የቀረውን መጠን እንዲከፍሉ ይጠይቁ።",
+    "outstandingAmount": "የቀረው መጠን",
+    "pleasePayFirst": "እባክዎ በመጀመሪያ የቀረውን መጠን ይክፈሉ"
   },
   "admin": {
     "userManagement": "የተጠቃሚ አስተዳደር",
