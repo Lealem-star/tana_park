@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { fetchFlaggedCars, notifyFlaggedCustomer, initializeChapaPayment, updateParkedCar, sendSmsNotification } from '../../api/api';
-import { EthiopianDatePicker } from '../../components';
-import { AlertTriangle, Bell, CreditCard } from 'lucide-react';
+import { fetchFlaggedCars, notifyFlaggedCustomer, initializeChapaPayment, updateParkedCar } from '../../api/api';
+import { AlertTriangle, Bell, CreditCard, X } from 'lucide-react';
 import '../../css/parkedCarsList.scss';
 
 const FlaggedCustomers = () => {
@@ -12,25 +11,32 @@ const FlaggedCustomers = () => {
     const [flaggedCars, setFlaggedCars] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedCar, setSelectedCar] = useState(null);
-    const [showPaymentFormModal, setShowPaymentFormModal] = useState(false);
     const [feeDetails, setFeeDetails] = useState(null);
+    const [showPaymentFormModal, setShowPaymentFormModal] = useState(false);
+    const chapaInstanceRef = useRef(null);
+
+    const loadFlaggedCars = useCallback(() => {
+        if (!user?.token) return;
+        setLoading(true);
+        fetchFlaggedCars({
+            token: user.token,
+            setFlaggedCars: (cars) => {
+                console.log('Flagged cars loaded:', cars);
+                setFlaggedCars(cars || []);
+                setLoading(false);
+            },
+            handleError: (error) => {
+                console.error('Failed to load flagged cars:', error);
+                setLoading(false);
+            }
+        });
+    }, [user?.token]);
 
     useEffect(() => {
         if (user?.token) {
             loadFlaggedCars();
         }
-    }, [user?.token]);
-
-    const loadFlaggedCars = () => {
-        if (!user?.token) return;
-        fetchFlaggedCars({
-            token: user.token,
-            setFlaggedCars: setFlaggedCars,
-            handleError: (error) => {
-                console.error('Failed to load flagged cars:', error);
-            }
-        });
-    };
+    }, [user?.token, loadFlaggedCars]);
 
     const calculateFee = (car) => {
         // Calculate fee from stored amounts or from duration
@@ -61,40 +67,65 @@ const FlaggedCustomers = () => {
         };
     };
 
-    const handlePayNow = (car) => {
+    const handlePayNow = async (car) => {
         const fee = calculateFee(car);
         setSelectedCar(car);
         setFeeDetails(fee);
-        setShowPaymentFormModal(true);
-        // Payment flow will be handled similar to ParkedCarsList
-        handlePaymentMethod('online');
+        
+        // Wait a moment for state to update, then initialize payment
+        setTimeout(() => {
+            handlePaymentMethod('online', car, fee);
+        }, 100);
     };
 
-    const handlePaymentMethod = async (paymentMethod) => {
-        if (!selectedCar || !feeDetails) return;
+    const handlePaymentMethod = async (paymentMethod, car = selectedCar, fee = feeDetails) => {
+        const carToUse = car || selectedCar;
+        const feeToUse = fee || feeDetails;
+        
+        if (!carToUse || !feeToUse) {
+            console.error('Missing car or fee details');
+            return;
+        }
 
         setLoading(true);
         
         try {
-            // Initialize Chapa payment (similar to ParkedCarsList)
-            const customerName = selectedCar.customerName || 'Customer';
-            const customerEmail = selectedCar.customerEmail || `${selectedCar.phoneNumber}@tana-parking.com`;
-            const customerPhone = selectedCar.phoneNumber;
+            // Clean up any existing payment data and Chapa instances
+            if (chapaInstanceRef.current) {
+                const container = document.getElementById('chapa-inline-form');
+                if (container) {
+                    container.innerHTML = '';
+                }
+                chapaInstanceRef.current = null;
+            }
+            localStorage.removeItem(`chapa_payment_${carToUse._id}`);
+            
+            // Initialize Chapa payment
+            const customerName = carToUse.customerName || 'Customer';
+            const customerEmail = carToUse.customerEmail || `${carToUse.phoneNumber?.replace(/[^0-9]/g, '') || 'customer'}@tana-parking.com`;
+            const customerPhone = carToUse.phoneNumber;
+
+            if (!customerPhone) {
+                alert('Customer phone number is required for payment');
+                setLoading(false);
+                return;
+            }
 
             await initializeChapaPayment({
-                carId: selectedCar._id,
-                amount: feeDetails.totalWithVat,
+                carId: carToUse._id,
+                amount: feeToUse.totalWithVat,
                 customerName: customerName,
                 customerEmail: customerEmail,
                 customerPhone: customerPhone,
                 token: user?.token,
                 handleInitSuccess: async (data) => {
                     // Store payment reference
-                    localStorage.setItem(`chapa_payment_${selectedCar._id}`, JSON.stringify({
+                    localStorage.setItem(`chapa_payment_${carToUse._id}`, JSON.stringify({
                         txRef: data.txRef,
-                        carId: selectedCar._id,
-                        feeDetails: feeDetails,
-                        customerPhone: selectedCar.phoneNumber
+                        carId: carToUse._id,
+                        feeDetails: feeToUse,
+                        customerPhone: customerPhone,
+                        isFlagged: true
                     }));
 
                     const chapaPublicKey = data.publicKey || process.env.REACT_APP_CHAPA_PUBLIC_KEY;
@@ -105,20 +136,185 @@ const FlaggedCustomers = () => {
                         return;
                     }
 
-                    // Initialize Chapa Inline.js (simplified - full implementation similar to ParkedCarsList)
-                    // For now, redirect to payment callback
-                    window.location.href = `/payment/callback?txRef=${data.txRef}`;
+                    // Validate public key format
+                    const isValidTestKey = chapaPublicKey.startsWith('CHAPUBK_TEST-');
+                    const isValidLiveKey = chapaPublicKey.startsWith('CHAPUBK-');
+                    if (!isValidTestKey && !isValidLiveKey) {
+                        alert('Invalid public key format. Please check your CHAPA_PUBLIC_KEY in backend .env file.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    // Initialize Chapa Inline.js
+                    try {
+                        // Get ChapaCheckout from window
+                        let ChapaCheckout;
+                        if (window.ChapaCheckout) {
+                            ChapaCheckout = window.ChapaCheckout;
+                        } else {
+                            // Wait for script to load (max 3 seconds)
+                            await new Promise((resolve, reject) => {
+                                let attempts = 0;
+                                const checkInterval = setInterval(() => {
+                                    attempts++;
+                                    if (window.ChapaCheckout) {
+                                        clearInterval(checkInterval);
+                                        ChapaCheckout = window.ChapaCheckout;
+                                        resolve();
+                                    } else if (attempts > 30) {
+                                        clearInterval(checkInterval);
+                                        reject(new Error('Chapa library failed to load'));
+                                    }
+                                }, 100);
+                            });
+                        }
+                        
+                        if (!ChapaCheckout || typeof ChapaCheckout !== 'function') {
+                            alert('Chapa payment library is not loaded. Please refresh the page.');
+                            setLoading(false);
+                            return;
+                        }
+
+                        // Format amount and phone number
+                        const formattedAmount = parseFloat(feeToUse.totalWithVat).toFixed(2);
+                        const isTestMode = chapaPublicKey.startsWith('CHAPUBK_TEST-');
+                        let formattedPhone = customerPhone;
+                        
+                        if (isTestMode) {
+                            if (formattedPhone.startsWith('+251')) {
+                                formattedPhone = '0' + formattedPhone.substring(4);
+                            } else if (!formattedPhone.startsWith('0')) {
+                                formattedPhone = '0' + formattedPhone;
+                            }
+                        } else {
+                            if (formattedPhone && !formattedPhone.startsWith('+')) {
+                                formattedPhone = formattedPhone.replace(/^0/, '+251');
+                                if (!formattedPhone.startsWith('+')) {
+                                    formattedPhone = `+251${formattedPhone}`;
+                                }
+                            }
+                        }
+
+                        // Chapa Inline.js configuration
+                        const chapaConfig = {
+                            publicKey: chapaPublicKey,
+                            txRef: data.txRef,
+                            amount: formattedAmount,
+                            currency: 'ETB',
+                            phoneNumber: formattedPhone,
+                            firstName: 'Customer',
+                            lastName: 'User',
+                            email: customerEmail,
+                            availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr', 'mpesa'],
+                            customizations: {
+                                title: 'Tana Parking Payment',
+                                description: `Unpaid parking fee payment for ${carToUse.licensePlate || 'your vehicle'}`,
+                                buttonText: 'Pay Now',
+                            },
+                            callbackUrl: `${window.location.origin}/payment/callback`,
+                            returnUrl: `${window.location.origin}/payment/success?carId=${carToUse._id}`,
+                            showFlag: true,
+                            showPaymentMethodsNames: true,
+                            onSuccessfulPayment: async () => {
+                                console.log('✅ Payment successful for flagged car');
+                                // Update car status and unflag it
+                                await updateParkedCar({
+                                    id: carToUse._id,
+                                    body: {
+                                        status: 'checked_out',
+                                        paymentMethod: 'online',
+                                        totalPaidAmount: feeToUse.totalWithVat,
+                                        baseAmount: feeToUse.parkingFee,
+                                        vatAmount: feeToUse.vatAmount,
+                                        isFlagged: false, // Unflag the car
+                                        flaggedAt: null,
+                                        flaggedBy: null,
+                                        notificationSent: false,
+                                        lastNotificationSentAt: null
+                                    },
+                                    token: user?.token,
+                                    handleUpdateParkedCarSuccess: () => {
+                                        loadFlaggedCars(); // Refresh list
+                                        setShowPaymentFormModal(false);
+                                        setSelectedCar(null);
+                                        setFeeDetails(null);
+                                        setLoading(false);
+                                        alert(t('valet.paymentSuccessful'));
+                                    },
+                                    handleUpdateParkedCarFailure: (err) => {
+                                        console.error('Failed to update flagged car:', err);
+                                        alert(`${t('messages.error')}: ${t('messages.operationFailed')}`);
+                                        setLoading(false);
+                                    }
+                                });
+                            },
+                            onPaymentFailure: (error) => {
+                                console.error('❌ Payment failed:', error);
+                                alert(`${t('messages.error')}: ${t('valet.paymentFailed')}`);
+                                setLoading(false);
+                            },
+                            onClose: () => {
+                                setShowPaymentFormModal(false);
+                                setLoading(false);
+                            }
+                        };
+
+                        const chapa = new ChapaCheckout(chapaConfig);
+                        chapaInstanceRef.current = chapa;
+                        
+                        // Open payment form modal
+                        setShowPaymentFormModal(true);
+                        
+                        // Wait for DOM to update, then initialize Chapa
+                        setTimeout(() => {
+                            const container = document.getElementById('chapa-inline-form');
+                            if (container) {
+                                try {
+                                    chapa.initialize('chapa-inline-form');
+                                    setLoading(false);
+                                } catch (initError) {
+                                    console.error('Error during chapa.initialize():', initError);
+                                    alert(`Failed to initialize payment form: ${initError?.message || 'Unknown error'}`);
+                                    setShowPaymentFormModal(false);
+                                    setLoading(false);
+                                }
+                            } else {
+                                console.error('Chapa container not found after rendering');
+                                alert('Failed to load payment form. Please try again.');
+                                setShowPaymentFormModal(false);
+                                setLoading(false);
+                            }
+                        }, 100);
+                    } catch (initError) {
+                        console.error('ChapaCheckout constructor error:', initError);
+                        alert(`Failed to initialize payment: ${initError?.message || 'Unknown error'}`);
+                        setShowPaymentFormModal(false);
+                        setLoading(false);
+                    }
                 },
                 handleInitFailure: (error) => {
+                    console.error('Payment initialization failed:', error);
                     alert(`Failed to initialize payment: ${error}`);
                     setLoading(false);
                 }
             });
         } catch (error) {
             console.error('Payment initialization error:', error);
-            alert('Failed to initialize payment. Please try again.');
+            alert(`Failed to initialize payment: ${error?.message || 'Please try again.'}`);
             setLoading(false);
         }
+    };
+
+    const handleClosePaymentFormModal = () => {
+        if (chapaInstanceRef.current) {
+            const container = document.getElementById('chapa-inline-form');
+            if (container) {
+                container.innerHTML = '';
+            }
+            chapaInstanceRef.current = null;
+        }
+        setShowPaymentFormModal(false);
+        setLoading(false);
     };
 
     const handleNotify = async (car) => {
@@ -160,13 +356,37 @@ const FlaggedCustomers = () => {
 
     return (
         <div className="parked-cars-list">
-            <div className="page-header">
-                <h1>{t('valet.flaggedCustomers')}</h1>
-                <p>{t('valet.unpaidParking')}</p>
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h1>{t('valet.flaggedCustomers')}</h1>
+                    <p>{t('valet.unpaidParking')}</p>
+                </div>
+                <button
+                    onClick={loadFlaggedCars}
+                    disabled={loading}
+                    style={{
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        border: '1px solid #667eea',
+                        background: '#667eea',
+                        color: '#fff',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        fontWeight: '500',
+                        opacity: loading ? 0.6 : 1
+                    }}
+                >
+                    {t('common.refresh')}
+                </button>
             </div>
 
+            {loading && (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <p>{t('common.loading')}</p>
+                </div>
+            )}
+
             <div className="cars-table-container">
-                {flaggedCars.length > 0 ? (
+                {!loading && flaggedCars.length > 0 ? (
                     <table className="cars-table">
                         <thead>
                             <tr>
@@ -194,21 +414,16 @@ const FlaggedCustomers = () => {
                                                     className="btn-action btn-pay"
                                                     onClick={() => handlePayNow(car)}
                                                     disabled={loading}
-                                                    style={{ marginRight: '8px' }}
                                                 >
-                                                    <CreditCard size={16} style={{ marginRight: '4px' }} />
+                                                    <CreditCard size={16} />
                                                     {t('valet.payNow')}
                                                 </button>
                                                 <button
                                                     className="btn-action btn-notify"
                                                     onClick={() => handleNotify(car)}
                                                     disabled={loading || car.notificationSent}
-                                                    style={{ 
-                                                        opacity: car.notificationSent ? 0.6 : 1,
-                                                        cursor: car.notificationSent ? 'not-allowed' : 'pointer'
-                                                    }}
                                                 >
-                                                    <Bell size={16} style={{ marginRight: '4px' }} />
+                                                    <Bell size={16} />
                                                     {car.notificationSent ? t('valet.notified') : t('valet.notify')}
                                                 </button>
                                             </div>
@@ -218,13 +433,54 @@ const FlaggedCustomers = () => {
                             })}
                         </tbody>
                     </table>
-                ) : (
+                ) : !loading ? (
                     <div className="no-data">
                         <AlertTriangle size={48} style={{ color: '#9ca3af', marginBottom: '16px' }} />
                         <p>{t('valet.noFlaggedCars')}</p>
                     </div>
-                )}
+                ) : null}
             </div>
+
+            {/* Payment Form Modal - Chapa inline payment */}
+            {showPaymentFormModal && selectedCar && feeDetails && (
+                <div className="payment-modal-overlay" onClick={handleClosePaymentFormModal}>
+                    <div className="payment-form-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>{t('valet.completePayment')}</h2>
+                            <button 
+                                className="close-btn" 
+                                onClick={handleClosePaymentFormModal} 
+                                disabled={loading}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="modal-content">
+                            <div className="payment-summary-section">
+                                <h3>{t('valet.paymentSummary')}</h3>
+                                <div className="summary-row">
+                                    <span className="label">{t('valet.totalAmount')}:</span>
+                                    <span className="value">{feeDetails.totalWithVat.toFixed(2)} ETB</span>
+                                </div>
+                                <div className="summary-row">
+                                    <span className="label">{t('valet.phoneNumber')}:</span>
+                                    <span className="value">{selectedCar.phoneNumber || 'N/A'}</span>
+                                </div>
+                                <div className="summary-row">
+                                    <span className="label">{t('valet.licensePlate')}:</span>
+                                    <span className="value">{selectedCar.licensePlate || 'N/A'}</span>
+                                </div>
+                            </div>
+
+                            <div className="chapa-payment-form-section">
+                                <h3>{t('valet.payOnline')}</h3>
+                                <div id="chapa-inline-form"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

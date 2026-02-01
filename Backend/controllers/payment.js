@@ -57,8 +57,9 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
             return res.status(404).json({ error: "Car not found" });
         }
 
-        if (car.status !== 'parked') {
-            return res.status(400).json({ error: "Car is not currently parked" });
+        // Allow payment for parked cars OR flagged cars (checked_out but unpaid)
+        if (car.status !== 'parked' && !(car.status === 'checked_out' && car.isFlagged)) {
+            return res.status(400).json({ error: "Car is not currently parked or flagged for payment" });
         }
 
         // Validate Chapa public key is configured
@@ -432,11 +433,22 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                 
                 // Check if payment is successful (normalized status)
                 if (car && normalizedStatus === 'successful') {
-                    // Update car status to checked_out
-                    car.status = 'checked_out';
-                    car.checkedOutAt = new Date();
+                    // Update car status to checked_out (if not already)
+                    if (car.status !== 'checked_out') {
+                        car.status = 'checked_out';
+                    }
+                    // Only set checkedOutAt if it doesn't exist (preserve original checkout time for flagged cars)
+                    if (!car.checkedOutAt) {
+                        car.checkedOutAt = new Date();
+                    }
                     car.paymentMethod = 'online';
                     car.paymentReference = txRef;
+                    // Unflag the car if it was flagged (payment successful)
+                    if (car.isFlagged) {
+                        car.isFlagged = false;
+                        car.flaggedAt = null;
+                        car.flaggedBy = null;
+                    }
                     // Save the transaction amount as totalPaidAmount and calculate VAT
                     if (transaction.amount) {
                         const vatRate = await getVATRate();
@@ -783,6 +795,10 @@ paymentRouter.post("/chapa/callback", async (req, res) => {
                     car.checkedOutAt = new Date();
                     car.paymentMethod = 'online';
                     car.paymentReference = txRef || tx_ref;
+                    // Unflag the car if it was flagged (payment successful)
+                    if (car.isFlagged) {
+                        car.isFlagged = false;
+                    }
                     if (amount) {
                         const vatRate = await getVATRate();
                         const vatBreakdown = reverseCalculateVAT(parseFloat(amount), vatRate);
@@ -912,6 +928,10 @@ paymentRouter.get("/chapa/callback", async (req, res) => {
                             car.checkedOutAt = new Date();
                             car.paymentMethod = 'online';
                             car.paymentReference = tx_ref;
+                            // Unflag the car if it was flagged (payment successful)
+                            if (car.isFlagged) {
+                                car.isFlagged = false;
+                            }
                             if (transaction.amount) {
                                 const vatRate = await getVATRate();
                                 const vatBreakdown = reverseCalculateVAT(transaction.amount, vatRate);
@@ -1023,6 +1043,10 @@ paymentRouter.post("/chapa/webhook", async (req, res) => {
                     car.checkedOutAt = new Date();
                     car.paymentMethod = 'online';
                     car.paymentReference = tx_ref;
+                    // Unflag the car if it was flagged (payment successful)
+                    if (car.isFlagged) {
+                        car.isFlagged = false;
+                    }
                     await car.save();
                 }
             }

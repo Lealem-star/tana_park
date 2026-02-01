@@ -174,6 +174,38 @@ parkedCarRouter.get("/", isLoggedIn, async (req, res) => {
     }
 });
 
+// Get all flagged cars (visible to all users) - shows all until they pay
+// IMPORTANT: This route must come BEFORE /:id to avoid route conflicts
+parkedCarRouter.get("/flagged", isLoggedIn, async (req, res) => {
+    try {
+        // Get all cars that are checked_out and either flagged OR have unpaid amounts
+        // This ensures we show all flagged customers until they pay
+        const query = {
+            status: 'checked_out',
+            $or: [
+                { isFlagged: true },
+                // Include checked_out cars with no payment (they should be flagged)
+                { totalPaidAmount: { $exists: false } },
+                { totalPaidAmount: 0 },
+                { totalPaidAmount: null }
+            ]
+        };
+
+        const cars = await ParkedCar.find(query)
+            .populate('valet_id', 'name phoneNumber priceLevel')
+            .populate('flaggedBy', 'name phoneNumber')
+            .populate('checkedOutBy', 'name phoneNumber')
+            .sort({ flaggedAt: -1, checkedOutAt: -1 }); // Most recently flagged/checked out first
+
+        console.log(`[Flagged Cars] Query:`, JSON.stringify(query, null, 2));
+        console.log(`[Flagged Cars] Found ${cars.length} flagged/unpaid cars`);
+        res.json(cars);
+    } catch (error) {
+        console.error("Get flagged cars error - ", error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
 // Get single parked car
 parkedCarRouter.get("/:id", isLoggedIn, async (req, res) => {
     try {
@@ -550,16 +582,25 @@ parkedCarRouter.put("/:id/flag", isLoggedIn, async (req, res) => {
             return res.status(403).json({ error: "You don't have permission to flag this car" });
         }
 
-        // Can only flag parked cars
-        if (car.status !== 'parked') {
-            return res.status(400).json({ error: "Can only flag cars that are currently parked" });
-        }
-
-        // Set checked out time to stop timer
+        // Can flag parked cars or checked_out cars that haven't been paid
         const now = new Date();
-        car.status = 'checked_out';
-        car.checkedOutAt = now;
-        car.checkedOutBy = currentUser._id;
+        
+        if (car.status === 'parked') {
+            // If car is still parked, set checked out time to stop timer
+            car.status = 'checked_out';
+            car.checkedOutAt = now;
+            car.checkedOutBy = currentUser._id;
+        } else if (car.status === 'checked_out') {
+            // If car is already checked out, ensure checkedOutAt is set
+            if (!car.checkedOutAt) {
+                car.checkedOutAt = now;
+            }
+            if (!car.checkedOutBy) {
+                car.checkedOutBy = currentUser._id;
+            }
+        } else {
+            return res.status(400).json({ error: "Can only flag cars that are parked or checked out" });
+        }
         
         // Mark as flagged
         car.isFlagged = true;
@@ -596,22 +637,6 @@ parkedCarRouter.put("/:id/flag", isLoggedIn, async (req, res) => {
         res.json({ message: "Car flagged successfully", car: updatedCar });
     } catch (error) {
         console.error("Flag car error - ", error);
-        res.status(400).json({ error: error.message });
-    }
-});
-
-// Get all flagged cars (visible to all users)
-parkedCarRouter.get("/flagged", isLoggedIn, async (req, res) => {
-    try {
-        const cars = await ParkedCar.find({ isFlagged: true })
-            .populate('valet_id', 'name phoneNumber priceLevel')
-            .populate('flaggedBy', 'name phoneNumber')
-            .populate('checkedOutBy', 'name phoneNumber')
-            .sort({ flaggedAt: -1 });
-
-        res.json(cars);
-    } catch (error) {
-        console.error("Get flagged cars error - ", error);
         res.status(400).json({ error: error.message });
     }
 });
