@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { fetchParkedCars, updateParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchPricingSettings } from '../../api/api';
+import { fetchParkedCars, updateParkedCar, sendSmsNotification, initializeChapaPayment, fetchDailyStats, fetchPricingSettings, flagParkedCar } from '../../api/api';
 import { EthiopianDatePicker } from '../../components';
 import { CheckCircle, Clock, X, Car } from 'lucide-react';
 import '../../css/parkedCarsList.scss';
@@ -166,35 +166,27 @@ const ParkedCarsList = () => {
 
     const handleFlagHim = async () => {
         if (!selectedCar || !feeDetails) return;
-        
+
         setLoading(true);
         try {
-            // Call flag API
-            const response = await fetch(`${process.env.REACT_APP_BASE_URL || 'http://localhost:4000/'}parkedCar/${selectedCar._id}/flag`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${user?.token}`
+            await flagParkedCar({
+                id: selectedCar._id,
+                baseAmount: feeDetails.parkingFee,
+                vatAmount: feeDetails.vatAmount,
+                totalWithVat: feeDetails.totalWithVat,
+                token: user?.token,
+                handleFlagSuccess: () => {
+                    // Refresh cars list and stats
+                    loadCars();
+                    fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
+                    setShowCheckoutModal(false);
+                    setSelectedCar(null);
+                    setFeeDetails(null);
                 },
-                body: JSON.stringify({
-                    baseAmount: feeDetails.parkingFee,
-                    vatAmount: feeDetails.vatAmount,
-                    totalWithVat: feeDetails.totalWithVat
-                })
+                handleFlagFailure: (error) => {
+                    alert(error || 'Failed to flag car');
+                }
             });
-
-            const data = await response.json();
-            
-            if (response.ok) {
-                // Refresh cars list and stats
-                loadCars();
-                fetchDailyStats({ token: user.token, date: selectedDate, setDailyStats });
-                setShowCheckoutModal(false);
-                setSelectedCar(null);
-                setFeeDetails(null);
-            } else {
-                alert(data.error || 'Failed to flag car');
-            }
         } catch (error) {
             console.error('Flag car error:', error);
             alert('Failed to flag car. Please try again.');
