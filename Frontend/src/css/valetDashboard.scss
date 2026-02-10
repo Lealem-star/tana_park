@@ -5,8 +5,8 @@
 
     .sidebar {
         width: 250px;
-        background: white;
-        border-right: 1px solid #e0e0e0;
+        background: #1e1b4b; // dark bluish-purple
+        border-right: 1px solid rgba(15, 23, 42, 0.6);
         display: flex;
         flex-direction: column;
         transition: width 0.3s ease;
@@ -20,12 +20,12 @@
             width: 70px;
         }
 
-            .sidebar-header {
+        .sidebar-header {
             padding: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 
             .logo {
                 display: flex;
@@ -44,7 +44,7 @@
                 .logo-text {
                     white-space: nowrap;
                     flex-shrink: 0;
-                    color: #333;
+                    color: #e5e7eb;
                 }
             }
 
@@ -75,12 +75,12 @@
                 border: none;
                 text-align: left;
                 cursor: pointer;
-                color: #666;
+                color: #e5e7eb;
                 transition: all 0.2s;
                 font-size: 14px;
 
                 &:hover {
-                    background-color: #f5f7fa;
+                    background-color: rgba(255, 255, 255, 0.08);
                     color: #4facfe;
                 }
 
@@ -102,7 +102,7 @@
 
         .sidebar-footer {
             padding: 20px;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
             position: relative;
 
             .user-profile-dropdown {
@@ -118,12 +118,12 @@
                     background: none;
                     border: none;
                     cursor: pointer;
-                    color: #666;
+                    color: #e5e7eb;
                     transition: all 0.2s;
                     border-radius: 8px;
 
                     &:hover {
-                        background-color: #f5f7fa;
+                        background-color: rgba(255, 255, 255, 0.08);
                     }
 
                     .user-avatar {
@@ -372,7 +372,7 @@
 
     .mobile-sidebar {
         width: 280px; /* Slightly wider for better content display */
-        background: white;
+        background: #1e1b4b; // dark bluish-purple to match main sidebar
         height: 100%;
         position: fixed;
         left: 0;
@@ -393,7 +393,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 
             .logo {
                 display: flex;
@@ -412,7 +412,7 @@
                 .logo-text {
                     white-space: nowrap;
                     flex-shrink: 0;
-                    color: #333;
+                    color: #e5e7eb;
                 }
             }
 
@@ -443,12 +443,12 @@
                 border: none;
                 text-align: left;
                 cursor: pointer;
-                color: #666;
+                color: #e5e7eb;
                 transition: all 0.2s;
                 font-size: 14px;
 
                 &:hover {
-                    background-color: #f5f7fa;
+                    background-color: rgba(255, 255, 255, 0.08);
                     color: #4facfe;
                 }
 
