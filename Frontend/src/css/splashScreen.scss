@@ -156,89 +156,66 @@
         animation: moveRight infinite linear;
     }
 
-    .car-body {
+    .vehicle-svg {
         width: 100%;
         height: 100%;
-        border-radius: 8px 8px 4px 4px;
-        position: relative;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        display: block;
+        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
     }
 
-    .car-window {
-        position: absolute;
-        top: 8px;
-        left: 10px;
-        width: 20px;
-        height: 12px;
-        background: rgba(135, 206, 250, 0.6);
-        border-radius: 2px;
-        border: 1px solid rgba(255, 255, 255, 0.3);
+    // default body fill (overridden per type below)
+    .vehicle-svg rect,
+    .vehicle-svg path {
+        fill: #e5e7eb;
     }
 
-    .car-cargo {
-        position: absolute;
-        top: -15px;
-        left: 0;
-        width: 100%;
-        height: 20px;
-        border-radius: 4px 4px 0 0;
+    .vehicle-window {
+        fill: rgba(186, 230, 253, 0.85);
     }
 
-    .car-trailer {
-        position: absolute;
-        top: 0;
-        left: 65px;
-        width: 50px;
-        height: 30px;
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    .vehicle-wheel {
+        fill: rgba(15, 23, 42, 0.9);
     }
 }
 
 // Different Car Types
 .car-tripod {
-    .car-body {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-        height: 30px;
-    }
     width: 50px;
+    height: 28px;
+
+    .vehicle-svg rect,
+    .vehicle-svg path {
+        fill: #ff6b6b;
+    }
 }
 
 .car-automobile {
-    .car-body {
-        background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
-    }
     width: 60px;
     height: 35px;
+
+    .vehicle-svg rect,
+    .vehicle-svg path {
+        fill: #4ecdc4;
+    }
 }
 
 .car-truck {
-    .car-body {
-        background: linear-gradient(135deg, #feca57 0%, #ff9ff3 100%);
-        height: 45px;
-    }
     width: 70px;
     height: 50px;
 
-    .car-cargo {
-        background: linear-gradient(135deg, #ff9ff3 0%, #feca57 100%);
+    .vehicle-svg rect,
+    .vehicle-svg path {
+        fill: #feca57;
     }
 }
 
 .car-trailer {
-    .car-body {
-        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-        height: 40px;
-    }
     width: 80px;
     height: 45px;
 
-    .car-cargo {
-        background: linear-gradient(135deg, #fed6e3 0%, #a8edea 100%);
-    }
-
-    .car-trailer {
-        background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%);
+    .vehicle-svg rect,
+    .vehicle-svg path {
+        fill: #a8edea;
     }
 }
 
