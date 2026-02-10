@@ -600,7 +600,9 @@ const RegisterCar = () => {
                                 required
                             />
                         </div>
+                    </div>
 
+                    <div className="form-row">
                         <div className="form-group">
                             <label>Car Type *</label>
                             <select
@@ -616,9 +618,7 @@ const RegisterCar = () => {
                                 ))}
                             </select>
                         </div>
-                    </div>
 
-                    <div className="form-row">
                         <div className="form-group">
                             <label>{t('valet.phoneNumber')} *</label>
                             <input
