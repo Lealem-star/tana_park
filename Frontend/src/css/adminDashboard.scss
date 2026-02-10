@@ -248,7 +248,7 @@
     }
 
     .dashboard-header {
-        background: white;
+        background: #e0f2fe; // light blue
         padding: 15px 30px;
         display: flex;
         justify-content: space-between;
@@ -357,6 +357,10 @@
         padding: 30px;
         overflow-y: visible;
         overflow-x: hidden;
+        background-image: url('../img/parkingentering.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
     }
 
     .mobile-overlay {
