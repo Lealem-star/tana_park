@@ -63,6 +63,11 @@ const parkedCarSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    // Last generated online payment txRef for this car (for verification consistency)
+    pendingPaymentTxRef: {
+        type: String,
+        default: null
+    },
     plateCode: {
         type: String,
         default: null

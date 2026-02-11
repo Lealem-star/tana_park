@@ -198,7 +198,9 @@ const FlaggedCustomers = () => {
                         // Chapa Inline.js configuration
                         const chapaConfig = {
                             publicKey: chapaPublicKey,
+                            // Provide both txRef and tx_ref so Inline.js uses the exact reference
                             txRef: data.txRef,
+                            tx_ref: data.txRef,
                             amount: formattedAmount,
                             currency: 'ETB',
                             phoneNumber: formattedPhone,

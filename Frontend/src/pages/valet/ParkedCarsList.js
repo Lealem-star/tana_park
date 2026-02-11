@@ -409,7 +409,9 @@ const ParkedCarsList = () => {
                                 publicKey: chapaPublicKey,
                                 
                                 // Transaction reference (required)
+                                // Provide both camelCase and snake_case to match Chapa Inline.js expectations.
                                 txRef: data.txRef,
+                                tx_ref: data.txRef,
                                 
                                 // Amount and currency (required)
                                 amount: formattedAmount, // Must be string

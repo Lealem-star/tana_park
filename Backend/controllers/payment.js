@@ -77,6 +77,11 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
         
         console.log(`[Payment Init] Generated NEW txRef for car ${carId}: ${uniqueTxRef}`);
 
+        // Store the latest pending txRef on the car so we can later verify
+        // that the txRef coming back from Chapa really belongs to this car.
+        car.pendingPaymentTxRef = uniqueTxRef;
+        await car.save();
+
         // NOTE: For Chapa Inline.js, we generate the txRef but let Inline.js handle initialization.
         // Calling Chapa's /initialize API here would reserve the txRef and cause conflicts.
         // Inline.js will initialize the payment using the public key and txRef we provide.
@@ -264,7 +269,9 @@ paymentRouter.post("/chapa/initialize-package", isLoggedIn, async (req, res) => 
 });
 
 // Verify Chapa payment
-paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
+// NOTE: This route does NOT require user authentication because verification
+// is authorized using the Chapa secret key on the server side.
+paymentRouter.get("/chapa/verify/:txRef", async (req, res) => {
     try {
         const { txRef } = req.params;
 
@@ -430,6 +437,15 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
             if (carId && Types.ObjectId.isValid(carId)) {
                 const car = await ParkedCar.findById(carId);
                 console.log(`[Payment Verify] Car found: ${car ? 'YES' : 'NO'}, Car status: ${car?.status}, Payment status: ${normalizedStatus}`);
+
+                // Ensure the txRef we are verifying matches the one we generated for this car.
+                // This prevents using an old or foreign txRef with the wrong carId.
+                if (car && car.pendingPaymentTxRef && car.pendingPaymentTxRef !== txRef) {
+                    console.warn(`[Payment Verify] txRef mismatch for car ${carId}. Expected ${car.pendingPaymentTxRef}, got ${txRef}`);
+                    return res.status(400).json({
+                        error: "Invalid transaction reference for this car"
+                    });
+                }
                 
                 // Check if payment is successful (normalized status)
                 if (car && normalizedStatus === 'successful') {
@@ -458,6 +474,8 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
                         car.vatAmount = vatBreakdown.vatAmount;
                         car.vatRate = vatRate;
                     }
+                    // Clear pending txRef since this payment has been fully processed
+                    car.pendingPaymentTxRef = null;
                     await car.save();
 
                     res.json({
@@ -517,7 +535,8 @@ paymentRouter.get("/chapa/verify/:txRef", isLoggedIn, async (req, res) => {
 });
 
 // Verify Chapa payment for package (creates car after successful payment)
-paymentRouter.get("/chapa/verify-package/:txRef", isLoggedIn, async (req, res) => {
+// Also does not require user auth; secured by Chapa secret key.
+paymentRouter.get("/chapa/verify-package/:txRef", async (req, res) => {
     try {
         const { txRef } = req.params;
 

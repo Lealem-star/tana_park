@@ -52,7 +52,21 @@ const PaymentCallback = () => {
                     // eslint-disable-next-line no-await-in-loop
                     await sleep(delayMs);
                 } catch (error) {
-                    // If it's a network error or API error, continue retrying
+                    const status = error?.response?.status;
+                    const errMsg = (error?.response?.data?.error || error?.message || '').toString().toLowerCase();
+
+                    // Do NOT retry on invalid reference / unauthorized – these are final errors
+                    if (
+                        status === 400 ||
+                        status === 401 ||
+                        errMsg.includes('invalid transaction reference') ||
+                        errMsg.includes('invalid txref') ||
+                        errMsg.includes('transaction reference is invalid')
+                    ) {
+                        throw error;
+                    }
+
+                    // For other network / transient errors, retry up to maxAttempts
                     if (attempt < maxAttempts) {
                         setMessage(`Payment verification error... Retrying (attempt ${attempt}/${maxAttempts})`);
                         // eslint-disable-next-line no-await-in-loop
