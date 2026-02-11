@@ -22,7 +22,8 @@ const port = process.env.PORT || 4000;
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
-    'https://tanapark.vercel.app/',
+    // Production frontend (no trailing slash, must exactly match Origin header)
+    'https://tanapark.vercel.app',
     process.env.FRONTEND_URL
 ].filter(Boolean); // Remove undefined values
 
