@@ -411,7 +411,7 @@ const FlaggedCustomers = () => {
                                         <td>{formatDateTime(car.checkedOutAt)}</td>
                                         <td>{fee.totalWithVat.toFixed(2)} ETB</td>
                                         <td>
-                                            <div className="actions">
+                                            <div className="actions actions-flagged">
                                                 <button
                                                     className="btn-action btn-pay"
                                                     onClick={() => handlePayNow(car)}
