@@ -1,67 +1,41 @@
-.banner {
-    height: 700px;
-    background-image: url('./../img/parking-banner.jpg');
-    background-repeat: no-repeat;
-    background-size: cover;
+.home-splash {
+    position: relative;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 }
 
-.overlay {
-    background: rgba(0, 0, 0, .8);
-    padding: 30px;
-    text-align: center;
+.home-login-btn {
+    display: inline-block;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+    cursor: pointer;
+    margin-top: 1rem;
 
-    h1 {
-        color: #fff;
-        margin-bottom: 20px;
-
-        @media (max-width: 768px) {
-            margin-bottom: 30px;
-            font-size: 28px;
-        }
-
-        span {
-            font-weight: lighter;
-        }
+    @media (max-width: 768px) {
+        width: 100%;
+        max-width: 250px;
+        padding: 14px 32px;
+        font-size: 18px;
     }
 
-    .home-login-btn {
-        display: inline-block;
-        padding: 12px 32px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        text-decoration: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 16px;
-        transition: transform 0.2s, box-shadow 0.2s;
-        border: none;
-        cursor: pointer;
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
 
-        // Hidden on desktop by default, visible on mobile
-        @media (min-width: 769px) {
-            display: none;
-        }
-
-        @media (max-width: 768px) {
-            display: inline-block;
-            width: 100%;
-            max-width: 250px;
-            margin-top: 10px;
-            padding: 14px 32px;
-            font-size: 18px;
-        }
-
-        &:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        &:active {
-            transform: translateY(0);
-        }
+    &:active {
+        transform: translateY(0);
     }
 }
 
