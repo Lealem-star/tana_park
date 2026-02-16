@@ -1,11 +1,10 @@
 import './App.css';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Layout, Home, NoPage, Users, About, Login, Register, AdminDashboard, DashboardOverview, UserManagement, Settings, Reports, GroupChat, ValetDashboard, ValetOverview, RegisterCar, ParkedCarsList, FlaggedCustomers } from './pages/common';
 import Profile from './pages/valet/Profile';
 import PaymentCallback from './pages/valet/PaymentCallback';
-import SplashScreen from './components/SplashScreen';
 import { syncLanguageWithUser } from './utils/languageSync';
 
 // Protected route wrapper - redirects logged-in users away from login/register
@@ -41,7 +40,6 @@ function RootRedirect() {
 }
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
   const user = useSelector((state) => state.user);
 
   // Sync language with user preference
@@ -51,16 +49,9 @@ function App() {
     }
   }, [user?.language]);
 
-  const handleSplashComplete = () => {
-    setShowSplash(false);
-  };
-
   return (
-    <>
-      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
-      {!showSplash && (
-        <BrowserRouter>
-          <Routes>
+    <BrowserRouter>
+      <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<RootRedirect />} />
           <Route path="profile" element={<Profile />} />
@@ -101,8 +92,6 @@ function App() {
         <Route path="*" element={<NoPage />} />
       </Routes>
     </BrowserRouter>
-      )}
-    </>
   );
 }
 
