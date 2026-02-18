@@ -1,25 +1,39 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { pdf } from '@react-pdf/renderer';
+import { EthiopianDateUtil } from 'habesha-datepicker';
 
 // Register fonts for Amharic (Ethiopic script) support
-// @react-pdf/renderer supports Unicode by default, but we register fonts for better rendering
-// Using Noto Sans Ethiopic for Amharic support
+// @react-pdf/renderer requires TTF or OTF format fonts (not WOFF/WOFF2)
+// IMPORTANT: For proper Amharic support, you need to download TTF files:
+// 1. Go to https://fonts.google.com/noto/specimen/Noto+Sans+Ethiopic
+// 2. Download the TTF files (Regular and Bold)
+// 3. Create public/fonts/ folder and place the TTF files there
+// 4. Name them: NotoSansEthiopic-Regular.ttf and NotoSansEthiopic-Bold.ttf
+
+// Try to register Amharic font from local TTF files
 try {
     Font.register({
         family: 'NotoSansEthiopic',
         fonts: [
             {
-                src: 'https://fonts.gstatic.com/s/notosansethiopic/v26/7cHtv4sD05XfeXFEeyuGGOqg5zhkS1n3p3_NHP.woff2',
+                src: '/fonts/NotoSansEthiopic-Regular.ttf',
+                fontWeight: 'normal',
             },
             {
-                src: 'https://fonts.gstatic.com/s/notosansethiopic/v26/7cHrv4sD05XfeXFEeyuGGOqg5zhkS1n3p3_NHP.woff2',
+                src: '/fonts/NotoSansEthiopic-Bold.ttf',
                 fontWeight: 'bold',
             },
         ],
     });
+    console.log('Amharic font registered successfully from local TTF files');
 } catch (e) {
-    console.warn('Could not register Amharic font:', e);
+    console.warn('Amharic font not found. To enable proper Amharic support in PDFs:');
+    console.warn('1. Download Noto Sans Ethiopic TTF files from Google Fonts');
+    console.warn('2. Create public/fonts/ folder');
+    console.warn('3. Place NotoSansEthiopic-Regular.ttf and NotoSansEthiopic-Bold.ttf in public/fonts/');
+    console.warn('PDF will still work but Amharic characters may display incorrectly');
+    // Will fall back to Helvetica which has limited Ethiopic support
 }
 
 // Register Helvetica as fallback (built-in support)
@@ -102,7 +116,7 @@ const styles = StyleSheet.create({
     },
     summaryValue: {
         color: '#3c3c3c',
-        fontFamily: 'Helvetica',
+        fontFamily: 'NotoSansEthiopic',
     },
     table: {
         marginTop: 15,
@@ -152,7 +166,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#3c3c3c',
         marginBottom: 8,
-        fontFamily: 'Helvetica',
+        fontFamily: 'NotoSansEthiopic',
     },
     footer: {
         position: 'absolute',
@@ -185,14 +199,22 @@ const formatCurrency = (amount) => {
     }).format(amount || 0);
 };
 
-// Helper function to format date
+// Helper function to format date in Ethiopian calendar
 const formatDate = (date) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
+    try {
+        const gregorianDate = new Date(date);
+        const ethiopianDate = EthiopianDateUtil.toEth(gregorianDate);
+        // Format as "Day MonthName Year" in Ethiopian calendar
+        return EthiopianDateUtil.formatEtDate(ethiopianDate, 'EC');
+    } catch (e) {
+        // Fallback to Gregorian if conversion fails
+        return new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
 };
 
 // Helper function to get image as base64
@@ -211,7 +233,7 @@ const getImageAsBase64 = () => {
                 return;
             }
 
-            const img = new Image();
+            const img = new window.Image();
             img.crossOrigin = 'Anonymous';
             
             img.onload = () => {
@@ -264,12 +286,20 @@ const FinancialReportPDF = ({ title, subtitle, data, logoBase64, type = 'period'
     const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
 
     const formatEthiopianDate = (dateString) => {
-        const gregorianDate = new Date(dateString);
-        return gregorianDate.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
-        });
+        if (!dateString) return 'N/A';
+        try {
+            const gregorianDate = new Date(dateString);
+            const ethiopianDate = EthiopianDateUtil.toEth(gregorianDate);
+            // Format as "Day MonthName Year" in Ethiopian calendar
+            return EthiopianDateUtil.formatEtDate(ethiopianDate, 'EC');
+        } catch (e) {
+            // Fallback to Gregorian if conversion fails
+            return new Date(dateString).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
     };
 
     // Render header component (reusable)
@@ -288,8 +318,13 @@ const FinancialReportPDF = ({ title, subtitle, data, logoBase64, type = 'period'
     );
 
     // Render summary component
-    const renderSummary = () => (
-        type === 'period' && (
+    const renderSummary = () => {
+        if (type !== 'period') return null;
+        
+        // Calculate total VAT from daily breakdown
+        const totalVAT = (data.dailyBreakdown || []).reduce((sum, item) => sum + (item.dailyVAT || 0), 0);
+        
+        return (
             <View style={styles.summary}>
                 <Text style={styles.summaryTitle}>Summary</Text>
                 <View style={styles.summaryRow}>
@@ -305,14 +340,20 @@ const FinancialReportPDF = ({ title, subtitle, data, logoBase64, type = 'period'
                     </Text>
                 </View>
                 <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total VAT:</Text>
+                    <Text style={styles.summaryValue}>
+                        {formatCurrency(totalVAT)}
+                    </Text>
+                </View>
+                <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Total Cars Parked:</Text>
                     <Text style={styles.summaryValue}>
                         {(data.dailyBreakdown || []).reduce((sum, item) => sum + (item.dailyParkedCar || 0), 0)}
                     </Text>
                 </View>
             </View>
-        )
-    );
+        );
+    };
 
     // Render table for a date
     const renderDateTable = (date, dateItems) => (
