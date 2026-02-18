@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#FFFFFF',
         textAlign: 'center',
-        fontFamily: 'Helvetica',
+        fontFamily: 'NotoSansEthiopic',
     },
     tableRow: {
         flexDirection: 'row',
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
         fontSize: 9,
         color: '#3c3c3c',
         textAlign: 'left',
-        fontFamily: 'Helvetica',
+        fontFamily: 'NotoSansEthiopic',
     },
     tableCellRight: {
         textAlign: 'right',

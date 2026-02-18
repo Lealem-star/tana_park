@@ -229,6 +229,11 @@
         transition: margin-left 0.3s ease;
     }
 
+    // Adjust main content when sidebar is closed
+    .sidebar.closed ~ .main-content {
+        margin-left: 70px;
+    }
+
     .dashboard-header {
         background: #e0f2fe; // light blue
         padding: 15px 30px;

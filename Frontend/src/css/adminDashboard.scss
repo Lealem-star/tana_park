@@ -241,10 +241,11 @@
         display: flex;
         flex-direction: column;
         transition: margin-left 0.3s ease;
+    }
 
-        .admin-dashboard .sidebar.closed ~ .main-content {
-            margin-left: 70px;
-        }
+    // Adjust main content when sidebar is closed
+    .sidebar.closed ~ .main-content {
+        margin-left: 70px;
     }
 
     .dashboard-header {
