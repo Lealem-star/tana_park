@@ -131,7 +131,8 @@ const FlaggedCustomers = () => {
                     const chapaPublicKey = data.publicKey || process.env.REACT_APP_CHAPA_PUBLIC_KEY;
                     
                     if (!chapaPublicKey || !data.txRef) {
-                        alert('Payment system is not configured properly.');
+                        console.error('Chapa public key or txRef is missing');
+                        alert('Payment service is temporarily unavailable. Please try again.');
                         setLoading(false);
                         return;
                     }
@@ -140,7 +141,8 @@ const FlaggedCustomers = () => {
                     const isValidTestKey = chapaPublicKey.startsWith('CHAPUBK_TEST-');
                     const isValidLiveKey = chapaPublicKey.startsWith('CHAPUBK-');
                     if (!isValidTestKey && !isValidLiveKey) {
-                        alert('Invalid public key format. Please check your CHAPA_PUBLIC_KEY in backend .env file.');
+                        console.error('Invalid Chapa public key format. Expected CHAPUBK_TEST-* or CHAPUBK-*');
+                        alert('Payment service is temporarily unavailable. Please try again.');
                         setLoading(false);
                         return;
                     }

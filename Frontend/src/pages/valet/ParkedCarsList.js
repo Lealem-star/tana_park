@@ -271,7 +271,7 @@ const ParkedCarsList = () => {
                         
                         if (!chapaPublicKey) {
                             console.error('Chapa public key is not configured. Please add CHAPA_PUBLIC_KEY to backend .env or REACT_APP_CHAPA_PUBLIC_KEY to frontend .env');
-                            alert('Payment system is not configured. Please contact administrator.');
+                            alert('Payment service is temporarily unavailable. Please try again.');
                             setLoading(false);
                             return;
                         }
@@ -288,7 +288,7 @@ const ParkedCarsList = () => {
                             console.error('Expected format: CHAPUBK_TEST-... (test) or CHAPUBK-... (live)');
                             console.error('Current key starts with:', chapaPublicKey.substring(0, 15));
                             console.error('Full key:', chapaPublicKey);
-                            alert('Invalid public key format. Please check your CHAPA_PUBLIC_KEY in backend .env file.');
+                            alert('Payment service is temporarily unavailable. Please try again.');
                             setLoading(false);
                             return;
                         } else {
@@ -646,7 +646,7 @@ const ParkedCarsList = () => {
                             if (!chapaPublicKey || (!chapaPublicKey.startsWith('CHAPUBK_TEST-') && !chapaPublicKey.startsWith('CHAPUBK_LIVE-'))) {
                                 console.error('Invalid Chapa PUBLIC key format. Inline.js requires CHAPUBK_TEST-* or CHAPUBK_LIVE-*');
                                 console.error('Current key prefix:', chapaPublicKey ? chapaPublicKey.slice(0, 12) : 'MISSING');
-                                alert('Payment configuration error: invalid Chapa public key. Please contact administrator.');
+                                alert('Payment service is temporarily unavailable. Please try again.');
                                 setLoading(false);
                                 return;
                             }

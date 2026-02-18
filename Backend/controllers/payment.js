@@ -65,8 +65,9 @@ paymentRouter.post("/chapa/initialize", isLoggedIn, async (req, res) => {
         // Validate Chapa public key is configured
         if (!CHAPA_PUBLIC_KEY || CHAPA_PUBLIC_KEY.trim() === "") {
             console.error("❌ CHAPA_PUBLIC_KEY is not configured in backend .env file");
+            console.error("⚠️  Please set CHAPA_PUBLIC_KEY in your .env file");
             return res.status(500).json({ 
-                error: "Payment system is not configured. Please contact administrator. (Missing CHAPA_PUBLIC_KEY)" 
+                error: "Payment service is temporarily unavailable. Please try again." 
             });
         }
 
@@ -226,8 +227,9 @@ paymentRouter.post("/chapa/initialize-package", isLoggedIn, async (req, res) => 
         // Validate Chapa public key is configured
         if (!CHAPA_PUBLIC_KEY || CHAPA_PUBLIC_KEY.trim() === "") {
             console.error("❌ CHAPA_PUBLIC_KEY is not configured in backend .env file");
+            console.error("⚠️  Please set CHAPA_PUBLIC_KEY in your .env file");
             return res.status(500).json({ 
-                error: "Payment system is not configured. Please contact administrator. (Missing CHAPA_PUBLIC_KEY)" 
+                error: "Payment service is temporarily unavailable. Please try again." 
             });
         }
 

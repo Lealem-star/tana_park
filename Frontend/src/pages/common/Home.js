@@ -132,9 +132,9 @@ function Home() {
         </div>
 
         {/* Login Button */}
-        <Link to="/login" className="home-login-btn">
-          {t('common.login')}
-        </Link>
+          <Link to="/login" className="home-login-btn">
+            {t('common.login')}
+          </Link>
       </div>
     </div>
   )

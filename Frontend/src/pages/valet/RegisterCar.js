@@ -340,7 +340,8 @@ const RegisterCar = () => {
                     }
 
                     if (!chapaPublicKey) {
-                        setError('Chapa public key is not configured. Please contact administrator.');
+                        console.error('Chapa public key is not configured. Please add CHAPA_PUBLIC_KEY to backend .env');
+                        setError('Payment service is temporarily unavailable. Please try again.');
                         setLoading(false);
                         return;
                     }

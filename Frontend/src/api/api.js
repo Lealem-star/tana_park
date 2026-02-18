@@ -296,70 +296,121 @@ export const sendSmsNotification = async ({ phoneNumber, message, token, handleS
 
 // Chapa Payment API functions
 export const initializeChapaPayment = async ({ carId, amount, customerName, customerEmail, customerPhone, token, handleInitSuccess, handleInitFailure }) => {
-    try {
-        const result = await axios.post(`${BASE_URL}payment/chapa/initialize`, {
-            carId,
-            amount,
-            customerName,
-            customerEmail,
-            customerPhone
-        }, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+    const maxRetries = 2;
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await axios.post(`${BASE_URL}payment/chapa/initialize`, {
+                carId,
+                amount,
+                customerName,
+                customerEmail,
+                customerPhone
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000 // 10 second timeout
+            });
+            
+            if (result?.data?.success) {
+                handleInitSuccess(result.data);
+                return; // Success, exit retry loop
+            } else {
+                // If backend returns an error (not a network issue), don't retry
+                const errorMsg = result?.data?.error || 'Failed to initialize payment';
+                handleInitFailure(errorMsg);
+                return;
             }
-        });
-        if (result?.data?.success) {
-            handleInitSuccess(result.data);
-        } else {
-            handleInitFailure(result?.data?.error || 'Failed to initialize payment');
+        } catch (error) {
+            console.error(`initializeChapaPayment error (attempt ${attempt}/${maxRetries}):`, error);
+            lastError = error;
+            
+            // Check if it's a network/timeout error that we should retry
+            const isNetworkError = !error.response && (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || error.message?.includes('timeout'));
+            const isServerError = error.response?.status >= 500; // 5xx errors might be temporary
+            
+            if ((isNetworkError || isServerError) && attempt < maxRetries) {
+                // Wait a bit before retrying (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                continue; // Retry
+            }
+            
+            // Extract error message - handle both string and object errors
+            let errorMessage = 'Payment service is temporarily unavailable. Please try again.';
+            if (error?.response?.data?.error) {
+                errorMessage = typeof error.response.data.error === 'string' 
+                    ? error.response.data.error 
+                    : JSON.stringify(error.response.data.error);
+            } else if (error?.message && !isNetworkError) {
+                errorMessage = error.message;
+            }
+            
+            handleInitFailure(errorMessage);
+            return; // Don't retry on final attempt or non-retryable errors
         }
-    } catch (error) {
-        console.error('initializeChapaPayment error:', error);
-        // Extract error message - handle both string and object errors
-        let errorMessage = 'Failed to initialize payment';
-        if (error?.response?.data?.error) {
-            errorMessage = typeof error.response.data.error === 'string' 
-                ? error.response.data.error 
-                : JSON.stringify(error.response.data.error);
-        } else if (error?.message) {
-            errorMessage = error.message;
-        }
-        handleInitFailure(errorMessage);
     }
 };
 
 // Initialize package payment (no carId) - payment-first flow
 export const initializePackagePayment = async ({ amount, packageDuration, customerPhone, carData, token, handleInitSuccess, handleInitFailure }) => {
-    try {
-        const result = await axios.post(`${BASE_URL}payment/chapa/initialize-package`, {
-            amount,
-            packageDuration,
-            customerPhone,
-            serviceType: 'package',
-            carData
-        }, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+    const maxRetries = 2;
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await axios.post(`${BASE_URL}payment/chapa/initialize-package`, {
+                amount,
+                packageDuration,
+                customerPhone,
+                serviceType: 'package',
+                carData
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000 // 10 second timeout
+            });
+            
+            if (result?.data?.success) {
+                handleInitSuccess(result.data);
+                return; // Success, exit retry loop
+            } else {
+                // If backend returns an error (not a network issue), don't retry
+                const errorMsg = result?.data?.error || 'Failed to initialize package payment';
+                handleInitFailure(errorMsg);
+                return;
             }
-        });
-        if (result?.data?.success) {
-            handleInitSuccess(result.data);
-        } else {
-            handleInitFailure(result?.data?.error || 'Failed to initialize package payment');
+        } catch (error) {
+            console.error(`initializePackagePayment error (attempt ${attempt}/${maxRetries}):`, error);
+            lastError = error;
+            
+            // Check if it's a network/timeout error that we should retry
+            const isNetworkError = !error.response && (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || error.message?.includes('timeout'));
+            const isServerError = error.response?.status >= 500; // 5xx errors might be temporary
+            
+            if ((isNetworkError || isServerError) && attempt < maxRetries) {
+                // Wait a bit before retrying (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                continue; // Retry
+            }
+            
+            // Extract error message - handle both string and object errors
+            let errorMessage = 'Payment service is temporarily unavailable. Please try again.';
+            if (error?.response?.data?.error) {
+                errorMessage = typeof error.response.data.error === 'string' 
+                    ? error.response.data.error 
+                    : JSON.stringify(error.response.data.error);
+            } else if (error?.message && !isNetworkError) {
+                errorMessage = error.message;
+            }
+            
+            handleInitFailure(errorMessage);
+            return; // Don't retry on final attempt or non-retryable errors
         }
-    } catch (error) {
-        console.error('initializePackagePayment error:', error);
-        let errorMessage = 'Failed to initialize package payment';
-        if (error?.response?.data?.error) {
-            errorMessage = typeof error.response.data.error === 'string' 
-                ? error.response.data.error 
-                : JSON.stringify(error.response.data.error);
-        } else if (error?.message) {
-            errorMessage = error.message;
-        }
-        handleInitFailure(errorMessage);
     }
 };
 

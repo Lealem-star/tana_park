@@ -50,8 +50,8 @@ function App() {
   }, [user?.language]);
 
   return (
-    <BrowserRouter>
-      <Routes>
+        <BrowserRouter>
+          <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<RootRedirect />} />
           <Route path="profile" element={<Profile />} />
