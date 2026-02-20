@@ -13,11 +13,13 @@ const parkedCarSchema = new mongoose.Schema({
     },
     model: {
         type: String,
-        required: true
+        required: false,
+        default: ''
     },
     color: {
         type: String,
-        required: true
+        required: false,
+        default: ''
     },
     location: {
         type: String,

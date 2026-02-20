@@ -19,7 +19,7 @@ parkedCarRouter.post("/", isLoggedIn, async (req, res) => {
             return res.status(403).json({ error: "Only valets can register parked cars" });
         }
 
-        let { plateCode, region, licensePlateNumber, carType, model, color, phoneNumber, notes, serviceType, packageDuration } = req.body;
+        let { plateCode, region, licensePlateNumber, carType, model = '', color = '', phoneNumber, notes, serviceType, packageDuration } = req.body;
 
         // Input validation
         const schema = Joi.object({
@@ -27,8 +27,8 @@ parkedCarRouter.post("/", isLoggedIn, async (req, res) => {
             region: Joi.string().required().trim(),
             licensePlateNumber: Joi.string().required().trim(),
             carType: Joi.string().valid('tripod', 'automobile', 'truck', 'trailer').required(),
-            model: Joi.string().required().trim(),
-            color: Joi.string().required().trim(),
+            model: Joi.string().allow('').optional(),
+            color: Joi.string().allow('').optional(),
             phoneNumber: Joi.string().required().trim(),
             notes: Joi.string().allow('').optional(),
             serviceType: Joi.string().valid('hourly', 'package').default('hourly'),
